@@ -3,931 +3,1169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="SMS簡訊">
-  <title>SMS 客戶簡訊編輯</title>
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%234F46E5' width='100' height='100'/><text y='70' font-size='70' text-anchor='middle' x='50' fill='white'>📱</text></svg>">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>SMS 客戶管理系統</title>
   <style>
-    body {
-      font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    .draft-badge {
-      background: #FEF3C7;
-      color: #92400E;
-      font-size: 0.75rem;
-      padding: 0.125rem 0.5rem;
-      border-radius: 0.25rem;
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+    }
+
+    .sync-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.2);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .sync-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+
+    .sync-indicator.offline {
+      background: #f87171;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .tabs {
+      display: flex;
+      background: #f8f9fa;
+      border-bottom: 2px solid #e9ecef;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: 600;
+      color: #6c757d;
+      transition: all 0.3s;
+      border: none;
+      background: none;
+      font-size: 16px;
+    }
+
+    .tab.active {
+      color: #667eea;
+      background: white;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 30px;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #495057;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-group textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #ffc107;
+      color: #000;
+    }
+
+    .btn-small {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .order-card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 2px solid #e9ecef;
+      transition: all 0.3s;
+    }
+
+    .order-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+
+    .order-card.selected {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .order-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: #6c757d;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .template-card {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 15px;
+      border: 2px solid #e9ecef;
+    }
+
+    .template-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .template-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #212529;
+    }
+
+    .template-content {
+      color: #495057;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6c757d;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .badge-draft {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge-sent {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .sms-preview {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 15px;
+      margin-top: 10px;
+      border-left: 4px solid #667eea;
+    }
+
+    .sms-preview-label {
+      font-size: 12px;
+      color: #6c757d;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .sms-preview-content {
+      color: #212529;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #212529;
+    }
+
+    .alert {
+      padding: 15px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+      animation: slideDown 0.3s;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .alert-info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        border-radius: 0;
+      }
+
+      .header h1 {
+        font-size: 24px;
+      }
+
+      .tab {
+        padding: 15px 10px;
+        font-size: 14px;
+      }
+
+      .tab-content {
+        padding: 20px;
+      }
+
+      .order-info {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen p-6">
-  <div class="max-w-7xl mx-auto">
-    <!-- 標題 -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-        </svg>
-        SMS 客戶簡訊編輯
-      </h1>
-      <p class="text-gray-600 mt-2">選擇客戶 → 套用範本 → 預覽 → 發送</p>
-    </div>
-
-    <!-- 操作流程提示 -->
-    <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-lg p-4">
-      <div class="flex items-start gap-3">
-        <svg class="w-6 h-6 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        <div class="flex-1">
-          <strong class="text-indigo-900">使用步驟：</strong>
-          <ol class="mt-2 space-y-1 text-sm text-gray-700">
-            <li>1️⃣ 批量匯入或新增客戶訂單</li>
-            <li>2️⃣ 勾選要發送簡訊的客戶</li>
-            <li>3️⃣ 在下方選擇簡訊範本（會自動套用客戶資訊）</li>
-            <li>4️⃣ 預覽每位客戶的簡訊內容</li>
-            <li>5️⃣ 點擊「發送」或「儲存草稿」</li>
-          </ol>
-        </div>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📱 SMS 客戶管理系統</h1>
+      <div class="sync-status">
+        <div class="sync-indicator" id="syncIndicator"></div>
+        <span id="syncStatus">雲端同步中...</span>
       </div>
     </div>
 
-    <!-- 訂單管理區 -->
-    <div class="bg-white rounded-lg shadow-md mb-6">
-      <div class="border-b p-6">
-        <div class="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h2 class="text-xl font-bold flex items-center gap-2">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-              </svg>
-              客戶訂單列表
-              <span class="text-sm font-normal text-gray-500" id="orderCount">(0 筆)</span>
-              <span class="text-sm font-normal text-indigo-600" id="selectedCount"></span>
-            </h2>
-            <p class="text-gray-600 text-sm mt-1">勾選要發送簡訊的客戶</p>
-          </div>
-          <div class="flex gap-2 flex-wrap">
-            <button onclick="selectAllOrders()" class="px-4 py-2 border border-indigo-300 text-indigo-600 rounded-md hover:bg-indigo-50 flex items-center gap-2 text-sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              全選
-            </button>
-            <button onclick="deselectAllOrders()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
-              取消全選
-            </button>
-            <button onclick="showImportDialog()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2 text-sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-              </svg>
-              批量匯入
-            </button>
-            <button onclick="addSingleOrder()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-              </svg>
-              新增單筆
-            </button>
-            <button onclick="clearAllOrders()" class="px-4 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-2 text-sm">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-              清空列表
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- 訂單列表 -->
-      <div class="p-6">
-        <div id="orderListEmpty" class="text-center py-12 text-gray-500">
-          <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-          </svg>
-          <p class="text-lg font-medium">尚無訂單資料</p>
-          <p class="text-sm mt-2">點擊「批量匯入」或「新增單筆」開始</p>
-        </div>
-        
-        <div id="orderListContainer" class="hidden space-y-3"></div>
-      </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('orders')">📋 訂單管理</button>
+      <button class="tab" onclick="switchTab('templates')">💬 簡訊範本</button>
+      <button class="tab" onclick="switchTab('send')">📤 發送簡訊</button>
     </div>
 
-    <!-- 簡訊範本選擇區 -->
-    <div id="templateSection" class="hidden bg-white rounded-lg shadow-md mb-6">
-      <div class="border-b p-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-          </svg>
-          選擇簡訊範本
-        </h2>
-        <p class="text-gray-600 text-sm mt-1">選擇範本後會自動套用到已勾選的客戶</p>
+    <div id="ordersTab" class="tab-content active">
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="showAddOrderModal()">➕ 新增單筆訂單</button>
+        <button class="btn btn-secondary" onclick="showBulkImportModal()">📥 批量匯入</button>
+        <button class="btn btn-success" onclick="exportOrders()">💾 匯出訂單</button>
+        <button class="btn btn-danger" onclick="clearAllOrders()">🗑️ 清空所有訂單</button>
       </div>
-      <div class="p-6 space-y-4">
-        <!-- 範本管理 -->
-        <div>
-          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
-            <label class="block text-sm font-medium">快速範本</label>
-            <div class="flex gap-2 flex-wrap">
-              <button onclick="openTemplateDialog()" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                新增範本
-              </button>
-            </div>
-          </div>
-          <select id="templateSelect" onchange="applyTemplate()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">選擇範本...</option>
-          </select>
-        </div>
 
-        <!-- 自訂範本列表 -->
-        <div id="customTemplatesList" class="hidden">
-          <label class="block text-sm font-medium mb-2">我的自訂範本</label>
-          <div id="customTemplatesContainer" class="space-y-2"></div>
-        </div>
-
-        <!-- 手動編輯 -->
-        <div>
-          <label class="block text-sm font-medium mb-2">或手動編輯範本</label>
-          <div class="flex flex-wrap gap-2 mb-2">
-            <button onclick="insertVariable('{customerName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 姓名</button>
-            <button onclick="insertVariable('{orderNumber}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 訂單號</button>
-            <button onclick="insertVariable('{storeName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 門市名稱</button>
-            <button onclick="insertVariable('{pickupDeadline}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 取貨期限</button>
-          </div>
-          <textarea id="message" rows="6" placeholder="輸入簡訊內容，使用 {customerName}、{orderNumber}、{storeName}、{pickupDeadline} 作為變數..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" oninput="updateManualTemplate()"></textarea>
-          <p class="text-sm text-gray-500 mt-2">
-            字數：<span id="charCount">0</span>/160
-            <span id="overLimit" class="text-red-500 ml-2 hidden">⚠️ 超過字數限制！</span>
-          </p>
-        </div>
-
-        <div class="flex gap-3">
-          <button onclick="applyManualTemplate()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-            </svg>
-            套用到選取的客戶
-          </button>
-        </div>
-      </div>
+      <div id="ordersList"></div>
     </div>
 
-    <!-- 預覽區 -->
-    <div id="previewSection" class="hidden bg-white rounded-lg shadow-md mb-6">
-      <div class="border-b p-6">
-        <h2 class="text-xl font-bold flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-          </svg>
-          簡訊預覽
-          <span class="text-sm font-normal text-gray-500" id="previewCount"></span>
-        </h2>
-        <p class="text-gray-600 text-sm mt-1">確認每位客戶的簡訊內容</p>
+    <div id="templatesTab" class="tab-content">
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="showAddTemplateModal()">➕ 新增範本</button>
+        <button class="btn btn-success" onclick="exportTemplates()">💾 匯出範本</button>
+        <button class="btn btn-secondary" onclick="importTemplates()">📥 匯入範本</button>
       </div>
-      <div class="p-6">
-        <div id="previewContainer" class="space-y-4"></div>
+
+      <div id="templatesList"></div>
+    </div>
+
+    <div id="sendTab" class="tab-content">
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="selectAllOrders" onchange="toggleSelectAll()">
+          全選所有訂單
+        </label>
       </div>
-      <div class="border-t p-6 flex gap-3 flex-wrap">
-        <button onclick="saveDrafts()" class="px-6 py-3 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-          </svg>
-          儲存草稿
-        </button>
-        <button onclick="sendAllSMS()" class="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-2 font-medium">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-          </svg>
-          開始發送簡訊
-        </button>
+
+      <div class="form-group">
+        <label>選擇簡訊範本</label>
+        <select id="templateSelect" onchange="previewTemplate()">
+          <option value="">-- 請選擇範本 --</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>範本內容（可編輯）</label>
+        <textarea id="templatePreview" placeholder="選擇範本後會顯示在這裡..."></textarea>
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="applyTemplateToSelected()">✅ 套用到選取的客戶</button>
+        <button class="btn btn-warning" onclick="saveDrafts()">💾 儲存草稿</button>
+        <button class="btn btn-success" onclick="startSending()">📤 開始發送簡訊</button>
+      </div>
+
+      <div id="sendOrdersList"></div>
+    </div>
+  </div>
+
+  <!-- 新增訂單 Modal -->
+  <div id="addOrderModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">新增訂單</div>
+      <div class="form-group">
+        <label>手機號碼 *</label>
+        <input type="tel" id="orderPhone" placeholder="0912345678">
+      </div>
+      <div class="form-group">
+        <label>客戶姓名 *</label>
+        <input type="text" id="orderName" placeholder="王小明">
+      </div>
+      <div class="form-group">
+        <label>訂單號碼</label>
+        <input type="text" id="orderNumber" placeholder="A12345">
+      </div>
+      <div class="form-group">
+        <label>門市類別</label>
+        <select id="orderStoreType">
+          <option value="全家">全家</option>
+          <option value="7-11">7-11</option>
+          <option value="萊爾富">萊爾富</option>
+          <option value="OK超商">OK超商</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>門市名稱</label>
+        <input type="text" id="orderStoreName" placeholder="台北車站店">
+      </div>
+      <div class="form-group">
+        <label>取貨月份</label>
+        <input type="number" id="orderMonth" min="1" max="12" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label>取貨日期</label>
+        <input type="number" id="orderDay" min="1" max="31" placeholder="15">
+      </div>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="addOrder()">✅ 確認新增</button>
+        <button class="btn btn-secondary" onclick="closeModal('addOrderModal')">❌ 取消</button>
       </div>
     </div>
   </div>
 
-  <!-- 批量匯入對話框 -->
-  <div id="importDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-      <div class="p-6 border-b">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold">批量匯入訂單</h3>
-          <button onclick="closeImportDialog()" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
+  <!-- 批量匯入 Modal -->
+  <div id="bulkImportModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">批量匯入訂單</div>
+      <div class="alert alert-info show">
+        請貼上 Excel 資料，格式：手機號碼、姓名、訂單號碼、門市類別、門市名稱、月、日（用 Tab 或逗號分隔）
       </div>
-      <div class="p-6 space-y-4">
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p class="text-sm font-medium mb-2">📋 資料格式說明：</p>
-          <p class="text-sm text-gray-700 mb-2">請按照以下格式貼上資料（每行一筆訂單，用 Tab 或逗號分隔）：</p>
-          <code class="text-xs bg-white px-2 py-1 rounded block">手機號碼, 姓名, 訂單號碼, 門市類別, 門市名稱, 月, 日</code>
-          <p class="text-xs text-gray-600 mt-2">範例：0912345678, 王小明, ORD001, 7-11, 信義門市, 1, 20</p>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium mb-2">方式一：貼上資料</label>
-          <textarea id="importData" rows="10" placeholder="從 Excel 複製後貼上，或手動輸入..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"></textarea>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium mb-2">方式二：上傳 CSV 檔案</label>
-          <input type="file" id="importCsvFile" accept=".csv,.txt" onchange="handleCsvUpload(event)" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-        </div>
-
-        <div id="importPreview" class="hidden">
-          <label class="block text-sm font-medium mb-2">預覽（將匯入 <span id="importCount">0</span> 筆）</label>
-          <div class="border rounded-lg overflow-auto max-h-60">
-            <table class="w-full text-sm">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-3 py-2 text-left">手機</th>
-                  <th class="px-3 py-2 text-left">姓名</th>
-                  <th class="px-3 py-2 text-left">訂單號</th>
-                  <th class="px-3 py-2 text-left">門市類別</th>
-                  <th class="px-3 py-2 text-left">門市名稱</th>
-                  <th class="px-3 py-2 text-left">取貨期限</th>
-                </tr>
-              </thead>
-              <tbody id="importPreviewBody"></tbody>
-            </table>
-          </div>
-        </div>
+      <div class="form-group">
+        <label>貼上資料</label>
+        <textarea id="bulkImportData" rows="10" placeholder="0912345678	王小明	A12345	全家	台北車站店	1	15"></textarea>
       </div>
-      <div class="p-6 border-t flex justify-between flex-wrap gap-3">
-        <button onclick="downloadTemplate()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-          </svg>
-          下載範本
-        </button>
-        <div class="flex gap-3 flex-wrap">
-          <button onclick="closeImportDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm">取消</button>
-          <button onclick="previewImport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">預覽資料</button>
-          <button onclick="confirmImport()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">確認匯入</button>
-        </div>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="bulkImport()">✅ 確認匯入</button>
+        <button class="btn btn-secondary" onclick="closeModal('bulkImportModal')">❌ 取消</button>
       </div>
     </div>
   </div>
 
-  <!-- 單筆新增對話框 -->
-  <div id="singleOrderDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <div class="p-6 border-b">
-        <h3 class="text-xl font-bold">新增訂單</h3>
+  <!-- 新增範本 Modal -->
+  <div id="addTemplateModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">新增簡訊範本</div>
+      <div class="alert alert-info show">
+        可用變數：{姓名}、{訂單號碼}、{門市類別}、{門市名稱}、{月}、{日}
       </div>
-      <div class="p-6 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium mb-1">手機號碼 *</label>
-            <input type="tel" id="singlePhone" placeholder="0912345678" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">客戶姓名 *</label>
-            <input type="text" id="singleName" placeholder="王小明" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">訂單號碼 *</label>
-            <input type="text" id="singleOrder" placeholder="ORD001" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">門市類別 *</label>
-            <select id="singleStoreType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-              <option value="">請選擇</option>
-              <option value="7-11">7-11</option>
-              <option value="全家">全家</option>
-              <option value="其他">其他</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">門市名稱 *</label>
-            <input type="text" id="singleStoreName" placeholder="信義門市" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-          </div>
-          <div>
-            <label class="block text-sm font-medium mb-1">取貨期限 *</label>
-            <div class="flex gap-2">
-              <select id="singleMonth" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
-                <option value="">月</option>
-                <option value="01">1月</option>
-                <option value="02">2月</option>
-                <option value="03">3月</option>
-                <option value="04">4月</option>
-                <option value="05">5月</option>
-                <option value="06">6月</option>
-                <option value="07">7月</option>
-                <option value="08">8月</option>
-                <option value="09">9月</option>
-                <option value="10">10月</option>
-                <option value="11">11月</option>
-                <option value="12">12月</option>
-              </select>
-              <select id="singleDay" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
-                <option value="">日</option>
-              </select>
-            </div>
-          </div>
-        </div>
+      <div class="form-group">
+        <label>範本名稱 *</label>
+        <input type="text" id="templateName" placeholder="取貨通知">
       </div>
-      <div class="p-6 border-t flex justify-end gap-3">
-        <button onclick="closeSingleOrderDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
-        <button onclick="confirmSingleOrder()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">新增</button>
+      <div class="form-group">
+        <label>範本內容 *</label>
+        <textarea id="templateContent" placeholder="親愛的{姓名}您好，您的訂單{訂單號碼}已送達{門市類別}{門市名稱}，請於{月}月{日}日前取貨。"></textarea>
+      </div>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="addTemplate()">✅ 確認新增</button>
+        <button class="btn btn-secondary" onclick="closeModal('addTemplateModal')">❌ 取消</button>
       </div>
     </div>
   </div>
 
-  <!-- 範本對話框 -->
-  <div id="templateDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      <div class="p-6 border-b">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xl font-bold" id="dialogTitle">新增範本</h3>
-          <button onclick="closeTemplateDialog()" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <p class="text-sm text-gray-600 mt-1">建立您的自訂簡訊範本，可使用變數：{customerName}, {orderNumber}, {storeName}, {pickupDeadline}</p>
+  <!-- 編輯簡訊 Modal -->
+  <div id="editSmsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">編輯簡訊內容</div>
+      <div class="form-group">
+        <label>客戶：<span id="editSmsCustomer"></span></label>
       </div>
-      <div class="p-6 space-y-4">
-        <div>
-          <label class="block text-sm font-medium mb-1">範本名稱</label>
-          <input type="text" id="newTemplateName" placeholder="例如：週末促銷通知" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">範本內容</label>
-          <textarea id="newTemplateContent" rows="6" placeholder="輸入範本內容..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button onclick="insertTemplateVariable('{customerName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 姓名</button>
-          <button onclick="insertTemplateVariable('{orderNumber}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 訂單號</button>
-          <button onclick="insertTemplateVariable('{storeName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 門市名稱</button>
-          <button onclick="insertTemplateVariable('{pickupDeadline}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 取貨期限</button>
-        </div>
+      <div class="form-group">
+        <label>簡訊內容</label>
+        <textarea id="editSmsContent" rows="6"></textarea>
       </div>
-      <div class="p-6 border-t flex justify-end gap-3">
-        <button onclick="closeTemplateDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
-        <button onclick="saveTemplate()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">儲存範本</button>
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="saveEditedSms()">✅ 儲存</button>
+        <button class="btn btn-secondary" onclick="closeModal('editSmsModal')">❌ 取消</button>
       </div>
     </div>
   </div>
 
-  <script>
-    const preloadedTemplates = [
-      {"name": "到貨通知(已付款)", "content": "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"},
-      {"name": "第一天 到貨通知(未付款)", "content": "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"},
-      {"name": "第3天 到貨通知(未付款)", "content": "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"},
-      {"name": "第5天 到貨通知(未付款)", "content": "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"},
-      {"name": "第6天 到貨通知(未付款)", "content": "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"}
-    ];
+  <script type="module">
+    // Firebase 初始化
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getDatabase, ref, set, get, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-    let customTemplates = [];
-    try {
-      const stored = localStorage.getItem('customTemplates');
-      if (stored) {
-        customTemplates = JSON.parse(stored);
-      } else {
-        customTemplates = preloadedTemplates;
-        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
-      }
-    } catch (error) {
-      customTemplates = preloadedTemplates;
-      localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
-    }
-    
-    let editingTemplateId = null;
-    let orders = [];
-    try {
-      const storedOrders = localStorage.getItem('orders');
-      if (storedOrders) orders = JSON.parse(storedOrders);
-    } catch (error) {
-      orders = [];
-    }
-    let previewData = [];
-    let selectedOrders = new Set();
-    let messageDrafts = {};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDcKclyNssDs08E0DIwfrc7lzq3QQL4QS8",
+      authDomain: "sms-miris.firebaseapp.com",
+      databaseURL: "https://sms-miris-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "sms-miris",
+      storageBucket: "sms-miris.firebasestorage.app",
+      messagingSenderId: "340097404227",
+      appId: "1:340097404227:web:554901219608cbed42f3f6"
+    };
 
-    document.addEventListener('DOMContentLoaded', function() {
-      loadCustomTemplates();
-      initializeDayOptions();
-      renderOrderList();
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // 全域變數
+    window.orders = [];
+    window.templates = [];
+    window.selectedOrders = new Set();
+    window.smsContent = {};
+    window.currentEditingPhone = null;
+
+    // 同步狀態
+    let isOnline = navigator.onLine;
+    updateSyncStatus();
+
+    window.addEventListener('online', () => {
+      isOnline = true;
+      updateSyncStatus();
+      syncToCloud();
     });
 
-    function initializeDayOptions() {
-      const select = document.getElementById('singleDay');
-      for (let i = 1; i <= 31; i++) {
-        const option = document.createElement('option');
-        option.value = i.toString().padStart(2, '0');
-        option.textContent = i + '日';
-        select.appendChild(option);
-      }
-    }
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      updateSyncStatus();
+    });
 
-    function renderOrderList() {
-      const container = document.getElementById('orderListContainer');
-      const empty = document.getElementById('orderListEmpty');
-      const count = document.getElementById('orderCount');
-      const selectedCount = document.getElementById('selectedCount');
+    function updateSyncStatus() {
+      const indicator = document.getElementById('syncIndicator');
+      const status = document.getElementById('syncStatus');
       
-      count.textContent = `(${orders.length} 筆)`;
-      selectedCount.textContent = selectedOrders.size > 0 ? `已選 ${selectedOrders.size} 筆` : '';
-
-      if (orders.length === 0) {
-        container.classList.add('hidden');
-        empty.classList.remove('hidden');
-        document.getElementById('templateSection').classList.add('hidden');
-        document.getElementById('previewSection').classList.add('hidden');
-        return;
-      }
-
-      empty.classList.add('hidden');
-      container.classList.remove('hidden');
-      container.innerHTML = '';
-
-      orders.forEach((order, index) => {
-        const isSelected = selectedOrders.has(index);
-        const hasDraft = messageDrafts[index];
-        
-        const div = document.createElement('div');
-        div.className = `flex items-center gap-4 p-4 rounded-lg border ${isSelected ? 'bg-indigo-50 border-indigo-300' : 'bg-gray-50 border-gray-200'} hover:shadow-md transition-all`;
-        div.innerHTML = `
-          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleOrderSelection(${index})" class="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500">
-          <div class="flex-1 grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div><p class="text-xs text-gray-500">姓名</p><p class="font-medium">${escapeHtml(order.customerName)}</p></div>
-            <div><p class="text-xs text-gray-500">手機</p><p>${escapeHtml(order.phone)}</p></div>
-            <div><p class="text-xs text-gray-500">訂單號</p><p>${escapeHtml(order.orderNumber)}</p></div>
-            <div><p class="text-xs text-gray-500">門市</p><p>${escapeHtml(order.storeType)} ${escapeHtml(order.storeName)}</p></div>
-            <div><p class="text-xs text-gray-500">取貨期限</p><p>${order.pickupMonth}月${order.pickupDay}日</p></div>
-          </div>
-          ${hasDraft ? '<span class="draft-badge">草稿</span>' : ''}
-          <button onclick="deleteOrder(${index})" class="p-2 text-red-500 hover:bg-red-50 rounded">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-          </button>
-        `;
-        container.appendChild(div);
-      });
-
-      updateSections();
-    }
-
-    function toggleOrderSelection(index) {
-      if (selectedOrders.has(index)) {
-        selectedOrders.delete(index);
+      if (isOnline) {
+        indicator.classList.remove('offline');
+        status.textContent = '已連線 - 即時同步';
       } else {
-        selectedOrders.add(index);
-      }
-      renderOrderList();
-    }
-
-    function selectAllOrders() {
-      selectedOrders.clear();
-      orders.forEach((_, index) => selectedOrders.add(index));
-      renderOrderList();
-    }
-
-    function deselectAllOrders() {
-      selectedOrders.clear();
-      renderOrderList();
-    }
-
-    function updateSections() {
-      const hasSelection = selectedOrders.size > 0;
-      document.getElementById('templateSection').classList.toggle('hidden', !hasSelection);
-      
-      if (!hasSelection) {
-        document.getElementById('previewSection').classList.add('hidden');
+        indicator.classList.add('offline');
+        status.textContent = '離線模式';
       }
     }
 
-    function applyTemplate() {
-      const select = document.getElementById('templateSelect');
-      const value = select.value;
-      if (!value || value === '') return;
-      
-      const index = parseInt(value.split('_')[1]);
-      const template = customTemplates[index];
-      document.getElementById('message').value = template.content;
-      updateCharCount();
-      applyManualTemplate();
-    }
+    // 從 Firebase 載入資料
+    function loadFromCloud() {
+      const ordersRef = ref(database, 'orders');
+      const templatesRef = ref(database, 'templates');
 
-    function applyManualTemplate() {
-      const template = document.getElementById('message').value.trim();
-      if (!template) {
-        alert('請先輸入或選擇範本');
-        return;
-      }
-
-      if (selectedOrders.size === 0) {
-        alert('請先勾選要發送的客戶');
-        return;
-      }
-
-      selectedOrders.forEach(index => {
-        const order = orders[index];
-        const message = template
-          .replace(/{customerName}/g, order.customerName)
-          .replace(/{orderNumber}/g, order.orderNumber)
-          .replace(/{storeName}/g, `${order.storeType} ${order.storeName}`)
-          .replace(/{pickupDeadline}/g, `${parseInt(order.pickupMonth)}月${parseInt(order.pickupDay)}日`);
-        messageDrafts[index] = message;
+      onValue(ordersRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          window.orders = data;
+          renderOrders();
+          renderSendOrders();
+        }
       });
 
-      showPreview();
-    }
-
-    function showPreview() {
-      const previewSection = document.getElementById('previewSection');
-      const previewContainer = document.getElementById('previewContainer');
-      const previewCount = document.getElementById('previewCount');
-
-      previewCount.textContent = `(${selectedOrders.size} 則簡訊)`;
-      previewContainer.innerHTML = '';
-
-      selectedOrders.forEach(index => {
-        const order = orders[index];
-        const message = messageDrafts[index];
-
-        const div = document.createElement('div');
-        div.className = 'border rounded-lg p-4 bg-gray-50';
-        div.innerHTML = `
-          <div class="flex items-start justify-between mb-3">
-            <div>
-              <p class="font-medium text-gray-900">${escapeHtml(order.customerName)}</p>
-              <p class="text-sm text-gray-600">${escapeHtml(order.phone)}</p>
-            </div>
-            <button onclick="editDraft(${index})" class="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-              </svg>
-              編輯
-            </button>
-          </div>
-          <div class="bg-white rounded-lg p-3 border border-gray-200">
-            <p class="text-sm text-gray-800 whitespace-pre-wrap">${escapeHtml(message)}</p>
-          </div>
-          <p class="text-xs text-gray-500 mt-2">字數：${message.length} 字元</p>
-        `;
-        previewContainer.appendChild(div);
+      onValue(templatesRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          window.templates = data;
+          renderTemplates();
+          updateTemplateSelect();
+        }
       });
-
-      previewSection.classList.remove('hidden');
-      previewSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    function editDraft(index) {
-      const newMessage = prompt('編輯簡訊內容：', messageDrafts[index]);
-      if (newMessage !== null && newMessage.trim() !== '') {
-        messageDrafts[index] = newMessage.trim();
-        showPreview();
+    // 同步到 Firebase
+    async function syncToCloud() {
+      if (!isOnline) return;
+
+      try {
+        await set(ref(database, 'orders'), window.orders);
+        await set(ref(database, 'templates'), window.templates);
+        console.log('✅ 資料已同步到雲端');
+      } catch (error) {
+        console.error('❌ 同步失敗:', error);
       }
     }
 
-    function saveDrafts() {
-      renderOrderList();
-      alert(`已儲存 ${selectedOrders.size} 則簡訊草稿！`);
-    }
+    window.syncToCloud = syncToCloud;
 
-    function sendAllSMS() {
-      if (selectedOrders.size === 0) {
-        alert('沒有要發送的簡訊');
+    // 初始化
+    loadFromCloud();
+
+    // 切換分頁
+    window.switchTab = function(tabName) {
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      event.target.classList.add('active');
+      document.getElementById(tabName + 'Tab').classList.add('active');
+    };
+
+    // 顯示/關閉 Modal
+    window.showAddOrderModal = function() {
+      document.getElementById('addOrderModal').classList.add('active');
+    };
+
+    window.showBulkImportModal = function() {
+      document.getElementById('bulkImportModal').classList.add('active');
+    };
+
+    window.showAddTemplateModal = function() {
+      document.getElementById('addTemplateModal').classList.add('active');
+    };
+
+    window.closeModal = function(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    };
+
+    // 新增訂單
+    window.addOrder = function() {
+      const phone = document.getElementById('orderPhone').value.trim();
+      const name = document.getElementById('orderName').value.trim();
+      
+      if (!phone || !name) {
+        alert('請填寫手機號碼和姓名');
         return;
       }
 
-      const confirmed = confirm(`確定要發送 ${selectedOrders.size} 則簡訊嗎？\n\n將會逐一開啟簡訊 App 讓您確認發送。`);
-      if (!confirmed) return;
-
-      const indices = Array.from(selectedOrders);
-      let currentIndex = 0;
-
-      function sendNext() {
-        if (currentIndex >= indices.length) {
-          alert('所有簡訊已處理完成！');
-          return;
-        }
-
-        const index = indices[currentIndex];
-        const order = orders[index];
-        const message = messageDrafts[index];
-        const cleanPhone = order.phone.replace(/[^0-9+]/g, '');
-        const encodedMessage = encodeURIComponent(message);
-        
-        window.location.href = `sms:${cleanPhone}&body=${encodedMessage}`;
-        
-        currentIndex++;
-        if (currentIndex < indices.length) {
-          setTimeout(() => {
-            const shouldContinue = confirm(`已處理 ${currentIndex}/${indices.length}\n\n繼續發送下一則？`);
-            if (shouldContinue) {
-              sendNext();
-            }
-          }, 1000);
-        }
-      }
-
-      sendNext();
-    }
-
-    function saveOrders() {
-      localStorage.setItem('orders', JSON.stringify(orders));
-      renderOrderList();
-    }
-
-    function deleteOrder(index) {
-      if (confirm('確定要刪除此訂單嗎？')) {
-        orders.splice(index, 1);
-        selectedOrders.delete(index);
-        delete messageDrafts[index];
-        
-        const newSelectedOrders = new Set();
-        const newMessageDrafts = {};
-        selectedOrders.forEach(oldIndex => {
-          const newIndex = oldIndex > index ? oldIndex - 1 : oldIndex;
-          newSelectedOrders.add(newIndex);
-        });
-        Object.keys(messageDrafts).forEach(oldIndex => {
-          const idx = parseInt(oldIndex);
-          const newIndex = idx > index ? idx - 1 : idx;
-          newMessageDrafts[newIndex] = messageDrafts[oldIndex];
-        });
-        
-        selectedOrders = newSelectedOrders;
-        messageDrafts = newMessageDrafts;
-        saveOrders();
-      }
-    }
-
-    function clearAllOrders() {
-      if (orders.length === 0) {
-        alert('訂單列表已經是空的');
-        return;
-      }
-      if (confirm(`確定要清空所有 ${orders.length} 筆訂單嗎？`)) {
-        orders = [];
-        selectedOrders.clear();
-        messageDrafts = {};
-        saveOrders();
-      }
-    }
-
-    function showImportDialog() {
-      document.getElementById('importDialog').classList.remove('hidden');
-      document.getElementById('importData').value = '';
-      document.getElementById('importPreview').classList.add('hidden');
-      previewData = [];
-    }
-
-    function closeImportDialog() {
-      document.getElementById('importDialog').classList.add('hidden');
-      previewData = [];
-    }
-
-    function handleCsvUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('importData').value = e.target.result;
-        previewImport();
+      const order = {
+        phone,
+        customerName: name,
+        orderNumber: document.getElementById('orderNumber').value.trim(),
+        storeType: document.getElementById('orderStoreType').value,
+        storeName: document.getElementById('orderStoreName').value.trim(),
+        pickupMonth: document.getElementById('orderMonth').value,
+        pickupDay: document.getElementById('orderDay').value
       };
-      reader.readAsText(file);
-      event.target.value = '';
-    }
 
-    function parseImportData(text) {
-      const lines = text.trim().split('\n');
-      const result = [];
-      lines.forEach((line) => {
-        if (!line.trim()) return;
-        const parts = line.includes('\t') ? line.split('\t') : line.split(',');
-        if (parts.length >= 7) {
-          result.push({
-            phone: parts[0].trim(),
-            customerName: parts[1].trim(),
-            orderNumber: parts[2].trim(),
-            storeType: parts[3].trim(),
-            storeName: parts[4].trim(),
-            pickupMonth: parts[5].trim().padStart(2, '0'),
-            pickupDay: parts[6].trim().padStart(2, '0')
+      window.orders.push(order);
+      syncToCloud();
+      renderOrders();
+      renderSendOrders();
+      closeModal('addOrderModal');
+      
+      // 清空表單
+      document.getElementById('orderPhone').value = '';
+      document.getElementById('orderName').value = '';
+      document.getElementById('orderNumber').value = '';
+      document.getElementById('orderStoreName').value = '';
+      document.getElementById('orderMonth').value = '';
+      document.getElementById('orderDay').value = '';
+    };
+
+    // 批量匯入
+    window.bulkImport = function() {
+      const data = document.getElementById('bulkImportData').value.trim();
+      if (!data) {
+        alert('請貼上資料');
+        return;
+      }
+
+      const lines = data.split('\n');
+      let imported = 0;
+
+      lines.forEach(line => {
+        const parts = line.split(/[\t,]/).map(p => p.trim());
+        if (parts.length >= 2) {
+          window.orders.push({
+            phone: parts[0],
+            customerName: parts[1],
+            orderNumber: parts[2] || '',
+            storeType: parts[3] || '全家',
+            storeName: parts[4] || '',
+            pickupMonth: parts[5] || '',
+            pickupDay: parts[6] || ''
           });
+          imported++;
         }
       });
-      return result;
-    }
 
-    function previewImport() {
-      const text = document.getElementById('importData').value;
-      if (!text.trim()) {
-        alert('請先貼上資料');
-        return;
-      }
-      previewData = parseImportData(text);
-      if (previewData.length === 0) {
-        alert('無法解析資料，請檢查格式是否正確');
-        return;
-      }
-      const previewSection = document.getElementById('importPreview');
-      const previewBody = document.getElementById('importPreviewBody');
-      const importCount = document.getElementById('importCount');
-      importCount.textContent = previewData.length;
-      previewBody.innerHTML = '';
-      previewData.forEach(order => {
-        const tr = document.createElement('tr');
-        tr.className = 'border-t';
-        tr.innerHTML = `
-          <td class="px-3 py-2">${escapeHtml(order.phone)}</td>
-          <td class="px-3 py-2">${escapeHtml(order.customerName)}</td>
-          <td class="px-3 py-2">${escapeHtml(order.orderNumber)}</td>
-          <td class="px-3 py-2">${escapeHtml(order.storeType)}</td>
-          <td class="px-3 py-2">${escapeHtml(order.storeName)}</td>
-          <td class="px-3 py-2">${order.pickupMonth}月${order.pickupDay}日</td>
-        `;
-        previewBody.appendChild(tr);
-      });
-      previewSection.classList.remove('hidden');
-    }
+      syncToCloud();
+      renderOrders();
+      renderSendOrders();
+      closeModal('bulkImportModal');
+      document.getElementById('bulkImportData').value = '';
+      alert(`成功匯入 ${imported} 筆訂單`);
+    };
 
-    function confirmImport() {
-      if (previewData.length === 0) {
-        alert('請先預覽資料');
-        return;
+    // 刪除訂單
+    window.deleteOrder = function(index) {
+      if (confirm('確定要刪除這筆訂單嗎？')) {
+        window.orders.splice(index, 1);
+        syncToCloud();
+        renderOrders();
+        renderSendOrders();
       }
-      orders = [...orders, ...previewData];
-      saveOrders();
-      closeImportDialog();
-      alert(`成功匯入 ${previewData.length} 筆訂單！`);
-    }
+    };
 
-    function downloadTemplate() {
-      const template = '手機號碼,姓名,訂單號碼,門市類別,門市名稱,月,日\n0912345678,王小明,ORD001,7-11,信義門市,1,20\n0923456789,李小華,ORD002,全家,中山店,1,21';
-      const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+    // 清空所有訂單
+    window.clearAllOrders = function() {
+      if (confirm('確定要清空所有訂單嗎？此操作無法復原！')) {
+        window.orders = [];
+        window.selectedOrders.clear();
+        window.smsContent = {};
+        syncToCloud();
+        renderOrders();
+        renderSendOrders();
+      }
+    };
+
+    // 匯出訂單
+    window.exportOrders = function() {
+      const dataStr = JSON.stringify(window.orders, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = '訂單匯入範本.csv';
+      link.download = `訂單資料_${new Date().toISOString().split('T')[0]}.json`;
       link.click();
-      URL.revokeObjectURL(url);
-    }
+    };
 
-    function addSingleOrder() {
-      document.getElementById('singleOrderDialog').classList.remove('hidden');
-      ['singlePhone', 'singleName', 'singleOrder', 'singleStoreType', 'singleStoreName', 'singleMonth', 'singleDay'].forEach(id => {
-        document.getElementById(id).value = '';
-      });
-    }
-
-    function closeSingleOrderDialog() {
-      document.getElementById('singleOrderDialog').classList.add('hidden');
-    }
-
-    function confirmSingleOrder() {
-      const order = {
-        phone: document.getElementById('singlePhone').value.trim(),
-        customerName: document.getElementById('singleName').value.trim(),
-        orderNumber: document.getElementById('singleOrder').value.trim(),
-        storeType: document.getElementById('singleStoreType').value,
-        storeName: document.getElementById('singleStoreName').value.trim(),
-        pickupMonth: document.getElementById('singleMonth').value,
-        pickupDay: document.getElementById('singleDay').value
-      };
-      if (!order.phone || !order.customerName || !order.orderNumber || !order.storeType || !order.storeName || !order.pickupMonth || !order.pickupDay) {
-        alert('請填寫完整資料');
+    // 渲染訂單列表
+    function renderOrders() {
+      const container = document.getElementById('ordersList');
+      
+      if (window.orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📦</div>
+            <p>尚無訂單資料</p>
+            <p style="font-size: 14px; margin-top: 10px;">點擊上方按鈕新增訂單</p>
+          </div>
+        `;
         return;
       }
-      orders.push(order);
-      saveOrders();
-      closeSingleOrderDialog();
-      alert('訂單新增成功！');
+
+      container.innerHTML = window.orders.map((order, index) => `
+        <div class="order-card">
+          <div class="order-header">
+            <div style="font-size: 18px; font-weight: 600;">
+              ${order.customerName}
+              ${window.smsContent[order.phone] ? '<span class="badge badge-draft">草稿</span>' : ''}
+            </div>
+            <button class="btn btn-danger btn-small" onclick="deleteOrder(${index})">刪除</button>
+          </div>
+          <div class="order-info">
+            <div class="info-item">
+              <div class="info-label">手機號碼</div>
+              <div class="info-value">${order.phone}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">訂單號碼</div>
+              <div class="info-value">${order.orderNumber || '-'}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">取貨門市</div>
+              <div class="info-value">${order.storeType} ${order.storeName || ''}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">取貨日期</div>
+              <div class="info-value">${order.pickupMonth || '-'}月${order.pickupDay || '-'}日</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
     }
 
-    function insertVariable(variable) {
-      const textarea = document.getElementById('message');
-      const cursorPos = textarea.selectionStart;
-      textarea.value = textarea.value.substring(0, cursorPos) + variable + textarea.value.substring(cursorPos);
-      textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = cursorPos + variable.length;
-      updateCharCount();
-    }
-
-    function updateManualTemplate() {
-      updateCharCount();
-    }
-
-    function updateCharCount() {
-      const message = document.getElementById('message').value;
-      const charCount = document.getElementById('charCount');
-      const overLimit = document.getElementById('overLimit');
-      charCount.textContent = message.length;
-      overLimit.classList.toggle('hidden', message.length <= 160);
-    }
-
-    function openTemplateDialog() {
-      document.getElementById('templateDialog').classList.remove('hidden');
-      document.getElementById('dialogTitle').textContent = '新增範本';
-      document.getElementById('newTemplateName').value = '';
-      document.getElementById('newTemplateContent').value = '';
-      editingTemplateId = null;
-    }
-
-    function closeTemplateDialog() {
-      document.getElementById('templateDialog').classList.add('hidden');
-    }
-
-    function insertTemplateVariable(variable) {
-      const textarea = document.getElementById('newTemplateContent');
-      const cursorPos = textarea.selectionStart;
-      textarea.value = textarea.value.substring(0, cursorPos) + variable + textarea.value.substring(cursorPos);
-      textarea.focus();
-      textarea.selectionStart = textarea.selectionEnd = cursorPos + variable.length;
-    }
-
-    function saveTemplate() {
-      const name = document.getElementById('newTemplateName').value.trim();
-      const content = document.getElementById('newTemplateContent').value.trim();
+    // 新增範本
+    window.addTemplate = function() {
+      const name = document.getElementById('templateName').value.trim();
+      const content = document.getElementById('templateContent').value.trim();
+      
       if (!name || !content) {
         alert('請填寫範本名稱和內容');
         return;
       }
-      try {
-        if (editingTemplateId !== null) {
-          customTemplates[editingTemplateId] = { name, content };
-        } else {
-          customTemplates.push({ name, content });
-        }
-        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
-        loadCustomTemplates();
-        closeTemplateDialog();
-        alert('範本已儲存！');
-      } catch (error) {
-        alert('儲存失敗：' + error.message);
+
+      window.templates.push({ name, content });
+      syncToCloud();
+      renderTemplates();
+      updateTemplateSelect();
+      closeModal('addTemplateModal');
+      
+      document.getElementById('templateName').value = '';
+      document.getElementById('templateContent').value = '';
+    };
+
+    // 刪除範本
+    window.deleteTemplate = function(index) {
+      if (confirm('確定要刪除這個範本嗎？')) {
+        window.templates.splice(index, 1);
+        syncToCloud();
+        renderTemplates();
+        updateTemplateSelect();
       }
+    };
+
+    // 匯出範本
+    window.exportTemplates = function() {
+      const dataStr = JSON.stringify(window.templates, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `簡訊範本_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+    };
+
+    // 匯入範本
+    window.importTemplates = function() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            window.templates = imported;
+            syncToCloud();
+            renderTemplates();
+            updateTemplateSelect();
+            alert('範本匯入成功！');
+          } catch (error) {
+            alert('檔案格式錯誤');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    };
+
+    // 渲染範本列表
+    function renderTemplates() {
+      const container = document.getElementById('templatesList');
+      
+      if (window.templates.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">💬</div>
+            <p>尚無簡訊範本</p>
+            <p style="font-size: 14px; margin-top: 10px;">點擊上方按鈕新增範本</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = window.templates.map((template, index) => `
+        <div class="template-card">
+          <div class="template-header">
+            <div class="template-name">${template.name}</div>
+            <button class="btn btn-danger btn-small" onclick="deleteTemplate(${index})">刪除</button>
+          </div>
+          <div class="template-content">${template.content}</div>
+        </div>
+      `).join('');
     }
 
-    function loadCustomTemplates() {
-      const container = document.getElementById('customTemplatesContainer');
-      const listSection = document.getElementById('customTemplatesList');
+    // 更新範本選單
+    function updateTemplateSelect() {
       const select = document.getElementById('templateSelect');
-      select.innerHTML = '<option value="">選擇範本...</option>';
+      select.innerHTML = '<option value="">-- 請選擇範本 --</option>' +
+        window.templates.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
+    }
 
-      if (customTemplates.length > 0) {
-        listSection.classList.remove('hidden');
-        container.innerHTML = '';
-        customTemplates.forEach((template, index) => {
-          const div = document.createElement('div');
-          div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border';
-          div.innerHTML = `
-            <div class="flex-1 min-w-0">
-              <p class="font-medium text-sm">${escapeHtml(template.name)}</p>
-              <p class="text-xs text-gray-600 mt-1 truncate">${escapeHtml(template.content.substring(0, 50))}...</p>
-            </div>
-            <div class="flex gap-2 ml-4 flex-shrink-0">
-              <button onclick="editTemplate(${index})" class="p-2 hover:bg-gray-200 rounded">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-              </button>
-              <button onclick="deleteTemplate(${index})" class="p-2 hover:bg-gray-200 rounded">
-                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-              </button>
-            </div>
-          `;
-          container.appendChild(div);
-          const option = document.createElement('option');
-          option.value = `custom_${index}`;
-          option.textContent = template.name;
-          select.appendChild(option);
-        });
+    // 預覽範本
+    window.previewTemplate = function() {
+      const select = document.getElementById('templateSelect');
+      const preview = document.getElementById('templatePreview');
+      
+      if (select.value === '') {
+        preview.value = '';
+        return;
+      }
+
+      const template = window.templates[select.value];
+      preview.value = template.content;
+    };
+
+    // 套用範本到選取的客戶
+    window.applyTemplateToSelected = function() {
+      const content = document.getElementById('templatePreview').value.trim();
+      
+      if (!content) {
+        alert('請選擇範本或輸入內容');
+        return;
+      }
+
+      if (window.selectedOrders.size === 0) {
+        alert('請先勾選要發送的客戶');
+        return;
+      }
+
+      window.selectedOrders.forEach(phone => {
+        const order = window.orders.find(o => o.phone === phone);
+        if (order) {
+          window.smsContent[phone] = replacePlaceholders(content, order);
+        }
+      });
+
+      renderSendOrders();
+      renderOrders();
+      alert(`已套用範本到 ${window.selectedOrders.size} 位客戶`);
+    };
+
+    // 替換佔位符
+    function replacePlaceholders(template, order) {
+      return template
+        .replace(/{姓名}/g, order.customerName)
+        .replace(/{訂單號碼}/g, order.orderNumber || '')
+        .replace(/{門市類別}/g, order.storeType)
+        .replace(/{門市名稱}/g, order.storeName || '')
+        .replace(/{月}/g, order.pickupMonth || '')
+        .replace(/{日}/g, order.pickupDay || '');
+    }
+
+    // 全選/取消全選
+    window.toggleSelectAll = function() {
+      const checked = document.getElementById('selectAllOrders').checked;
+      
+      if (checked) {
+        window.orders.forEach(order => window.selectedOrders.add(order.phone));
       } else {
-        listSection.classList.add('hidden');
+        window.selectedOrders.clear();
       }
-    }
+      
+      renderSendOrders();
+    };
 
-    function editTemplate(index) {
-      editingTemplateId = index;
-      document.getElementById('dialogTitle').textContent = '編輯範本';
-      document.getElementById('newTemplateName').value = customTemplates[index].name;
-      document.getElementById('newTemplateContent').value = customTemplates[index].content;
-      document.getElementById('templateDialog').classList.remove('hidden');
-    }
-
-    function deleteTemplate(index) {
-      if (confirm('確定要刪除此範本嗎？')) {
-        customTemplates.splice(index, 1);
-        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
-        loadCustomTemplates();
+    // 切換訂單選取狀態
+    window.toggleOrderSelection = function(phone) {
+      if (window.selectedOrders.has(phone)) {
+        window.selectedOrders.delete(phone);
+      } else {
+        window.selectedOrders.add(phone);
       }
+      renderSendOrders();
+    };
+
+    // 編輯簡訊
+    window.editSms = function(phone) {
+      window.currentEditingPhone = phone;
+      const order = window.orders.find(o => o.phone === phone);
+      document.getElementById('editSmsCustomer').textContent = order.customerName;
+      document.getElementById('editSmsContent').value = window.smsContent[phone] || '';
+      document.getElementById('editSmsModal').classList.add('active');
+    };
+
+    // 儲存編輯的簡訊
+    window.saveEditedSms = function() {
+      const content = document.getElementById('editSmsContent').value.trim();
+      if (content) {
+        window.smsContent[window.currentEditingPhone] = content;
+        renderSendOrders();
+        renderOrders();
+      }
+      closeModal('editSmsModal');
+    };
+
+    // 儲存草稿
+    window.saveDrafts = function() {
+      if (Object.keys(window.smsContent).length === 0) {
+        alert('沒有要儲存的草稿');
+        return;
+      }
+      
+      localStorage.setItem('smsDrafts', JSON.stringify(window.smsContent));
+      renderOrders();
+      alert('草稿已儲存');
+    };
+
+    // 開始發送
+    window.startSending = async function() {
+      const toSend = window.orders.filter(o => window.smsContent[o.phone]);
+      
+      if (toSend.length === 0) {
+        alert('請先套用範本到客戶');
+        return;
+      }
+
+      if (!confirm(`確定要發送 ${toSend.length} 則簡訊嗎？`)) {
+        return;
+      }
+
+      for (let i = 0; i < toSend.length; i++) {
+        const order = toSend[i];
+        const message = window.smsContent[order.phone];
+        const smsUrl = `sms:${order.phone}?body=${encodeURIComponent(message)}`;
+        
+        window.open(smsUrl, '_blank');
+        
+        if (i < toSend.length - 1) {
+          const shouldContinue = confirm(`已開啟第 ${i + 1} 則簡訊\n\n繼續發送下一則？`);
+          if (!shouldContinue) break;
+        }
+      }
+
+      alert('發送完成！');
+    };
+
+    // 渲染發送列表
+    function renderSendOrders() {
+      const container = document.getElementById('sendOrdersList');
+      
+      if (window.orders.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📦</div>
+            <p>尚無訂單資料</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = window.orders.map(order => {
+        const isSelected = window.selectedOrders.has(order.phone);
+        const hasSms = window.smsContent[order.phone];
+        
+        return `
+          <div class="order-card ${isSelected ? 'selected' : ''}">
+            <div class="order-header">
+              <label class="checkbox-label">
+                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                       onchange="toggleOrderSelection('${order.phone}')">
+                <span style="font-size: 18px; font-weight: 600;">
+                  ${order.customerName} (${order.phone})
+                </span>
+              </label>
+              ${hasSms ? '<button class="btn btn-warning btn-small" onclick="editSms(\'' + order.phone + '\')">編輯</button>' : ''}
+            </div>
+            ${hasSms ? `
+              <div class="sms-preview">
+                <div class="sms-preview-label">📱 簡訊預覽</div>
+                <div class="sms-preview-content">${window.smsContent[order.phone]}</div>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
+    // 初始渲染
+    renderOrders();
+    renderTemplates();
+    updateTemplateSelect();
+    renderSendOrders();
   </script>
 </body>
 </html>
