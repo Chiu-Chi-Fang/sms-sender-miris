@@ -67,6 +67,12 @@
               </svg>
               新增單筆
             </button>
+            <button onclick="exportOrders()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              匯出訂單
+            </button>
             <button onclick="clearAllOrders()" class="px-4 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-2 text-sm">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -449,6 +455,22 @@
       }
     }
 
+    function exportOrders() {
+      if (orders.length === 0) {
+        alert('目前沒有訂單可以匯出');
+        return;
+      }
+      const dataStr = JSON.stringify(orders, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'orders-' + new Date().toISOString().split('T')[0] + '.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      alert('訂單已匯出！');
+    }
+
     function sendSMS(index) {
       const order = orders[index];
       const message = document.getElementById('message').value.trim();
@@ -470,6 +492,7 @@
       document.getElementById('importDialog').classList.remove('hidden');
       document.getElementById('importData').value = '';
       document.getElementById('importPreview').classList.add('hidden');
+      previewData = [];
     }
 
     function closeImportDialog() {
@@ -486,6 +509,7 @@
         previewImport();
       };
       reader.readAsText(file);
+      event.target.value = '';
     }
 
     function parseImportData(text) {
