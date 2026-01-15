@@ -678,6 +678,15 @@
     window.smsContent = {};
     window.currentEditingPhone = null;
 
+    // 格式化日期為 MM/DD
+    function formatDateToMMDD(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${month}/${day}`;
+    }
+
     // 同步狀態
     let isOnline = navigator.onLine;
     updateSyncStatus();
@@ -934,7 +943,7 @@
             </div>
             <div class="info-item">
               <div class="info-label">取貨期限</div>
-              <div class="info-value">${order.pickupDeadline || '-'}</div>
+              <div class="info-value">${formatDateToMMDD(order.pickupDeadline) || '-'}</div>
             </div>
           </div>
         </div>
@@ -1087,7 +1096,7 @@
         .replace(/{orderNumber}/g, order.orderNumber || '')
         .replace(/{storeType}/g, order.storeType)
         .replace(/{storeName}/g, order.storeName || '')
-        .replace(/{pickupDeadline}/g, order.pickupDeadline || '');
+        .replace(/{pickupDeadline}/g, formatDateToMMDD(order.pickupDeadline) || '');
     }
 
     // 全選/取消全選
