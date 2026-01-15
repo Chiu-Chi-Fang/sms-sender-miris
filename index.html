@@ -415,6 +415,21 @@
       border: 1px solid #bee5eb;
     }
 
+    .reset-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #dc3545;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 50px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+      z-index: 999;
+    }
+
     @media (max-width: 768px) {
       .container {
         border-radius: 0;
@@ -448,6 +463,8 @@
   </style>
 </head>
 <body>
+  <button class="reset-btn" onclick="resetTemplates()">🔄 重置範本</button>
+
   <div class="container">
     <div class="header">
       <h1>📱 SMS 客戶管理系統</h1>
@@ -544,12 +561,8 @@
         <input type="text" id="orderStoreName" placeholder="台北車站店">
       </div>
       <div class="form-group">
-        <label>取貨月份</label>
-        <input type="number" id="orderMonth" min="1" max="12" placeholder="1">
-      </div>
-      <div class="form-group">
-        <label>取貨日期</label>
-        <input type="number" id="orderDay" min="1" max="31" placeholder="15">
+        <label>取貨期限</label>
+        <input type="date" id="orderDeadline">
       </div>
       <div class="button-group">
         <button class="btn btn-primary" onclick="addOrder()">✅ 確認新增</button>
@@ -563,11 +576,11 @@
     <div class="modal-content">
       <div class="modal-header">批量匯入訂單</div>
       <div class="alert alert-info show">
-        請貼上 Excel 資料，格式：手機號碼、姓名、訂單號碼、門市類別、門市名稱、月、日（用 Tab 或逗號分隔）
+        請貼上 Excel 資料，格式：手機號碼、姓名、訂單號碼、門市類別、門市名稱、取貨期限（用 Tab 或逗號分隔）
       </div>
       <div class="form-group">
         <label>貼上資料</label>
-        <textarea id="bulkImportData" rows="10" placeholder="0912345678	王小明	A12345	全家	台北車站店	1	15"></textarea>
+        <textarea id="bulkImportData" rows="10" placeholder="0912345678	王小明	A12345	全家	台北車站店	2026/01/20"></textarea>
       </div>
       <div class="button-group">
         <button class="btn btn-primary" onclick="bulkImport()">✅ 確認匯入</button>
@@ -581,7 +594,7 @@
     <div class="modal-content">
       <div class="modal-header">新增簡訊範本</div>
       <div class="alert alert-info show">
-        可用變數：{姓名}、{訂單號碼}、{門市類別}、{門市名稱}、{月}、{日}
+        可用變數：{customerName}、{orderNumber}、{storeType}、{storeName}、{pickupDeadline}
       </div>
       <div class="form-group">
         <label>範本名稱 *</label>
@@ -589,7 +602,7 @@
       </div>
       <div class="form-group">
         <label>範本內容 *</label>
-        <textarea id="templateContent" placeholder="親愛的{姓名}您好，您的訂單{訂單號碼}已送達{門市類別}{門市名稱}，請於{月}月{日}日前取貨。"></textarea>
+        <textarea id="templateContent" placeholder="親愛的{customerName}您好，您的訂單{orderNumber}已送達{storeType}{storeName}，請於{pickupDeadline}前取貨。"></textarea>
       </div>
       <div class="button-group">
         <button class="btn btn-primary" onclick="addTemplate()">✅ 確認新增</button>
@@ -634,6 +647,30 @@
     const app = initializeApp(firebaseConfig);
     const database = getDatabase(app);
 
+    // 美莉的家專用範本
+    const defaultTemplates = [
+      {
+        name: "到貨通知(已付款)",
+        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"
+      },
+      {
+        name: "第一天 到貨通知(未付款)",
+        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"
+      },
+      {
+        name: "第3天 到貨通知(未付款)",
+        content: "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+      },
+      {
+        name: "第5天 到貨通知(未付款)",
+        content: "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+      },
+      {
+        name: "第6天 到貨通知(未付款)",
+        content: "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+      }
+    ];
+
     // 全域變數
     window.orders = [];
     window.templates = [];
@@ -669,27 +706,48 @@
       }
     }
 
+    // 重置範本（強制）
+    window.resetTemplates = async function() {
+      if (confirm('確定要重置為預設範本嗎？這會覆蓋現有的所有範本！')) {
+        window.templates = defaultTemplates;
+        await syncToCloud();
+        renderTemplates();
+        updateTemplateSelect();
+        alert('✅ 範本已重置！');
+      }
+    };
+
     // 從 Firebase 載入資料
-    function loadFromCloud() {
+    async function loadFromCloud() {
       const ordersRef = ref(database, 'orders');
       const templatesRef = ref(database, 'templates');
 
       onValue(ordersRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
+        if (data && Array.isArray(data)) {
           window.orders = data;
-          renderOrders();
-          renderSendOrders();
+        } else {
+          window.orders = [];
         }
+        renderOrders();
+        renderSendOrders();
       });
+
+      // 先檢查是否有範本
+      const templatesSnapshot = await get(templatesRef);
+      if (!templatesSnapshot.exists() || !templatesSnapshot.val() || templatesSnapshot.val().length === 0) {
+        console.log('🔧 初始化預設範本...');
+        window.templates = defaultTemplates;
+        await syncToCloud();
+      }
 
       onValue(templatesRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
+        if (data && Array.isArray(data) && data.length > 0) {
           window.templates = data;
-          renderTemplates();
-          updateTemplateSelect();
         }
+        renderTemplates();
+        updateTemplateSelect();
       });
     }
 
@@ -753,8 +811,7 @@
         orderNumber: document.getElementById('orderNumber').value.trim(),
         storeType: document.getElementById('orderStoreType').value,
         storeName: document.getElementById('orderStoreName').value.trim(),
-        pickupMonth: document.getElementById('orderMonth').value,
-        pickupDay: document.getElementById('orderDay').value
+        pickupDeadline: document.getElementById('orderDeadline').value
       };
 
       window.orders.push(order);
@@ -768,8 +825,7 @@
       document.getElementById('orderName').value = '';
       document.getElementById('orderNumber').value = '';
       document.getElementById('orderStoreName').value = '';
-      document.getElementById('orderMonth').value = '';
-      document.getElementById('orderDay').value = '';
+      document.getElementById('orderDeadline').value = '';
     };
 
     // 批量匯入
@@ -792,8 +848,7 @@
             orderNumber: parts[2] || '',
             storeType: parts[3] || '全家',
             storeName: parts[4] || '',
-            pickupMonth: parts[5] || '',
-            pickupDay: parts[6] || ''
+            pickupDeadline: parts[5] || ''
           });
           imported++;
         }
@@ -878,8 +933,8 @@
               <div class="info-value">${order.storeType} ${order.storeName || ''}</div>
             </div>
             <div class="info-item">
-              <div class="info-label">取貨日期</div>
-              <div class="info-value">${order.pickupMonth || '-'}月${order.pickupDay || '-'}日</div>
+              <div class="info-label">取貨期限</div>
+              <div class="info-value">${order.pickupDeadline || '-'}</div>
             </div>
           </div>
         </div>
@@ -961,7 +1016,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">💬</div>
             <p>尚無簡訊範本</p>
-            <p style="font-size: 14px; margin-top: 10px;">點擊上方按鈕新增範本</p>
+            <p style="font-size: 14px; margin-top: 10px;">點擊右下角「🔄 重置範本」載入預設範本</p>
           </div>
         `;
         return;
@@ -1028,12 +1083,11 @@
     // 替換佔位符
     function replacePlaceholders(template, order) {
       return template
-        .replace(/{姓名}/g, order.customerName)
-        .replace(/{訂單號碼}/g, order.orderNumber || '')
-        .replace(/{門市類別}/g, order.storeType)
-        .replace(/{門市名稱}/g, order.storeName || '')
-        .replace(/{月}/g, order.pickupMonth || '')
-        .replace(/{日}/g, order.pickupDay || '');
+        .replace(/{customerName}/g, order.customerName)
+        .replace(/{orderNumber}/g, order.orderNumber || '')
+        .replace(/{storeType}/g, order.storeType)
+        .replace(/{storeName}/g, order.storeName || '')
+        .replace(/{pickupDeadline}/g, order.pickupDeadline || '');
     }
 
     // 全選/取消全選
