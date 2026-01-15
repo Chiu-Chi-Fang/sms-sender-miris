@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="SMS簡訊">
+  <title>SMS 客戶簡訊編輯</title>
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%234F46E5' width='100' height='100'/><text y='70' font-size='70' text-anchor='middle' x='50' fill='white'>📱</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen p-6">
+  <div class="max-w-6xl mx-auto">
+    <!-- 標題 -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+        </svg>
+        SMS 客戶簡訊編輯
+      </h1>
+      <p class="text-gray-600 mt-2">建立並發送取貨通知簡訊給您的客戶</p>
+    </div>
+
+    <!-- 提示訊息 -->
+    <div class="mb-6 bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+      <div class="flex items-start gap-2">
+        <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <strong>批量導入功能：</strong>可以一次匯入多筆客戶訂單資料，然後逐一發送簡訊。支援 Excel 複製貼上或 CSV 檔案匯入。
+        </div>
+      </div>
+    </div>
+
+    <!-- 訂單管理區 -->
+    <div class="bg-white rounded-lg shadow-md mb-6">
+      <div class="border-b p-6">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h2 class="text-xl font-bold flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              訂單列表
+              <span class="text-sm font-normal text-gray-500" id="orderCount">(0 筆)</span>
+            </h2>
+            <p class="text-gray-600 text-sm mt-1">管理待發送的客戶訂單</p>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="showImportDialog()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              批量匯入
+            </button>
+            <button onclick="addSingleOrder()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              新增單筆
+            </button>
+            <button onclick="clearAllOrders()" class="px-4 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 flex items-center gap-2 text-sm">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              清空列表
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 訂單列表 -->
+      <div class="p-6">
+        <div id="orderListEmpty" class="text-center py-12 text-gray-500">
+          <svg class="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+          </svg>
+          <p class="text-lg font-medium">尚無訂單資料</p>
+          <p class="text-sm mt-2">點擊「批量匯入」或「新增單筆」開始</p>
+        </div>
+        
+        <div id="orderListContainer" class="hidden space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- 簡訊內容編輯 -->
+    <div class="bg-white rounded-lg shadow-md mb-6">
+      <div class="border-b p-6">
+        <h2 class="text-xl font-bold">簡訊內容</h2>
+        <p class="text-gray-600 text-sm mt-1">
+          字數限制：<span id="charCount">0</span>/160 字元
+          <span id="overLimit" class="text-red-500 ml-2 hidden">超過字數限制！</span>
+        </p>
+      </div>
+      <div class="p-6 space-y-4">
+        <!-- 範本管理 -->
+        <div>
+          <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <label class="block text-sm font-medium">快速範本</label>
+            <div class="flex gap-2 flex-wrap">
+              <button onclick="exportTemplates()" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1" title="匯出範本">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                匯出
+              </button>
+              <button onclick="document.getElementById('importTemplateFile').click()" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1" title="匯入範本">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                </svg>
+                匯入
+              </button>
+              <input type="file" id="importTemplateFile" accept=".json" onchange="importTemplates(event)" class="hidden">
+              <button onclick="openTemplateDialog()" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                新增範本
+              </button>
+            </div>
+          </div>
+          <select id="templateSelect" onchange="selectTemplate()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">選擇範本...</option>
+          </select>
+        </div>
+
+        <!-- 自訂範本列表 -->
+        <div id="customTemplatesList" class="hidden">
+          <label class="block text-sm font-medium mb-2">我的自訂範本</label>
+          <div id="customTemplatesContainer" class="space-y-2"></div>
+        </div>
+
+        <!-- 變數插入 -->
+        <div>
+          <label class="block text-sm font-medium mb-2">插入變數</label>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="insertVariable('{customerName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">姓名</button>
+            <button onclick="insertVariable('{orderNumber}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">訂單號</button>
+            <button onclick="insertVariable('{storeName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">門市名稱</button>
+            <button onclick="insertVariable('{pickupDeadline}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">取貨期限</button>
+          </div>
+        </div>
+
+        <!-- 訊息內容 -->
+        <div>
+          <label class="block text-sm font-medium mb-1">訊息內容</label>
+          <textarea id="message" rows="6" placeholder="輸入您的簡訊內容，使用 {customerName}、{orderNumber}、{storeName}、{pickupDeadline} 作為變數..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500" oninput="updatePreview()"></textarea>
+        </div>
+
+        <!-- 預覽區 -->
+        <div id="previewSection" class="hidden bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+          <p class="text-sm text-gray-500 mb-2">預覽（變數已替換）</p>
+          <div class="bg-white rounded-lg p-3 shadow-sm">
+            <p id="previewText" class="text-gray-800 whitespace-pre-wrap"></p>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">實際發送時會自動替換為客戶資訊</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量匯入對話框 -->
+  <div id="importDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold">批量匯入訂單</h3>
+          <button onclick="closeImportDialog()" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p class="text-sm font-medium mb-2">📋 資料格式說明：</p>
+          <p class="text-sm text-gray-700 mb-2">請按照以下格式貼上資料（每行一筆訂單，用 Tab 或逗號分隔）：</p>
+          <code class="text-xs bg-white px-2 py-1 rounded block">手機號碼, 姓名, 訂單號碼, 門市類別, 門市名稱, 月, 日</code>
+          <p class="text-xs text-gray-600 mt-2">範例：0912345678, 王小明, ORD001, 7-11, 信義門市, 1, 20</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">方式一：貼上資料</label>
+          <textarea id="importData" rows="10" placeholder="從 Excel 複製後貼上，或手動輸入..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium mb-2">方式二：上傳 CSV 檔案</label>
+          <input type="file" id="importCsvFile" accept=".csv,.txt" onchange="handleCsvUpload(event)" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+        </div>
+
+        <div id="importPreview" class="hidden">
+          <label class="block text-sm font-medium mb-2">預覽（將匯入 <span id="importCount">0</span> 筆）</label>
+          <div class="border rounded-lg overflow-auto max-h-60">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-3 py-2 text-left">手機</th>
+                  <th class="px-3 py-2 text-left">姓名</th>
+                  <th class="px-3 py-2 text-left">訂單號</th>
+                  <th class="px-3 py-2 text-left">門市類別</th>
+                  <th class="px-3 py-2 text-left">門市名稱</th>
+                  <th class="px-3 py-2 text-left">取貨期限</th>
+                </tr>
+              </thead>
+              <tbody id="importPreviewBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="p-6 border-t flex justify-between flex-wrap gap-3">
+        <button onclick="downloadTemplate()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          下載範本
+        </button>
+        <div class="flex gap-3 flex-wrap">
+          <button onclick="closeImportDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 text-sm">取消</button>
+          <button onclick="previewImport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">預覽資料</button>
+          <button onclick="confirmImport()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">確認匯入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 單筆新增對話框 -->
+  <div id="singleOrderDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b">
+        <h3 class="text-xl font-bold">新增訂單</h3>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium mb-1">手機號碼 *</label>
+            <input type="tel" id="singlePhone" placeholder="0912345678" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">客戶姓名 *</label>
+            <input type="text" id="singleName" placeholder="王小明" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">訂單號碼 *</label>
+            <input type="text" id="singleOrder" placeholder="ORD001" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">門市類別 *</label>
+            <select id="singleStoreType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+              <option value="">請選擇</option>
+              <option value="7-11">7-11</option>
+              <option value="全家">全家</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">門市名稱 *</label>
+            <input type="text" id="singleStoreName" placeholder="信義門市" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">取貨期限 *</label>
+            <div class="flex gap-2">
+              <select id="singleMonth" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                <option value="">月</option>
+                <option value="01">1月</option>
+                <option value="02">2月</option>
+                <option value="03">3月</option>
+                <option value="04">4月</option>
+                <option value="05">5月</option>
+                <option value="06">6月</option>
+                <option value="07">7月</option>
+                <option value="08">8月</option>
+                <option value="09">9月</option>
+                <option value="10">10月</option>
+                <option value="11">11月</option>
+                <option value="12">12月</option>
+              </select>
+              <select id="singleDay" class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                <option value="">日</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="p-6 border-t flex justify-end gap-3">
+        <button onclick="closeSingleOrderDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+        <button onclick="confirmSingleOrder()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">新增</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 範本對話框 -->
+  <div id="templateDialog" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6 border-b">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xl font-bold" id="dialogTitle">新增範本</h3>
+          <button onclick="closeTemplateDialog()" class="text-gray-500 hover:text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <p class="text-sm text-gray-600 mt-1">建立您的自訂簡訊範本，可使用變數：{customerName}, {orderNumber}, {storeName}, {pickupDeadline}</p>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">範本名稱</label>
+          <input type="text" id="newTemplateName" placeholder="例如：週末促銷通知" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">範本內容</label>
+          <textarea id="newTemplateContent" rows="6" placeholder="輸入範本內容..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="insertTemplateVariable('{customerName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 姓名</button>
+          <button onclick="insertTemplateVariable('{orderNumber}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 訂單號</button>
+          <button onclick="insertTemplateVariable('{storeName}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 門市名稱</button>
+          <button onclick="insertTemplateVariable('{pickupDeadline}')" class="px-3 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50">+ 取貨期限</button>
+        </div>
+      </div>
+      <div class="p-6 border-t flex justify-end gap-3">
+        <button onclick="closeTemplateDialog()" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">取消</button>
+        <button onclick="saveTemplate()" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">儲存範本</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const preloadedTemplates = [
+      {"name": "到貨通知(已付款)", "content": "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"},
+      {"name": "第一天 到貨通知(未付款)", "content": "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"},
+      {"name": "第3天 到貨通知(未付款)", "content": "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"},
+      {"name": "第5天 到貨通知(未付款)", "content": "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"},
+      {"name": "第6天 到貨通知(未付款)", "content": "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"}
+    ];
+
+    let customTemplates = [];
+    try {
+      const stored = localStorage.getItem('customTemplates');
+      if (stored) {
+        customTemplates = JSON.parse(stored);
+      } else {
+        customTemplates = preloadedTemplates;
+        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+      }
+    } catch (error) {
+      customTemplates = preloadedTemplates;
+      localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+    }
+    
+    let editingTemplateId = null;
+    let orders = [];
+    try {
+      const storedOrders = localStorage.getItem('orders');
+      if (storedOrders) orders = JSON.parse(storedOrders);
+    } catch (error) {
+      orders = [];
+    }
+    let previewData = [];
+
+    document.addEventListener('DOMContentLoaded', function() {
+      loadCustomTemplates();
+      initializeDayOptions();
+      renderOrderList();
+      updatePreview();
+    });
+
+    function initializeDayOptions() {
+      const select = document.getElementById('singleDay');
+      for (let i = 1; i <= 31; i++) {
+        const option = document.createElement('option');
+        option.value = i.toString().padStart(2, '0');
+        option.textContent = i + '日';
+        select.appendChild(option);
+      }
+    }
+
+    function renderOrderList() {
+      const container = document.getElementById('orderListContainer');
+      const empty = document.getElementById('orderListEmpty');
+      const count = document.getElementById('orderCount');
+      count.textContent = `(${orders.length} 筆)`;
+
+      if (orders.length === 0) {
+        container.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      container.classList.remove('hidden');
+      container.innerHTML = '';
+
+      orders.forEach((order, index) => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center justify-between p-4 bg-gray-50 rounded-lg border hover:bg-gray-100';
+        div.innerHTML = `
+          <div class="flex-1 grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+            <div><p class="text-xs text-gray-500">姓名</p><p class="font-medium">${escapeHtml(order.customerName)}</p></div>
+            <div><p class="text-xs text-gray-500">手機</p><p>${escapeHtml(order.phone)}</p></div>
+            <div><p class="text-xs text-gray-500">訂單號</p><p>${escapeHtml(order.orderNumber)}</p></div>
+            <div><p class="text-xs text-gray-500">門市</p><p>${escapeHtml(order.storeType)} ${escapeHtml(order.storeName)}</p></div>
+            <div><p class="text-xs text-gray-500">取貨期限</p><p>${order.pickupMonth}月${order.pickupDay}日</p></div>
+            <div class="flex items-center gap-2">
+              <button onclick="sendSMS(${index})" class="px-3 py-1.5 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                發送
+              </button>
+              <button onclick="deleteOrder(${index})" class="p-1.5 text-red-500 hover:bg-red-50 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function saveOrders() {
+      localStorage.setItem('orders', JSON.stringify(orders));
+      renderOrderList();
+    }
+
+    function deleteOrder(index) {
+      if (confirm('確定要刪除此訂單嗎？')) {
+        orders.splice(index, 1);
+        saveOrders();
+      }
+    }
+
+    function clearAllOrders() {
+      if (orders.length === 0) {
+        alert('訂單列表已經是空的');
+        return;
+      }
+      if (confirm(`確定要清空所有 ${orders.length} 筆訂單嗎？`)) {
+        orders = [];
+        saveOrders();
+      }
+    }
+
+    function sendSMS(index) {
+      const order = orders[index];
+      const message = document.getElementById('message').value.trim();
+      if (!message) {
+        alert('請先選擇或輸入簡訊範本');
+        return;
+      }
+      const finalMessage = message
+        .replace(/{customerName}/g, order.customerName)
+        .replace(/{orderNumber}/g, order.orderNumber)
+        .replace(/{storeName}/g, `${order.storeType} ${order.storeName}`)
+        .replace(/{pickupDeadline}/g, `${parseInt(order.pickupMonth)}月${parseInt(order.pickupDay)}日`);
+      const encodedMessage = encodeURIComponent(finalMessage);
+      const cleanPhone = order.phone.replace(/[^0-9+]/g, '');
+      window.location.href = `sms:${cleanPhone}&body=${encodedMessage}`;
+    }
+
+    function showImportDialog() {
+      document.getElementById('importDialog').classList.remove('hidden');
+      document.getElementById('importData').value = '';
+      document.getElementById('importPreview').classList.add('hidden');
+    }
+
+    function closeImportDialog() {
+      document.getElementById('importDialog').classList.add('hidden');
+      previewData = [];
+    }
+
+    function handleCsvUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('importData').value = e.target.result;
+        previewImport();
+      };
+      reader.readAsText(file);
+    }
+
+    function parseImportData(text) {
+      const lines = text.trim().split('\n');
+      const result = [];
+      lines.forEach((line) => {
+        if (!line.trim()) return;
+        const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+        if (parts.length >= 7) {
+          result.push({
+            phone: parts[0].trim(),
+            customerName: parts[1].trim(),
+            orderNumber: parts[2].trim(),
+            storeType: parts[3].trim(),
+            storeName: parts[4].trim(),
+            pickupMonth: parts[5].trim().padStart(2, '0'),
+            pickupDay: parts[6].trim().padStart(2, '0')
+          });
+        }
+      });
+      return result;
+    }
+
+    function previewImport() {
+      const text = document.getElementById('importData').value;
+      if (!text.trim()) {
+        alert('請先貼上資料');
+        return;
+      }
+      previewData = parseImportData(text);
+      if (previewData.length === 0) {
+        alert('無法解析資料，請檢查格式是否正確');
+        return;
+      }
+      const previewSection = document.getElementById('importPreview');
+      const previewBody = document.getElementById('importPreviewBody');
+      const importCount = document.getElementById('importCount');
+      importCount.textContent = previewData.length;
+      previewBody.innerHTML = '';
+      previewData.forEach(order => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-t';
+        tr.innerHTML = `
+          <td class="px-3 py-2">${escapeHtml(order.phone)}</td>
+          <td class="px-3 py-2">${escapeHtml(order.customerName)}</td>
+          <td class="px-3 py-2">${escapeHtml(order.orderNumber)}</td>
+          <td class="px-3 py-2">${escapeHtml(order.storeType)}</td>
+          <td class="px-3 py-2">${escapeHtml(order.storeName)}</td>
+          <td class="px-3 py-2">${order.pickupMonth}月${order.pickupDay}日</td>
+        `;
+        previewBody.appendChild(tr);
+      });
+      previewSection.classList.remove('hidden');
+    }
+
+    function confirmImport() {
+      if (previewData.length === 0) {
+        alert('請先預覽資料');
+        return;
+      }
+      orders = [...orders, ...previewData];
+      saveOrders();
+      closeImportDialog();
+      alert(`成功匯入 ${previewData.length} 筆訂單！`);
+    }
+
+    function downloadTemplate() {
+      const template = '手機號碼,姓名,訂單號碼,門市類別,門市名稱,月,日\n0912345678,王小明,ORD001,7-11,信義門市,1,20\n0923456789,李小華,ORD002,全家,中山店,1,21';
+      const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = '訂單匯入範本.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function addSingleOrder() {
+      document.getElementById('singleOrderDialog').classList.remove('hidden');
+      ['singlePhone', 'singleName', 'singleOrder', 'singleStoreType', 'singleStoreName', 'singleMonth', 'singleDay'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+    }
+
+    function closeSingleOrderDialog() {
+      document.getElementById('singleOrderDialog').classList.add('hidden');
+    }
+
+    function confirmSingleOrder() {
+      const order = {
+        phone: document.getElementById('singlePhone').value.trim(),
+        customerName: document.getElementById('singleName').value.trim(),
+        orderNumber: document.getElementById('singleOrder').value.trim(),
+        storeType: document.getElementById('singleStoreType').value,
+        storeName: document.getElementById('singleStoreName').value.trim(),
+        pickupMonth: document.getElementById('singleMonth').value,
+        pickupDay: document.getElementById('singleDay').value
+      };
+      if (!order.phone || !order.customerName || !order.orderNumber || !order.storeType || !order.storeName || !order.pickupMonth || !order.pickupDay) {
+        alert('請填寫完整資料');
+        return;
+      }
+      orders.push(order);
+      saveOrders();
+      closeSingleOrderDialog();
+      alert('訂單新增成功！');
+    }
+
+    function exportTemplates() {
+      if (customTemplates.length === 0) {
+        alert('目前沒有自訂範本可以匯出');
+        return;
+      }
+      const dataStr = JSON.stringify(customTemplates, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'sms-templates-' + new Date().toISOString().split('T')[0] + '.json';
+      link.click();
+      URL.revokeObjectURL(url);
+      alert('範本已匯出！');
+    }
+
+    function importTemplates(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const imported = JSON.parse(e.target.result);
+          if (Array.isArray(imported) && imported.length > 0) {
+            const shouldMerge = confirm(`將匯入 ${imported.length} 個範本。\n\n確定 = 合併\n取消 = 覆蓋`);
+            customTemplates = shouldMerge ? [...customTemplates, ...imported] : imported;
+            localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+            loadCustomTemplates();
+            alert('範本匯入成功！');
+          } else {
+            alert('檔案格式錯誤');
+          }
+        } catch (err) {
+          alert('匯入失敗：' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function selectTemplate() {
+      const value = document.getElementById('templateSelect').value;
+      if (value.startsWith('custom_')) {
+        const index = parseInt(value.split('_')[1]);
+        document.getElementById('message').value = customTemplates[index].content;
+        updatePreview();
+      }
+    }
+
+    function insertVariable(variable) {
+      const textarea = document.getElementById('message');
+      const cursorPos = textarea.selectionStart;
+      textarea.value = textarea.value.substring(0, cursorPos) + variable + textarea.value.substring(cursorPos);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = cursorPos + variable.length;
+      updatePreview();
+    }
+
+    function openTemplateDialog() {
+      document.getElementById('templateDialog').classList.remove('hidden');
+      document.getElementById('dialogTitle').textContent = '新增範本';
+      document.getElementById('newTemplateName').value = '';
+      document.getElementById('newTemplateContent').value = '';
+      editingTemplateId = null;
+    }
+
+    function closeTemplateDialog() {
+      document.getElementById('templateDialog').classList.add('hidden');
+    }
+
+    function insertTemplateVariable(variable) {
+      const textarea = document.getElementById('newTemplateContent');
+      const cursorPos = textarea.selectionStart;
+      textarea.value = textarea.value.substring(0, cursorPos) + variable + textarea.value.substring(cursorPos);
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = cursorPos + variable.length;
+    }
+
+    function saveTemplate() {
+      const name = document.getElementById('newTemplateName').value.trim();
+      const content = document.getElementById('newTemplateContent').value.trim();
+      if (!name || !content) {
+        alert('請填寫範本名稱和內容');
+        return;
+      }
+      try {
+        if (editingTemplateId !== null) {
+          customTemplates[editingTemplateId] = { name, content };
+        } else {
+          customTemplates.push({ name, content });
+        }
+        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+        loadCustomTemplates();
+        closeTemplateDialog();
+        alert('範本已儲存！');
+      } catch (error) {
+        alert('儲存失敗：' + error.message);
+      }
+    }
+
+    function loadCustomTemplates() {
+      const container = document.getElementById('customTemplatesContainer');
+      const listSection = document.getElementById('customTemplatesList');
+      const select = document.getElementById('templateSelect');
+      select.innerHTML = '<option value="">選擇範本...</option>';
+
+      if (customTemplates.length > 0) {
+        listSection.classList.remove('hidden');
+        container.innerHTML = '';
+        customTemplates.forEach((template, index) => {
+          const div = document.createElement('div');
+          div.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border';
+          div.innerHTML = `
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-sm">${escapeHtml(template.name)}</p>
+              <p class="text-xs text-gray-600 mt-1 truncate">${escapeHtml(template.content.substring(0, 50))}...</p>
+            </div>
+            <div class="flex gap-2 ml-4 flex-shrink-0">
+              <button onclick="editTemplate(${index})" class="p-2 hover:bg-gray-200 rounded">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              </button>
+              <button onclick="deleteTemplate(${index})" class="p-2 hover:bg-gray-200 rounded">
+                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
+          `;
+          container.appendChild(div);
+          const option = document.createElement('option');
+          option.value = `custom_${index}`;
+          option.textContent = template.name;
+          select.appendChild(option);
+        });
+      } else {
+        listSection.classList.add('hidden');
+      }
+    }
+
+    function editTemplate(index) {
+      editingTemplateId = index;
+      document.getElementById('dialogTitle').textContent = '編輯範本';
+      document.getElementById('newTemplateName').value = customTemplates[index].name;
+      document.getElementById('newTemplateContent').value = customTemplates[index].content;
+      document.getElementById('templateDialog').classList.remove('hidden');
+    }
+
+    function deleteTemplate(index) {
+      if (confirm('確定要刪除此範本嗎？')) {
+        customTemplates.splice(index, 1);
+        localStorage.setItem('customTemplates', JSON.stringify(customTemplates));
+        loadCustomTemplates();
+      }
+    }
+
+    function updatePreview() {
+      const message = document.getElementById('message').value;
+      const previewSection = document.getElementById('previewSection');
+      const previewText = document.getElementById('previewText');
+      const charCount = document.getElementById('charCount');
+      const overLimit = document.getElementById('overLimit');
+
+      if (message) {
+        const preview = message
+          .replace(/{customerName}/g, '[姓名]')
+          .replace(/{orderNumber}/g, '[訂單號]')
+          .replace(/{storeName}/g, '[門市]')
+          .replace(/{pickupDeadline}/g, '[期限]');
+        previewText.textContent = preview;
+        previewSection.classList.remove('hidden');
+        charCount.textContent = preview.length;
+        overLimit.classList.toggle('hidden', preview.length <= 160);
+      } else {
+        previewSection.classList.add('hidden');
+        charCount.textContent = '0';
+        overLimit.classList.add('hidden');
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
