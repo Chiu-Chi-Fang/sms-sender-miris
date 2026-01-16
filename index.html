@@ -1202,26 +1202,30 @@
         const isSelected = window.selectedOrders.has(order.phone);
         const hasSms = window.smsContent[order.phone];
         
-        return `
-          <div class="order-card ${isSelected ? 'selected' : ''}">
-            <div class="order-header">
-              <label class="checkbox-label">
-                <input type="checkbox" ${isSelected ? 'checked' : ''} 
-                       onchange="toggleOrderSelection('${order.phone}')">
-                <span style="font-size: 18px; font-weight: 600;">
-                  ${order.customerName} (${order.phone})
-                </span>
-              </label>
-              ${hasSms ? '<button class="btn btn-warning btn-small" onclick="editSms(\'' + order.phone + '\')">編輯</button>' : ''}
-            </div>
-            ${hasSms ? `
-              <div class="sms-preview">
-                <div class="sms-preview-label">📱 簡訊預覽</div>
-                <div class="sms-preview-content">${window.smsContent[order.phone]}</div>
-              </div>
-            ` : ''}
-          </div>
-        `;
+return `
+  <div class="order-card ${isSelected ? 'selected' : ''}">
+    <div class="order-header">
+      <label class="checkbox-label">
+        <input type="checkbox" ${isSelected ? 'checked' : ''} 
+               onchange="toggleOrderSelection('${order.phone}')">
+        <span style="font-size: 18px; font-weight: 600;">
+          ${order.customerName} (${order.phone})
+        </span>
+      </label>
+      <div style="display: flex; gap: 8px;">
+        ${hasSms ? '<button class="btn btn-warning btn-small" onclick="editSms(\'' + order.phone + '\')">編輯</button>' : ''}
+        ${hasSms ? '<button class="btn btn-success btn-small" onclick="sendMessage(\'' + order.phone + '\')">發送訊息</button>' : ''}
+      </div>
+    </div>
+    ${hasSms ? `
+      <div class="sms-preview">
+        <div class="sms-preview-label">📱 簡訊預覽</div>
+        <div class="sms-preview-content">${window.smsContent[order.phone]}</div>
+      </div>
+    ` : ''}
+  </div>
+`;
+
       }).join('');
     }
 
