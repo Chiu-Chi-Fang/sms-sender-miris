@@ -460,6 +460,54 @@
         width: 100%;
       }
     }
+ /* 發送記錄樣式 */
+.send-history {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0f9ff;
+  border-radius: 8px;
+  border-left: 4px solid #3b82f6;
+}
+
+.send-history-header {
+  font-weight: 600;
+  color: #3b82f6;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.send-history-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #666;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.send-history-summary strong {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.send-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.history-item {
+  font-size: 12px;
+  color: #666;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 4px;
+}
+
   </style>
 </head>
 <body>
@@ -631,8 +679,10 @@
 
   <script type="module">
     // Firebase 初始化
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getDatabase, ref, set, get, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getDatabase, ref, set, get, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
 
     const firebaseConfig = {
       apiKey: "AIzaSyDcKclyNssDs08E0DIwfrc7lzq3QQL4QS8",
@@ -644,8 +694,10 @@
       appId: "1:340097404227:web:554901219608cbed42f3f6"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+const db = getFirestore(app);  // 新增這行
+
 
     // 美莉的家專用範本
    const defaultTemplates = [
@@ -673,20 +725,89 @@
 
 
     // 全域變數
-    window.orders = [];
-    window.templates = [];
-    window.selectedOrders = new Set();
-    window.smsContent = {};
-    window.currentEditingPhone = null;
+window.orders = [];
+window.templates = [];
+window.selectedOrders = new Set();
+window.smsContent = {};
+window.currentEditingPhone = null;
+window.sendHistory = {};  // 新增這行
 
-    // 格式化日期為 MM/DD
-    function formatDateToMMDD(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${month}/${day}`;
+
+  // 格式化完整時間
+function formatDateTime(isoString) {
+  const date = new Date(isoString);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${month}/${day} ${hours}:${minutes}`;
+}
+
+// 格式化日期為 MM/DD
+function formatDateToMMDD(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}/${day}`;
+}
+
+// 記錄發送歷史到 Firestore
+async function recordSendHistory(phone, content) {
+  const order = window.orders.find(o => o.phone === phone);
+  if (!order) return;
+
+  const sendRef = doc(db, 'sendHistory', phone);
+  
+  try {
+    const docSnap = await getDoc(sendRef);
+    const now = new Date().toISOString();
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      await setDoc(sendRef, {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        sendCount: (data.sendCount || 0) + 1,
+        lastSentAt: now,
+        history: [
+          { sentAt: now, content },
+          ...(data.history || [])
+        ].slice(0, 10)
+      });
+    } else {
+      await setDoc(sendRef, {
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        sendCount: 1,
+        lastSentAt: now,
+        history: [{ sentAt: now, content }]
+      });
     }
+    
+    window.sendHistory[phone] = (await getDoc(sendRef)).data();
+    
+  } catch (error) {
+    console.error('記錄發送歷史失敗:', error);
+  }
+}
+
+// 載入所有發送記錄
+async function loadSendHistory() {
+  window.sendHistory = {};
+  
+  try {
+    for (const order of window.orders) {
+      const docSnap = await getDoc(doc(db, 'sendHistory', order.phone));
+      if (docSnap.exists()) {
+        window.sendHistory[order.phone] = docSnap.data();
+      }
+    }
+  } catch (error) {
+    console.error('載入發送記錄失敗:', error);
+  }
+}
+
 
     // 同步狀態
     let isOnline = navigator.onLine;
@@ -780,13 +901,18 @@
     loadFromCloud();
 
     // 切換分頁
-    window.switchTab = function(tabName) {
-      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      
-      event.target.classList.add('active');
-      document.getElementById(tabName + 'Tab').classList.add('active');
-    };
+window.switchTab = async function(tabName) {
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+  
+  event.target.classList.add('active');
+  document.getElementById(tabName + 'Tab').classList.add('active');
+  
+  if (tabName === 'send') {
+    await loadSendHistory();
+    renderSendOrders();
+  }
+};
 
     // 顯示/關閉 Modal
     window.showAddOrderModal = function() {
@@ -1185,7 +1311,7 @@
     };
     
     // 發送單一訊息
-window.sendSingleMessage = function(phone) {
+window.sendSingleMessage = async function(phone) {
   const message = window.smsContent[phone];
   const order = window.orders.find(o => o.phone === phone);
   
@@ -1194,11 +1320,30 @@ window.sendSingleMessage = function(phone) {
     return;
   }
 
-  // 使用與批量發送相同的方法
   const smsUrl = `sms:${phone}?body=${encodeURIComponent(message)}`;
   window.open(smsUrl, '_blank');
+  
+  // 記錄發送
+  await recordSendHistory(phone, message);
+  renderSendOrders();
+  
+  // 顯示提示
+  const toast = document.createElement('div');
+  toast.textContent = '✅ 已開啟簡訊 App 並記錄發送';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #28a745;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
 };
-
 
     // 渲染發送列表
     function renderSendOrders() {
@@ -1235,10 +1380,9 @@ return `
     </div>
 
     <div class="order-info">
-      <div><strong>訂單編號：</strong>${order.orderNumber}</div>
-      <div><strong>取件期限：</strong>${order.pickupDeadline}</div>
-      <div><strong>付款狀態：</strong>${order.paymentStatus}</div>
-      <div><strong>門市：</strong>${order.storeType} ${order.storeName}</div>
+      <div><strong>訂單編號：</strong>${order.orderNumber || '-'}</div>
+      <div><strong>取件期限：</strong>${formatDateToMMDD(order.pickupDeadline) || '-'}</div>
+      <div><strong>門市：</strong>${order.storeType} ${order.storeName || ''}</div>
     </div>
 
     ${hasSms ? `
@@ -1247,8 +1391,31 @@ return `
         <div class="sms-preview-content">${window.smsContent[order.phone]}</div>
       </div>
     ` : ''}
+
+    ${window.sendHistory[order.phone] ? `
+      <div class="send-history">
+        <div class="send-history-header">
+          📤 發送記錄
+        </div>
+        <div class="send-history-summary">
+          <span>已發送 <strong>${window.sendHistory[order.phone].sendCount}</strong> 次</span>
+          <span>最後發送：<strong>${formatDateTime(window.sendHistory[order.phone].lastSentAt)}</strong></span>
+        </div>
+        ${window.sendHistory[order.phone].history && window.sendHistory[order.phone].history.length > 0 ? `
+          <div class="send-history-list">
+            <div style="font-size: 12px; color: #999; margin-bottom: 4px;">發送時間：</div>
+            ${window.sendHistory[order.phone].history.slice(0, 5).map(h => `
+              <div class="history-item">
+                ✅ ${formatDateTime(h.sentAt)}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    ` : ''}
   </div>
 `;
+
 
 
       }).join('');
