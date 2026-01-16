@@ -648,28 +648,29 @@
     const database = getDatabase(app);
 
     // 美莉的家專用範本
-    const defaultTemplates = [
-      {
-        name: "到貨通知(已付款)",
-        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"
-      },
-      {
-        name: "第一天 到貨通知(未付款)",
-        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"
-      },
-      {
-        name: "第3天 到貨通知(未付款)",
-        content: "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      },
-      {
-        name: "第5天 到貨通知(未付款)",
-        content: "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      },
-      {
-        name: "第6天 到貨通知(未付款)",
-        content: "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      }
-    ];
+   const defaultTemplates = [
+  {
+    name: "到貨通知(已付款)",
+    content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeType} {storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"
+  },
+  {
+    name: "第一天 到貨通知(未付款)",
+    content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"
+  },
+  {
+    name: "第3天 到貨通知(未付款)",
+    content: "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+  },
+  {
+    name: "第5天 到貨通知(未付款)",
+    content: "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+  },
+  {
+    name: "第6天 到貨通知(未付款)",
+    content: "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
+  }
+];
+
 
     // 全域變數
     window.orders = [];
