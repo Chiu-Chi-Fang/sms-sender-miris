@@ -1183,6 +1183,22 @@
 
       alert('發送完成！');
     };
+    
+    // 發送單一訊息
+window.sendSingleMessage = function(phone) {
+  const message = window.smsContent[phone];
+  const order = window.orders.find(o => o.phone === phone);
+  
+  if (!message) {
+    alert('請先套用範本');
+    return;
+  }
+
+  // 使用與批量發送相同的方法
+  const smsUrl = `sms:${phone}?body=${encodeURIComponent(message)}`;
+  window.open(smsUrl, '_blank');
+};
+
 
     // 渲染發送列表
     function renderSendOrders() {
@@ -1214,9 +1230,17 @@ return `
       </label>
       <div style="display: flex; gap: 8px;">
         ${hasSms ? '<button class="btn btn-warning btn-small" onclick="editSms(\'' + order.phone + '\')">編輯</button>' : ''}
-        ${hasSms ? '<button class="btn btn-success btn-small" onclick="sendMessage(\'' + order.phone + '\')">發送訊息</button>' : ''}
+        ${hasSms ? '<button class="btn btn-success btn-small" onclick="sendSingleMessage(\'' + order.phone + '\')">📤 發送訊息</button>' : ''}
       </div>
     </div>
+
+    <div class="order-info">
+      <div><strong>訂單編號：</strong>${order.orderNumber}</div>
+      <div><strong>取件期限：</strong>${order.pickupDeadline}</div>
+      <div><strong>付款狀態：</strong>${order.paymentStatus}</div>
+      <div><strong>門市：</strong>${order.storeType} ${order.storeName}</div>
+    </div>
+
     ${hasSms ? `
       <div class="sms-preview">
         <div class="sms-preview-label">📱 簡訊預覽</div>
@@ -1225,6 +1249,7 @@ return `
     ` : ''}
   </div>
 `;
+
 
       }).join('');
     }
