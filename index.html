@@ -139,6 +139,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module" src="orders.js"></script>
 <script type="module" src="sms.js"></script>
+
+<script>
   // 簡單的分頁切換 (UI 邏輯寫在這裡即可)
   function switchMainTab(target) {
     document.querySelectorAll('.shell-tab').forEach(b => b.classList.remove('active'));
@@ -151,7 +153,7 @@
   function switchPaySubTab(target) {
     document.querySelectorAll('#panel-pay .pay-tab').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('#panel-pay .pay-panel').forEach(p => p.classList.remove('active'));
-    if(target==='orders') { document.querySelectorAll('#panel-pay .pay-tab')[0].classList.add('active'); document.getElementById('pay-sub-orders').classList.add('active'); renderPayTable(); }
+    if(target==='orders') { document.querySelectorAll('#panel-pay .pay-tab')[0].classList.add('active'); document.getElementById('pay-sub-orders').classList.add('active'); if(window.renderPayTable) window.renderPayTable(); }
     if(target==='add') { document.querySelectorAll('#panel-pay .pay-tab')[1].classList.add('active'); document.getElementById('pay-sub-add').classList.add('active'); }
     if(target==='calc') { document.querySelectorAll('#panel-pay .pay-tab')[2].classList.add('active'); document.getElementById('pay-sub-calc').classList.add('active'); }
   }
@@ -168,9 +170,8 @@
       const today = new Date().toISOString().split('T')[0];
       if(document.getElementById('addShipDate')) document.getElementById('addShipDate').value = today;
       if(document.getElementById('batchDateInput')) document.getElementById('batchDateInput').value = today;
-      renderPayTable(); // 載入訂單
+      // 這裡不需要呼叫 renderPayTable，因為 orders.js 會自動處理
   });
-</script>
-
+</script> 
 </body>
 </html>
