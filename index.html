@@ -1,138 +1,175 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌸 訂單管理系統</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌸 訂單・撥款・簡訊整合系統</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="header">
-  🌸 訂單・撥款・簡訊 一次搞定
-</header>
+<div class="shell">
+  <div class="shell-header">
+    <h1>🌸 訂單・撥款・簡訊 一次搞定</h1>
+    <p>Excel 匯入訂單 ➝ 自動計算撥款日 ➝ 一鍵同步 SMS 發送通知</p>
+  </div>
 
-<nav class="tabs">
-  <button class="tab active" data-target="add">📥 新增訂單</button>
-  <button class="tab" data-target="list">📋 訂單列表</button>
-  <button class="tab" data-target="sms">💬 SMS 通知</button>
-</nav>
+  <div class="shell-tabs">
+    <button class="shell-tab active" onclick="switchMainTab('pay')">🧾 收款 / 訂單管理</button>
+    <button class="shell-tab" onclick="switchMainTab('sms')">📱 SMS 客戶通知</button>
+  </div>
 
-<main>
-  <section id="add" class="panel active">
-    <div class="layout single-column">
-      <div class="card full-width" style="max-width: 600px;">
-        <h2>🧾 新增訂單</h2>
-        <div id="step1">
-          <label class="label">訂單資訊</label>
-          <input id="orderNo" placeholder="訂單編號" />
-          <input id="name" placeholder="客戶姓名 (必填)" />
-          <input id="phone" placeholder="手機號碼" type="tel" />
+  <div class="shell-content">
+    
+    <div id="panel-pay" class="shell-panel active">
+      <div class="pay-tabs">
+        <div class="pay-tab active" onclick="switchPaySubTab('orders')">📦 訂單列表</div>
+        <div class="pay-tab" onclick="switchPaySubTab('add')">➕ 新增 / 匯入</div>
+        <div class="pay-tab" onclick="switchPaySubTab('calc')">📅 日期試算</div>
+      </div>
+
+      <div id="pay-sub-orders" class="pay-panel active">
+        <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+          <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
+          <button class="btn btn-danger" onclick="batchDeleteOrders()">🗑️ 刪除選取</button>
           
-          <label class="label">購物平台</label>
-          <select id="platform">
-            <option value="賣貨便">賣貨便 (7-11)</option>
-            <option value="好賣+">好賣+ (全家)</option>
-          </select>
+          <div class="batch-date-box">
+             <span style="font-size:13px; font-weight:700; color:#2e7d32;">📅 批量指定：</span>
+             <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto;">
+             <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
+          </div>
           
-          <button class="btn primary" id="nextStepBtn" style="width:100%; margin-top:10px;">下一步 ➜</button>
+          <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
         </div>
 
-        <div id="step2" class="hidden">
-          <label class="label">取貨資訊</label>
-          <input id="store" placeholder="取貨門市" />
-          <label class="label">取貨期限 <input type="date" id="pickupDeadline" /></label>
-          <div class="actions">
-            <button class="btn" id="prevStepBtn">← 上一步</button>
-            <button class="btn primary" id="addOrderBtn">✨ 完成新增</button>
+        <div class="table-wrap">
+          <table id="orderTable">
+            <thead>
+              <tr>
+                <th style="width:40px"><input type="checkbox" id="selectAllPay" onchange="toggleSelectAllPay()"></th>
+                <th>訂單號</th>
+                <th>姓名</th>
+                <th>電話</th>
+                <th>平台</th>
+                <th>出貨日</th>
+                <th>取貨期限</th>
+                <th>狀態 / 撥款日</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="payTableBody">
+              </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="pay-sub-add" class="pay-panel">
+        <div class="pay-form-grid">
+          <div>
+            <label>訂單編號</label><input type="text" id="addOrderNo" placeholder="#1468">
+          </div>
+          <div>
+            <label>客戶姓名</label><input type="text" id="addName" placeholder="王小明">
+          </div>
+          <div>
+            <label>手機號碼</label><input type="tel" id="addPhone" placeholder="0912345678">
+          </div>
+          <div>
+            <label>平台</label>
+            <select id="addPlatform">
+              <option value="賣貨便">賣貨便</option>
+              <option value="好賣+">好賣+</option>
+            </select>
+          </div>
+          <div>
+            <label>出貨日</label><input type="date" id="addShipDate">
+          </div>
+          <div>
+            <label>取貨期限</label><input type="date" id="addDeadline">
           </div>
         </div>
+        <button class="btn btn-primary" onclick="addNewOrder()">✨ 確認新增</button>
+        
+        <hr style="margin: 30px 0; border: 0; border-top: 2px dashed #ffe4e1;">
+        
+        <h3>📊 批量匯入 (Excel 複製貼上)</h3>
+        <textarea id="importText" rows="5" placeholder="直接從 Excel 複製貼上：訂單號 | 姓名 | 電話 | 平台 | 出貨日"></textarea>
+        <button class="btn btn-secondary" style="margin-top:10px" onclick="importFromText()">📥 批量匯入</button>
       </div>
-      
-      <div class="card full-width" style="max-width: 600px; margin-top: 20px;">
-        <h3>📂 剛剛新增的訂單</h3>
-        <div id="recentOrders" class="list"></div>
-      </div>
-    </div>
-  </section>
 
-  <section id="list" class="panel">
-    <div class="layout single-column">
-      <div class="card full-width">
-        <h2>📋 訂單列表</h2>
-
-        <details style="margin-bottom:15px;">
-          <summary>➕ 從 Excel 批量複製貼上</summary>
-          <div style="background:#fff; padding:15px; border:2px solid #eee;">
-            <p style="font-size:13px; color:#666; margin:0 0 5px 0;">請直接從 Excel 複製 (Ctrl+C) 並貼上 (Ctrl+V) 到下方：</p>
-            <textarea id="bulkInput" placeholder="Excel 欄位順序：編號 | 姓名 | 手機 | 平台 | 門市"></textarea>
-            <button class="btn small primary" id="bulkImportBtn">確認匯入</button>
-          </div>
-        </details>
-
-        <div class="list-toolbar">
-          <button class="btn small" id="selectAllBtn">全選</button>
-          <button class="btn small" id="clearSelectionBtn">清除</button>
-          <button class="btn small danger" id="deleteSelectedBtn">🗑️ 刪除選取</button>
+      <div id="pay-sub-calc" class="pay-panel">
+        <div class="pay-form-grid">
+           <div><label>平台</label><select id="calcPlatform"><option>賣貨便</option><option>好賣+</option></select></div>
+           <div><label>取貨日</label><input type="date" id="calcDate"></div>
         </div>
-
-        <div id="orderList" class="list"></div>
+        <button class="btn btn-primary" onclick="doCalc()">計算撥款日</button>
+        <div id="calcResult" style="margin-top:20px; font-weight:bold; color:#ff6b81;"></div>
       </div>
     </div>
-  </section>
 
-  <section id="sms" class="panel">
-    <div class="layout">
-      <div class="card">
-        <h2>✅ 準備發送名單</h2>
-        <div id="selectedOrders" class="list"></div>
+    <div id="panel-sms" class="shell-panel">
+      <div style="text-align:right; margin-bottom:10px; font-size:13px; color:#999;">
+        <span class="sms-status-dot dot-online" id="smsIndicator"></span> 雲端同步狀態
       </div>
-      <div class="card">
-        <h2>💬 編輯簡訊</h2>
-        <textarea id="smsContent" style="height:120px;">您好，您的包裹已抵達門市，請儘速取貨，謝謝！🌸</textarea>
-        <button class="btn primary" id="sendSmsBtn">🚀 發送簡訊</button>
+
+      <div class="pay-tabs">
+        <div class="pay-tab active" onclick="switchSmsSubTab('list')">📨 待發送名單</div>
+        <div class="pay-tab" onclick="switchSmsSubTab('tpl')">💬 範本設定</div>
+      </div>
+
+      <div id="sms-sub-list" class="pay-panel active">
+        <div style="margin-bottom:15px; background:#fff0f3; padding:15px; border-radius:12px;">
+          <label>選擇範本：</label>
+          <select id="smsTemplateSelect" onchange="previewTemplate()"><option value="">-- 請選擇 --</option></select>
+          <textarea id="smsPreviewBox" style="margin-top:10px;" rows="3" placeholder="簡訊預覽..."></textarea>
+          <button class="btn btn-primary" style="margin-top:10px; width:100%;" onclick="sendSelectedSMS()">🚀 發送選取的簡訊</button>
+        </div>
+        <div id="smsListContainer"></div>
+      </div>
+
+      <div id="sms-sub-tpl" class="pay-panel">
+         <div id="templateListContainer"></div>
+         <button class="btn btn-secondary" style="width:100%; margin-top:10px" onclick="resetDefaultTemplates()">🔄 重置預設範本</button>
       </div>
     </div>
-  </section>
-</main>
 
-<script src="utils.js"></script>
-<script src="rules.js"></script>
-<script src="orders.js"></script> <script src="sms.js"></script>
+  </div>
+</div>
 
-<script>
-  // 分頁切換
-  document.querySelectorAll('.tab').forEach(btn => {
-    btn.addEventListener('click', e => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-      e.currentTarget.classList.add('active');
-      document.getElementById(e.currentTarget.dataset.target).classList.add('active');
-    });
-  });
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="orders.js"></script> <script type="module" src="sms.js"></script> <script>
+  // 簡單的分頁切換 (UI 邏輯寫在這裡即可)
+  function switchMainTab(target) {
+    document.querySelectorAll('.shell-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.shell-panel').forEach(p => p.classList.remove('active'));
+    // 簡單判斷 index
+    if(target==='pay') { document.querySelectorAll('.shell-tab')[0].classList.add('active'); document.getElementById('panel-pay').classList.add('active'); }
+    else { document.querySelectorAll('.shell-tab')[1].classList.add('active'); document.getElementById('panel-sms').classList.add('active'); }
+  }
 
-  // 新增訂單步驟
-  const step1 = document.getElementById('step1');
-  const step2 = document.getElementById('step2');
-  document.getElementById('nextStepBtn').onclick = () => {
-    if(!document.getElementById('name').value) { alert('姓名必填！'); return; }
-    step1.classList.add('hidden'); step2.classList.remove('hidden');
-  };
-  document.getElementById('prevStepBtn').onclick = () => {
-    step2.classList.add('hidden'); step1.classList.remove('hidden');
-  };
+  function switchPaySubTab(target) {
+    document.querySelectorAll('#panel-pay .pay-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#panel-pay .pay-panel').forEach(p => p.classList.remove('active'));
+    if(target==='orders') { document.querySelectorAll('#panel-pay .pay-tab')[0].classList.add('active'); document.getElementById('pay-sub-orders').classList.add('active'); renderPayTable(); }
+    if(target==='add') { document.querySelectorAll('#panel-pay .pay-tab')[1].classList.add('active'); document.getElementById('pay-sub-add').classList.add('active'); }
+    if(target==='calc') { document.querySelectorAll('#panel-pay .pay-tab')[2].classList.add('active'); document.getElementById('pay-sub-calc').classList.add('active'); }
+  }
+
+  function switchSmsSubTab(target) {
+    document.querySelectorAll('#panel-sms .pay-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#panel-sms .pay-panel').forEach(p => p.classList.remove('active'));
+    if(target==='list') { document.querySelectorAll('#panel-sms .pay-tab')[0].classList.add('active'); document.getElementById('sms-sub-list').classList.add('active'); }
+    if(target==='tpl') { document.querySelectorAll('#panel-sms .pay-tab')[1].classList.add('active'); document.getElementById('sms-sub-tpl').classList.add('active'); }
+  }
   
-  // 綁定新增按鈕 (呼叫 orders.js)
-  document.getElementById('addOrderBtn').onclick = () => {
-     if(typeof addOrderFromForm === 'function') {
-         addOrderFromForm();
-         step2.classList.add('hidden'); step1.classList.remove('hidden');
-     } else {
-         alert('錯誤：orders.js 尚未更新，找不到 addOrderFromForm 函式');
-     }
-  };
+  // 初始化日期
+  document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      if(document.getElementById('addShipDate')) document.getElementById('addShipDate').value = today;
+      if(document.getElementById('batchDateInput')) document.getElementById('batchDateInput').value = today;
+      renderPayTable(); // 載入訂單
+  });
 </script>
+
 </body>
 </html>
