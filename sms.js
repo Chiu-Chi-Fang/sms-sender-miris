@@ -143,7 +143,7 @@ window.deleteSmsOrder = function(idx) {
     set(ordersRef, smsOrders);
 };
 
-// 6. 發送功能 (開啟手機簡訊)
+// 6. 發送功能 (開啟手機簡訊) - ★★★ 修正這裡 ★★★
 window.sendSelectedSMS = function() {
     const chks = document.querySelectorAll('.sms-chk:checked');
     if(chks.length === 0) return alert('請先勾選名單');
@@ -151,19 +151,22 @@ window.sendSelectedSMS = function() {
     const rawContent = document.getElementById('smsPreviewBox').value;
     if(!rawContent) return alert('內容不能為空');
     
-    // 針對每一個勾選的人發送
     chks.forEach(chk => {
         const idx = parseInt(chk.value);
         const order = smsOrders[idx];
         
-        // 替換變數
+        // ★★★ 關鍵修正：同時支援兩種變數名稱 ★★★
         let finalMsg = rawContent
-            .replace(/{name}/g, order.name)
-            .replace(/{no}/g, order.no)
-            .replace(/{deadline}/g, order.deadline||'');
+            // 支援新版欄位名稱
+            .replace(/{name}/g, order.name || '')
+            .replace(/{no}/g, order.no || '')
+            .replace(/{deadline}/g, order.deadline || '')
+            // 支援舊版/範本常見名稱 (防止範本寫錯)
+            .replace(/{customerName}/g, order.name || '')
+            .replace(/{orderNumber}/g, order.no || '')
+            .replace(/{pickupDeadline}/g, order.deadline || '');
             
         // 呼叫 SMS 連結
-        // 注意：瀏覽器可能會擋多重彈窗，建議一次發送少量
         const url = `sms:${order.phone}?body=${encodeURIComponent(finalMsg)}`;
         window.open(url, '_blank');
     });
