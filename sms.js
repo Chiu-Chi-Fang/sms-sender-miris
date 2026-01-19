@@ -572,18 +572,25 @@ function sms_startSending() {
   alert(`✅ 已成功發送 ${toSend.length} 則簡訊！（模擬）`);
 }
 
-// ===== Sync Status =====
 function sms_updateSyncStatus() {
-  const indicator = document.getElementById('smsSyncIndicator');
-  const status = document.getElementById('smsSyncStatus');
-  if (indicator && status) {
-    indicator.classList.remove('offline');
-    status.textContent = '已同步';
-    setTimeout(() => {
-      status.textContent = '雲端同步中...';
-    }, 2000);
+  const statusEl = document.getElementById('sms-sync-status');
+  if (!statusEl) return;
+
+  // 檢查 Firebase 連線狀態
+  if (typeof smsDB !== 'undefined' && smsDB) {
+    // 測試連線
+    smsDB.ref('.info/connected').on('value', (snapshot) => {
+      if (snapshot.val() === true) {
+        statusEl.innerHTML = '<span style="color: #10b981;">✅ 雲端已連線</span>';
+      } else {
+        statusEl.innerHTML = '<span style="color: #f59e0b;">⚠️ 雲端連線中...</span>';
+      }
+    });
+  } else {
+    statusEl.innerHTML = '<span style="color: #ef4444;">❌ 雲端未連線</span>';
   }
 }
+
 
 // ===== Import from Pay Module =====
 window.sms_importFromPay = function(payOrders) {
