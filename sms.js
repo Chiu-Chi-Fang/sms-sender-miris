@@ -1,12 +1,12 @@
-// ===== Firebase 設定 =====
+// ===== Firebase 測試設定 =====
 const firebaseConfig = {
-  apiKey: "AIzaSyBNhaZzLh7IqBN9u3LqJXyP7AEvBwZ_234",
-  authDomain: "sms-sender-miris.firebaseapp.com",
-  databaseURL: "https://sms-sender-miris-default-rtdb.firebaseio.com",
-  projectId: "sms-sender-miris",
-  storageBucket: "sms-sender-miris.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:abcdef1234567890abcdef"
+  apiKey: "AIzaSyAqL8Zy5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5",
+  authDomain: "sms-test-demo.firebaseapp.com",
+  databaseURL: "https://sms-test-demo-default-rtdb.firebaseio.com",
+  projectId: "sms-test-demo",
+  storageBucket: "sms-test-demo.appspot.com",
+  messagingSenderId: "987654321098",
+  appId: "1:987654321098:web:test123456789"
 };
 
 // 初始化 Firebase
