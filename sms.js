@@ -23,6 +23,11 @@ function initSMS() {
   
   // 載入範本
   renderTemplates();
+  
+  // 預設顯示訂單管理分頁
+  setTimeout(() => {
+    sms_switchTab('orders');
+  }, 100);
 }
 
 // 渲染訂單列表
@@ -54,7 +59,7 @@ function renderOrders() {
           <div class="sms-order-phone">${order.phone}</div>
         </div>
         <div class="sms-order-badge ${order.status === 'picked' ? 'badge-picked' : 'badge-pending'}">
-          ${order.status === 'picked' ? '待取貨' : '未取貨'}
+          ${order.status === 'picked' ? '已取貨' : '未取貨'}
         </div>
       </div>
       
@@ -434,6 +439,35 @@ function sendBulkSMS() {
   setTimeout(() => {
     showNotification(`✅ 已成功發送 ${checkboxes.length} 則簡訊`, 'success');
   }, 1500);
+}
+
+// 切換分頁功能
+function sms_switchTab(tabName) {
+  // 隱藏所有分頁內容
+  const allTabs = document.querySelectorAll('[id^="sms-tab-"]');
+  allTabs.forEach(tab => {
+    tab.style.display = 'none';
+  });
+  
+  // 移除所有按鈕的 active 狀態
+  const allButtons = document.querySelectorAll('.sms-tab-btn');
+  allButtons.forEach(btn => {
+    btn.classList.remove('active');
+  });
+  
+  // 顯示選中的分頁
+  const targetTab = document.getElementById(`sms-tab-${tabName}`);
+  if (targetTab) {
+    targetTab.style.display = 'block';
+  }
+  
+  // 設定按鈕為 active
+  const activeButton = document.querySelector(`[onclick="sms_switchTab('${tabName}')"]`);
+  if (activeButton) {
+    activeButton.classList.add('active');
+  }
+  
+  console.log('切換到分頁:', tabName);
 }
 
 console.log('SMS 模組載入完成');
