@@ -62,23 +62,37 @@
   </section>
 
   <!-- 訂單列表 + 撥款 -->
- <section id="list" class="panel">
-  <div class="layout">
-    <div class="card">
+<section id="list" class="panel">
+  <div class="layout single-column"> <div class="card full-width">
       <h2>📋 訂單列表</h2>
 
-      <!-- 上：批量匯入 -->
       <details style="margin-bottom:12px;">
-        <summary style="cursor:pointer;">📥 批量匯入訂單（展開使用）</summary>
+        <summary style="cursor:pointer;">📥 從 Excel 批量複製貼上</summary>
         <div style="margin-top:8px; font-size:13px; color:#666;">
-          請貼上每一行一筆資料，例如：<br>
-          <code>訂單編號, 姓名, 手機, 平台, 門市, 取貨期限(YYYY-MM-DD)</code>
+          支援 Excel 直接貼上！請複製 Excel 中的欄位並貼入下方：<br>
+          順序：<code>訂單編號 | 姓名 | 手機 | 平台 | 門市 | 取貨期限</code>
         </div>
-        <textarea id="bulkInput" style="margin-top:6px; min-height:80px;" placeholder="例：
-1489, 謝毓潔, 0979..., 賣貨便, 深澳坑門市, 2026-01-23
-1490, 王小明, 09xx..., 好賣+, 中壢中山門市, 2026-01-25"></textarea>
-        <button class="btn small" id="bulkImportBtn" style="margin-top:6px;">匯入到訂單列表</button>
+        <textarea id="bulkInput" placeholder="請直接從 Excel 複製資料，點擊這裡，然後按 Ctrl+V 貼上..."></textarea>
+        <button class="btn small" id="bulkImportBtn" style="margin-top:6px;">確認匯入</button>
       </details>
+
+      <div class="list-toolbar">
+        <button class="btn small" id="selectAllBtn">全選</button>
+        <button class="btn small" id="clearSelectionBtn">清除</button>
+        <button class="btn small danger" id="deleteSelectedBtn">🗑️ 刪除選取</button>
+      </div>
+
+      <div class="list-header">
+        <span>選取</span>
+        <span>訂單資訊</span>
+        <span>客戶資料</span>
+        <span>狀態 / 操作</span>
+      </div>
+      <div id="orderList" class="list"></div>
+    </div>
+
+  </div>
+</section>
 
       <!-- 中：工具列 -->
       <div class="list-toolbar">
