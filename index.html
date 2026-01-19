@@ -1,401 +1,70 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>整合系統：收款日期 + SMS（卡片式設計）</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>收款 × SMS 整合系統</title>
+<link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <button class="reset-btn" id="smsResetBtn" onclick="sms_resetTemplates()">🔄 重置範本</button>
 
-  <div class="header">
-    <div class="header-content">
-      <h1>📦 整合系統：收款日期 + SMS</h1>
-      <p>收款訂單管理 · 自動計算日期 · 簡訊客戶通知 · 雲端即時同步</p>
-    </div>
-  </div>
 
-  <div class="container">
-    <div class="tabs">
-      <button class="tab active" onclick="mainSwitch('pay')">🧾 收款管理</button>
-      <button class="tab" onclick="mainSwitch('sms')">📱 SMS 通知</button>
-    </div>
+<header class="app-header">
+<h1>🌸 訂單管理小幫手</h1>
+<p>收款・取貨・簡訊，一次完成</p>
+</header>
 
-    <!-- ================= PAY MODULE ================= -->
-    <div id="main-pay" class="tab-content active">
-      <div class="tabs">
-        <button class="tab active" onclick="pay_switchTab(event,'calc')">📅 日期計算</button>
-        <button class="tab" onclick="pay_switchTab(event,'orders')">📦 訂單管理</button>
-        <button class="tab" onclick="pay_switchTab(event,'import')">📊 批量匯入</button>
-      </div>
 
-      <!-- 日期計算器 -->
-      <div id="pay-calc" class="tab-content active">
-        <div class="card">
-          <h3 style="margin-bottom: 20px; font-size: 18px; color: var(--gray-900);">收款日期計算器</h3>
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">選擇平台</label>
-              <select id="payPlatform" class="form-select">
-                <option value="賣貨便">賣貨便</option>
-                <option value="好賣+">好賣+</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">取貨日期</label>
-              <input type="date" id="payPickupDate" class="form-input" />
-            </div>
-          </div>
+<nav class="main-tabs">
+<button class="tab active" onclick="switchTab('pay')">📦 收款訂單</button>
+<button class="tab" onclick="switchTab('sms')">💬 SMS 簡訊</button>
+</nav>
 
-          <button class="btn btn-primary" onclick="pay_calculateDate()">
-            <span>🧮</span> 計算日期
-          </button>
 
-          <div id="payResult" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--gray-200);">
-            <h4 style="margin-bottom: 16px; color: var(--gray-900);">計算結果</h4>
-            <div class="order-grid">
-              <div>
-                <div class="order-field-label">取貨日期</div>
-                <div class="order-field-value" id="payResultPickup"></div>
-              </div>
-              <div>
-                <div class="order-field-label">結算日期</div>
-                <div class="order-field-value" id="payResultSettlement"></div>
-              </div>
-              <div>
-                <div class="order-field-label">匯款日期</div>
-                <div class="order-field-value" id="payResultPayment"></div>
-              </div>
-            </div>
-          </div>
-        </div>
+<main>
+<section id="pay" class="panel active">
+<div class="card">
+<h2>➕ 新增訂單</h2>
+<div class="form-grid">
+<input id="orderNumber" placeholder="訂單號 #123" />
+<input id="customerName" placeholder="客戶姓名" />
+<input id="phone" placeholder="手機號碼" />
+<select id="platform">
+<option>賣貨便</option>
+<option>好賣+</option>
+</select>
+<input type="date" id="shipDate" />
+</div>
+<button class="btn primary" onclick="addOrder()">新增</button>
+</div>
 
-        <div class="alert alert-info" style="margin-top: 16px;">
-          <strong>💡 計算規則：</strong><br>
-          賣貨便：週一~三取貨 → 週四結算 → +4天匯款；週四~日取貨 → 週一結算 → +2天匯款<br>
-          好賣+：週一~三取貨 → 週五結算 → +4天匯款；週四~日取貨 → 週三結算 → +1天匯款
-        </div>
-      </div>
 
-      <!-- 訂單管理 -->
-      <div id="pay-orders" class="tab-content">
-        <div class="stats">
-          <div class="stat-card">
-            <div class="stat-value" id="payTotalOrders">0</div>
-            <div class="stat-label">總訂單數</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="payPendingOrders">0</div>
-            <div class="stat-label">待取貨</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="payPickedOrders">0</div>
-            <div class="stat-label">已取貨</div>
-          </div>
-        </div>
+<div id="orderList" class="list"></div>
+</section>
 
-        <div class="card">
-          <h3 style="margin-bottom: 20px; font-size: 18px; color: var(--gray-900);">新增訂單</h3>
-          
-          <div class="form-grid">
-            <div class="form-group">
-              <label class="form-label">訂單號 *</label>
-              <input type="text" id="payOrderNumber" class="form-input" placeholder="#1468" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">姓名 *</label>
-              <input type="text" id="payCustomerName" class="form-input" placeholder="王小明" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">電話 *</label>
-              <input type="tel" id="payPhone" class="form-input" placeholder="0912345678" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">平台 *</label>
-              <select id="payOrderPlatform" class="form-select">
-                <option value="賣貨便">賣貨便</option>
-                <option value="好賣+">好賣+</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">門市</label>
-              <input type="text" id="payStore" class="form-input" placeholder="全家 台北車站店" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">出貨日 *</label>
-              <input type="date" id="payOrderShipDate" class="form-input" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">取貨期限</label>
-              <input type="date" id="payPickupDeadline" class="form-input" />
-            </div>
-          </div>
 
-          <button class="btn btn-primary" onclick="pay_addOrder()">
-            <span>➕</span> 新增訂單
-          </button>
-        </div>
+<section id="sms" class="panel">
+<div class="card">
+<h2>💬 SMS 發送</h2>
+<textarea id="smsContent" placeholder="請輸入簡訊內容..."></textarea>
+<button class="btn primary" onclick="sendSMS()">發送簡訊</button>
+</div>
+<div id="smsList" class="list"></div>
+</section>
+</main>
 
-        <div class="action-bar">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <input type="checkbox" id="paySelectAll" onchange="pay_toggleSelectAll()" style="width: 20px; height: 20px; cursor: pointer;">
-            <label for="paySelectAll" style="font-weight: 600; cursor: pointer;">全選</label>
-          </div>
-          
-          <div class="action-group">
-            <button class="btn btn-warning" onclick="pay_pushSelectedToSMS()">
-              <span>📤</span> 帶入 SMS
-            </button>
-            <button class="btn btn-success" onclick="pay_batchPickupToday()">
-              <span>✅</span> 批量取貨
-            </button>
-            <button class="btn btn-ghost" onclick="pay_exportToExcel()">
-              <span>📥</span> 匯出
-            </button>
-            <button class="btn btn-danger" onclick="pay_batchDelete()">
-              <span>🗑️</span> 批量刪除
-            </button>
-          </div>
-        </div>
 
-        <div id="payOrdersList"></div>
-      </div>
+<script src="pay.js"></script>
+<script src="sms.js"></script>
+<script>
+function switchTab(tab){
+document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'))
+document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
+document.getElementById(tab).classList.add('active')
+event.target.classList.add('active')
+}
+</script>
 
-      <!-- Excel 匯入 -->
-      <div id="pay-import" class="tab-content">
-        <div class="card">
-          <h3 style="margin-bottom: 20px; font-size: 18px; color: var(--gray-900);">📊 Excel 批量匯入</h3>
-          
-          <div class="upload-zone" onclick="document.getElementById('payFileInput').click()">
-            <div class="upload-icon">📄</div>
-            <div class="upload-title">點擊上傳 Excel 檔案</div>
-            <div class="upload-text">支援 .xlsx 和 .xls 格式</div>
-            <input type="file" id="payFileInput" accept=".xlsx,.xls" onchange="pay_handleFileUpload(event)">
-          </div>
 
-          <div class="alert alert-info" style="margin-top: 20px;">
-            <strong>📋 必要欄位：</strong>訂單號、姓名、電話、平台、出貨日<br>
-            <strong>選填欄位：</strong>門市、取貨期限
-          </div>
-
-          <button class="btn btn-ghost" onclick="pay_downloadTemplate()" style="margin-top: 16px;">
-            <span>⬇️</span> 下載 Excel 範本
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= SMS MODULE ================= -->
-    <div id="main-sms" class="tab-content">
-      <div class="card" style="margin-bottom: 24px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-          <div>
-            <h2 style="font-size: 20px; margin-bottom: 4px;">📱 SMS 客戶管理系統</h2>
-            <p style="color: var(--gray-600); font-size: 14px;">簡訊範本管理 · 批量發送 · 發送記錄追蹤</p>
-          </div>
-          <div class="sync-status">
-            <div class="sync-indicator" id="smsSyncIndicator"></div>
-            <span id="smsSyncStatus">雲端同步中...</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="tabs">
-        <button class="tab active" onclick="sms_switchTab(event,'orders')">📋 訂單管理</button>
-        <button class="tab" onclick="sms_switchTab(event,'templates')">💬 簡訊範本</button>
-        <button class="tab" onclick="sms_switchTab(event,'send')">📤 發送簡訊</button>
-      </div>
-
-      <!-- 訂單管理 -->
-      <div id="smsOrdersTab" class="tab-content active">
-        <div class="action-bar">
-          <div class="action-group">
-            <button class="btn btn-primary" onclick="sms_showAddOrderModal()">
-              <span>➕</span> 新增訂單
-            </button>
-            <button class="btn btn-ghost" onclick="sms_showBulkImportModal()">
-              <span>📥</span> 批量匯入
-            </button>
-            <button class="btn btn-ghost" onclick="sms_exportOrders()">
-              <span>💾</span> 匯出訂單
-            </button>
-          </div>
-          <button class="btn btn-danger" onclick="sms_clearAllOrders()">
-            <span>🗑️</span> 清空所有
-          </button>
-        </div>
-        <div id="smsOrdersList"></div>
-      </div>
-
-      <!-- 簡訊範本 -->
-      <div id="smsTemplatesTab" class="tab-content">
-        <div class="action-bar">
-          <div class="action-group">
-            <button class="btn btn-primary" onclick="sms_showAddTemplateModal()">
-              <span>➕</span> 新增範本
-            </button>
-            <button class="btn btn-ghost" onclick="sms_exportTemplates()">
-              <span>💾</span> 匯出範本
-            </button>
-            <button class="btn btn-ghost" onclick="sms_importTemplates()">
-              <span>📥</span> 匯入範本
-            </button>
-          </div>
-        </div>
-        <div id="smsTemplatesList"></div>
-      </div>
-
-      <!-- 發送簡訊 -->
-      <div id="smsSendTab" class="tab-content">
-        <div class="card">
-          <div class="form-group">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-              <input type="checkbox" id="smsSelectAllOrders" onchange="sms_toggleSelectAll()" style="width: 20px; height: 20px;">
-              <span style="font-weight: 600;">全選所有訂單</span>
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">選擇簡訊範本</label>
-            <select id="smsTemplateSelect" class="form-select" onchange="sms_previewTemplate()">
-              <option value="">-- 請選擇範本 --</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">範本內容（可編輯）</label>
-            <textarea id="smsTemplatePreview" class="form-textarea" placeholder="選擇範本後會顯示在這裡..."></textarea>
-          </div>
-
-          <div class="action-group">
-            <button class="btn btn-primary" onclick="sms_applyTemplateToSelected()">
-              <span>✅</span> 套用到選取的客戶
-            </button>
-            <button class="btn btn-warning" onclick="sms_saveDrafts()">
-              <span>💾</span> 儲存草稿
-            </button>
-            <button class="btn btn-success" onclick="sms_startSending()">
-              <span>📤</span> 開始發送簡訊
-            </button>
-          </div>
-        </div>
-
-        <div id="smsSendOrdersList"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ================= MODALS ================= -->
-  
-  <!-- 新增訂單 Modal -->
-  <div id="smsAddOrderModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">新增訂單</div>
-      <div class="form-group">
-        <label class="form-label">手機號碼 *</label>
-        <input type="tel" id="smsOrderPhone" class="form-input" placeholder="0912345678">
-      </div>
-      <div class="form-group">
-        <label class="form-label">客戶姓名 *</label>
-        <input type="text" id="smsOrderName" class="form-input" placeholder="王小明">
-      </div>
-      <div class="form-group">
-        <label class="form-label">訂單號碼</label>
-        <input type="text" id="smsOrderNumber" class="form-input" placeholder="#1468">
-      </div>
-      <div class="form-group">
-        <label class="form-label">門市類別</label>
-        <select id="smsOrderStoreType" class="form-select">
-          <option value="全家">全家</option>
-          <option value="7-11">7-11</option>
-          <option value="萊爾富">萊爾富</option>
-          <option value="OK超商">OK超商</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">門市名稱</label>
-        <input type="text" id="smsOrderStoreName" class="form-input" placeholder="台北車站店">
-      </div>
-      <div class="form-group">
-        <label class="form-label">取貨期限</label>
-        <input type="date" id="smsOrderDeadline" class="form-input">
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="sms_closeModal('smsAddOrderModal')">取消</button>
-        <button class="btn btn-primary" onclick="sms_addOrder()">確認新增</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 批量匯入 Modal -->
-  <div id="smsBulkImportModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">批量匯入訂單</div>
-      <div class="alert alert-info">
-        請貼上 Excel 資料：手機號碼、姓名、訂單號碼、門市類別、門市名稱、取貨期限（Tab 或逗號分隔）
-      </div>
-      <div class="form-group">
-        <label class="form-label">貼上資料</label>
-        <textarea id="smsBulkImportData" class="form-textarea" rows="10" placeholder="0912345678	王小明	#1468	全家	台北車站店	2026/01/20"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="sms_closeModal('smsBulkImportModal')">取消</button>
-        <button class="btn btn-primary" onclick="sms_bulkImport()">確認匯入</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 新增範本 Modal -->
-  <div id="smsAddTemplateModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">新增簡訊範本</div>
-      <div class="alert alert-info">
-        <strong>可用變數：</strong><br>
-        {customerName}、{orderNumber}、{storeType}、{storeName}、{pickupDeadline}
-      </div>
-      <div class="form-group">
-        <label class="form-label">範本名稱 *</label>
-        <input type="text" id="smsTemplateName" class="form-input" placeholder="取貨通知">
-      </div>
-      <div class="form-group">
-        <label class="form-label">範本內容 *</label>
-        <textarea id="smsTemplateContent" class="form-textarea" placeholder="親愛的{customerName}您好，您的訂單{orderNumber}已送達{storeType}{storeName}，請於{pickupDeadline}前取貨。"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="sms_closeModal('smsAddTemplateModal')">取消</button>
-        <button class="btn btn-primary" onclick="sms_addTemplate()">確認新增</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 編輯簡訊 Modal -->
-  <div id="smsEditSmsModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">編輯簡訊內容</div>
-      <div class="form-group">
-        <label class="form-label">客戶：<span id="smsEditSmsCustomer"></span></label>
-      </div>
-      <div class="form-group">
-        <label class="form-label">簡訊內容</label>
-        <textarea id="smsEditSmsContent" class="form-textarea" rows="6"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-ghost" onclick="sms_closeModal('smsEditSmsModal')">取消</button>
-        <button class="btn btn-primary" onclick="sms_saveEditedSms()">儲存</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  
-  <!-- Excel Library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  
-  <!-- App Scripts -->
-  <script src="pay.js"></script>
-  <script src="sms.js"></script>
+</body>
+</html>
