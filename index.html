@@ -807,6 +807,609 @@
       document.getElementById('payPendingOrders').textContent = pending;
       document.getElementById('payPickedOrders').textContent = picked;
     }
-  </script>
-</body>
-</html>
+
+    function pay_exportToExcel() {
+      const orders = pay_getOrders();
+      if (orders.length === 0) {
+        alert('沒有訂單可以匯出！');
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(orders.map(o => ({
+        訂單號: o.orderNumber,
+        姓名: o.customerName,
+        電話: o.phone,
+        平台: o.platform,
+        門市: pay_storeMerged(o.platform, pay_getStoreNameAny(o)),
+        出貨日: o.shipDate,
+        取貨期限: o.pickupDeadline,
+        取貨日: o.pickupDate,
+        結算日: o.settlementDate,
+        匯款日: o.paymentDate,
+        狀態: o.status
+      })));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '訂單');
+      XLSX.writeFile(workbook, '訂單匯出.xlsx');
+    }
+
+    function pay_downloadTemplate() {
+      const templateData = [{
+        訂單號: '#1468',
+        姓名: '王小明',
+        電話: '0912345678',
+        平台: '賣貨便',
+        門市: '台北車站店',
+        出貨日: '2026/01/15',
+        取貨期限: '2026/01/20'
+      }];
+      const worksheet = XLSX.utils.json_to_sheet(templateData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '範本');
+      XLSX.writeFile(workbook, '訂單匯入範本.xlsx');
+    }
+
+    function pay_handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        if (jsonData.length === 0) {
+          alert('Excel 檔案中沒有資料！');
+          return;
+        }
+
+        const orders = pay_getOrders();
+        let addedCount = 0;
+
+        jsonData.forEach(row => {
+          const orderNumber = pay_normalizeOrderNumber(row['訂單號']);
+          const customerName = String(row['姓名'] || '').trim();
+          const phone = pay_normalizePhone(row['電話']);
+          const platform = String(row['平台'] || '').trim();
+          const storeName = pay_stripStorePrefix(row['門市']);
+          const shipDateRaw = row['出貨日'];
+          const deadlineRaw = row['取貨期限'];
+
+          if (!orderNumber || !customerName || !phone || !platform || !shipDateRaw) {
+            console.log('忽略不完整的資料行', row);
+            return;
+          }
+
+          const shipDate = pay_parseExcelDate(shipDateRaw);
+          if (!shipDate || isNaN(shipDate.getTime())) {
+            console.log('出貨日格式錯誤', row);
+            return;
+          }
+
+          let pickupDeadline = '';
+          if (deadlineRaw) {
+            const d = pay_parseExcelDate(deadlineRaw);
+            if (d && !isNaN(d.getTime())) {
+              pickupDeadline = pay_formatDateInput(d);
+            }
+          }
+
+          orders.push({
+            id: Date.now() + Math.random(),
+            orderNumber,
+            customerName,
+            phone,
+            platform,
+            storeName,
+            shipDate: pay_formatDate(shipDate),
+            pickupDeadline,
+            pickupDate: '-',
+            settlementDate: '-',
+            paymentDate: '-',
+            status: '待取貨'
+          });
+          addedCount++;
+        });
+
+        pay_saveOrders(orders);
+        pay_loadOrders();
+        alert(`成功匯入 ${addedCount} 筆訂單！`);
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function pay_pushSelectedToSMS() {
+      const ids = pay_selectedIds();
+      if (ids.length === 0) {
+        alert('請先勾選要帶入 SMS 的訂單');
+        return;
+      }
+
+      const orders = pay_getOrders();
+      const selectedOrders = orders.filter(o => ids.includes(o.id));
+      const smsOrders = selectedOrders.map(o => ({
+        id: Date.now() + Math.random(),
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        phone: o.phone,
+        storeType: pay_storeTypeFromPlatform(o.platform),
+        storeName: pay_getStoreNameAny(o),
+        pickupDeadline: o.pickupDeadline || '',
+        smsContent: '',
+        selected: false
+      }));
+
+      let existingSmsOrders = sms_getOrders();
+      smsOrders.forEach(newOrder => {
+        const index = existingSmsOrders.findIndex(eo => eo.orderNumber === newOrder.orderNumber);
+        if (index >= 0) {
+          existingSmsOrders[index] = newOrder;
+        } else {
+          existingSmsOrders.push(newOrder);
+        }
+      });
+      sms_saveOrders(existingSmsOrders);
+      alert(`已將 ${smsOrders.length} 筆訂單帶入 SMS 系統（依訂單號去重/更新）`);
+      sms_renderOrdersList();
+    }
+
+    /* ===== SMS ===== */
+    function sms_switchTab(evt, tabName) {
+      document.querySelectorAll('.sms-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.sms-tab-content').forEach(p => p.classList.remove('active'));
+      evt.target.classList.add('active');
+      document.getElementById('sms' + tabName.charAt(0).toUpperCase() + tabName.slice(1) + 'Tab').classList.add('active');
+      if (tabName === 'orders') {
+        sms_renderOrdersList();
+      } else if (tabName === 'templates') {
+        sms_renderTemplatesList();
+      } else if (tabName === 'send') {
+        sms_renderSendOrdersList();
+        sms_renderTemplateSelect();
+      }
+    }
+
+    function sms_getOrders() {
+      try {
+        return JSON.parse(localStorage.getItem('sms_orders') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function sms_saveOrders(orders) {
+      localStorage.setItem('sms_orders', JSON.stringify(orders));
+    }
+
+    function sms_removeOrdersByOrderNumbers(orderNumbers) {
+      if (!Array.isArray(orderNumbers) || orderNumbers.length === 0) return;
+      const normalizedNumbers = orderNumbers.map(pay_normalizeOrderNumber);
+      let orders = sms_getOrders();
+      const originalLength = orders.length;
+      orders = orders.filter(o => !normalizedNumbers.includes(o.orderNumber));
+      if (orders.length !== originalLength) {
+        sms_saveOrders(orders);
+        sms_renderOrdersList();
+        sms_renderSendOrdersList();
+      }
+    }
+
+    function sms_showAddOrderModal() {
+      document.getElementById('smsOrderPhone').value = '';
+      document.getElementById('smsOrderName').value = '';
+      document.getElementById('smsOrderNumber').value = '';
+      document.getElementById('smsOrderStoreType').value = '全家';
+      document.getElementById('smsOrderStoreName').value = '';
+      document.getElementById('smsOrderDeadline').value = '';
+      document.getElementById('smsAddOrderModal').classList.add('active');
+    }
+
+    function sms_closeModal(modalId) {
+      document.getElementById(modalId).classList.remove('active');
+    }
+
+    function sms_addOrder() {
+      const phone = pay_normalizePhone(document.getElementById('smsOrderPhone').value);
+      const name = document.getElementById('smsOrderName').value.trim();
+      const orderNumber = pay_normalizeOrderNumber(document.getElementById('smsOrderNumber').value);
+      const storeType = document.getElementById('smsOrderStoreType').value;
+      const storeName = pay_stripStorePrefix(document.getElementById('smsOrderStoreName').value);
+      const deadline = document.getElementById('smsOrderDeadline').value;
+
+      if (!phone) return alert('請輸入手機號碼');
+      if (!name) return alert('請輸入客戶姓名');
+
+      const orders = sms_getOrders();
+      orders.push({
+        id: Date.now() + Math.random(),
+        phone,
+        customerName: name,
+        orderNumber,
+        storeType,
+        storeName,
+        pickupDeadline: deadline ? pay_formatDate(new Date(deadline)) : '',
+        smsContent: '',
+        selected: false
+      });
+      sms_saveOrders(orders);
+      sms_closeModal('smsAddOrderModal');
+      sms_renderOrdersList();
+    }
+
+    function sms_renderOrdersList() {
+      const orders = sms_getOrders();
+      const list = document.getElementById('smsOrdersList');
+      list.innerHTML = '';
+
+      if (orders.length === 0) {
+        list.innerHTML = '<div class="sms-empty-state">尚無訂單資料，請新增或匯入訂單。</div>';
+        return;
+      }
+
+      orders.forEach(o => {
+        const card = document.createElement('div');
+        card.className = 'sms-order-card';
+        card.innerHTML = `
+          <div class="sms-order-info">
+            <div><strong>姓名：</strong> ${o.customerName}</div>
+            <div><strong>電話：</strong> ${o.phone}</div>
+            <div><strong>訂單號：</strong> ${o.orderNumber || '-'}</div>
+            <div><strong>門市：</strong> ${o.storeType} ${o.storeName || '-'}</div>
+            <div><strong>取貨期限：</strong> ${o.pickupDeadline || '-'}</div>
+          </div>
+          <div class="sms-button-group">
+            <button class="sms-btn sms-btn-small sms-btn-danger" onclick="sms_deleteOrder(${o.id})">🗑️ 刪除</button>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function sms_deleteOrder(id) {
+      if (!confirm('確定要刪除此訂單嗎？')) return;
+      let orders = sms_getOrders();
+      orders = orders.filter(o => o.id !== id);
+      sms_saveOrders(orders);
+      sms_renderOrdersList();
+    }
+
+    function sms_clearAllOrders() {
+      if (!confirm('確定要清空所有訂單嗎？此操作無法復原！')) return;
+      localStorage.removeItem('sms_orders');
+      sms_renderOrdersList();
+    }
+
+    function sms_showBulkImportModal() {
+      document.getElementById('smsBulkImportData').value = '';
+      document.getElementById('smsBulkImportModal').classList.add('active');
+    }
+
+    function sms_bulkImport() {
+      const dataText = document.getElementById('smsBulkImportData').value.trim();
+      if (!dataText) {
+        alert('請貼上資料');
+        return;
+      }
+
+      const lines = dataText.split('\n');
+      if (lines.length === 0) {
+        alert('資料格式錯誤');
+        return;
+      }
+
+      const orders = sms_getOrders();
+      let addedCount = 0;
+
+      lines.forEach(line => {
+        const parts = line.split(/[\t,]/);
+        if (parts.length < 2) return;
+
+        const phone = pay_normalizePhone(parts[0]);
+        const name = String(parts[1] || '').trim();
+        const orderNumber = parts[2] ? pay_normalizeOrderNumber(parts[2]) : '';
+        const storeType = parts[3] ? String(parts[3]).trim() : '全家';
+        const storeName = parts[4] ? pay_stripStorePrefix(parts[4]) : '';
+        const deadlineRaw = parts[5] ? String(parts[5]).trim() : '';
+
+        if (!phone || !name) return;
+
+        let pickupDeadline = '';
+        if (deadlineRaw) {
+          const d = pay_parseExcelDate(deadlineRaw);
+          if (d && !isNaN(d.getTime())) {
+            pickupDeadline = pay_formatDate(d);
+          }
+        }
+
+        orders.push({
+          id: Date.now() + Math.random(),
+          phone,
+          customerName: name,
+          orderNumber,
+          storeType,
+          storeName,
+          pickupDeadline,
+          smsContent: '',
+          selected: false
+        });
+        addedCount++;
+      });
+
+      if (addedCount === 0) {
+        alert('沒有有效資料被匯入，請檢查格式');
+        return;
+      }
+
+      sms_saveOrders(orders);
+      sms_closeModal('smsBulkImportModal');
+      sms_renderOrdersList();
+      alert(`成功匯入 ${addedCount} 筆訂單！`);
+    }
+
+    function sms_exportOrders() {
+      const orders = sms_getOrders();
+      if (orders.length === 0) {
+        alert('沒有訂單可以匯出！');
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(orders.map(o => ({
+        手機號碼: o.phone,
+        姓名: o.customerName,
+        訂單號碼: o.orderNumber,
+        門市類別: o.storeType,
+        門市名稱: o.storeName,
+        取貨期限: o.pickupDeadline
+      })));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'SMS訂單');
+      XLSX.writeFile(workbook, 'SMS訂單匯出.xlsx');
+    }
+
+    function sms_getTemplates() {
+      try {
+        return JSON.parse(localStorage.getItem('sms_templates') || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+    function sms_saveTemplates(templates) {
+      localStorage.setItem('sms_templates', JSON.stringify(templates));
+    }
+
+    function sms_showAddTemplateModal() {
+      document.getElementById('smsTemplateName').value = '';
+      document.getElementById('smsTemplateContent').value = '';
+      document.getElementById('smsAddTemplateModal').classList.add('active');
+    }
+
+    function sms_addTemplate() {
+      const name = document.getElementById('smsTemplateName').value.trim();
+      const content = document.getElementById('smsTemplateContent').value.trim();
+
+      if (!name) return alert('請輸入範本名稱');
+      if (!content) return alert('請輸入範本內容');
+
+      const templates = sms_getTemplates();
+      templates.push({
+        id: Date.now() + Math.random(),
+        name,
+        content
+      });
+      sms_saveTemplates(templates);
+      sms_closeModal('smsAddTemplateModal');
+      sms_renderTemplatesList();
+    }
+
+    function sms_renderTemplatesList() {
+      const templates = sms_getTemplates();
+      const list = document.getElementById('smsTemplatesList');
+      list.innerHTML = '';
+
+      if (templates.length === 0) {
+        list.innerHTML = '<div class="sms-empty-state">尚無範本，請新增或匯入範本。</div>';
+        return;
+      }
+
+      templates.forEach(t => {
+        const card = document.createElement('div');
+        card.className = 'sms-template-card';
+        card.innerHTML = `
+          <div class="sms-template-header">
+            <div class="sms-template-name">${t.name}</div>
+            <div>
+              <button class="sms-btn sms-btn-small sms-btn-danger" onclick="sms_deleteTemplate(${t.id})">🗑️ 刪除</button>
+            </div>
+          </div>
+          <div class="sms-template-content">${t.content}</div>
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function sms_deleteTemplate(id) {
+      if (!confirm('確定要刪除此範本嗎？')) return;
+      let templates = sms_getTemplates();
+      templates = templates.filter(t => t.id !== id);
+      sms_saveTemplates(templates);
+      sms_renderTemplatesList();
+    }
+
+    function sms_exportTemplates() {
+      const templates = sms_getTemplates();
+      if (templates.length === 0) {
+        alert('沒有範本可以匯出！');
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(templates.map(t => ({
+        範本名稱: t.name,
+        範本內容: t.content
+      })));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '簡訊範本');
+      XLSX.writeFile(workbook, '簡訊範本匯出.xlsx');
+    }
+
+    function sms_importTemplates() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.xlsx,.xls';
+      input.onchange = function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          if (jsonData.length === 0) {
+            alert('Excel 檔案中沒有資料！');
+            return;
+          }
+
+          const templates = sms_getTemplates();
+          let addedCount = 0;
+
+          jsonData.forEach(row => {
+            const name = String(row['範本名稱'] || '').trim();
+            const content = String(row['範本內容'] || '').trim();
+
+            if (!name || !content) return;
+
+            templates.push({
+              id: Date.now() + Math.random(),
+              name,
+              content
+            });
+            addedCount++;
+          });
+
+          sms_saveTemplates(templates);
+          sms_renderTemplatesList();
+          alert(`成功匯入 ${addedCount} 個範本！`);
+        };
+        reader.readAsArrayBuffer(file);
+      };
+      input.click();
+    }
+
+    function sms_resetTemplates() {
+      if (!confirm('確定要重置範本嗎？此操作會清空所有範本！')) return;
+      localStorage.removeItem('sms_templates');
+      sms_renderTemplatesList();
+    }
+
+    function sms_renderTemplateSelect() {
+      const templates = sms_getTemplates();
+      const select = document.getElementById('smsTemplateSelect');
+      select.innerHTML = '<option value="">-- 請選擇範本 --</option>';
+
+      templates.forEach(t => {
+        const option = document.createElement('option');
+        option.value = t.id;
+        option.textContent = t.name;
+        select.appendChild(option);
+      });
+    }
+
+    function sms_previewTemplate() {
+      const templateId = document.getElementById('smsTemplateSelect').value;
+      if (!templateId) {
+        document.getElementById('smsTemplatePreview').value = '';
+        return;
+      }
+
+      const templates = sms_getTemplates();
+      const template = templates.find(t => t.id == templateId);
+      if (template) {
+        document.getElementById('smsTemplatePreview').value = template.content;
+      }
+    }
+
+    function sms_toggleSelectAll() {
+      const checked = document.getElementById('smsSelectAllOrders').checked;
+      let orders = sms_getOrders();
+      orders.forEach(o => o.selected = checked);
+      sms_saveOrders(orders);
+      sms_renderSendOrdersList();
+    }
+
+    function sms_applyTemplateToSelected() {
+      const templateId = document.getElementById('smsTemplateSelect').value;
+      if (!templateId) {
+        alert('請先選擇一個範本');
+        return;
+      }
+
+      const templates = sms_getTemplates();
+      const template = templates.find(t => t.id == templateId);
+      if (!template) return;
+
+      const customContent = document.getElementById('smsTemplatePreview').value.trim();
+      const contentToApply = customContent || template.content;
+
+      let orders = sms_getOrders();
+      let appliedCount = 0;
+      orders.forEach(o => {
+        if (o.selected) {
+          o.smsContent = contentToApply
+            .replace('{customerName}', o.customerName)
+            .replace('{orderNumber}', o.orderNumber || '-')
+            .replace('{storeType}', o.storeType)
+            .replace('{storeName}', o.storeName || '-')
+            .replace('{pickupDeadline}', o.pickupDeadline || '-');
+          appliedCount++;
+        }
+      });
+      sms_saveOrders(orders);
+      sms_renderSendOrdersList();
+      alert(`已將範本套用到 ${appliedCount} 個選取的客戶`);
+    }
+
+    function sms_saveDrafts() {
+      alert('草稿已儲存！');
+    }
+
+    function sms_startSending() {
+      const orders = sms_getOrders();
+      const selectedOrders = orders.filter(o => o.selected && o.smsContent);
+      if (selectedOrders.length === 0) {
+        alert('請先選取客戶並套用簡訊內容');
+        return;
+      }
+      if (confirm(`確定要發送簡訊給 ${selectedOrders.length} 位客戶嗎？`)) {
+        alert(`已發送簡訊給 ${selectedOrders.length} 位客戶！`);
+      }
+    }
+
+    function sms_renderSendOrdersList() {
+      const orders = sms_getOrders();
+      const list = document.getElementById('smsSendOrdersList');
+      list.innerHTML = '';
+
+      if (orders.length === 0) {
+        list.innerHTML = '<div class="sms-empty-state">尚無訂單資料，請新增或匯入訂單。</div>';
+        return;
+      }
+
+      orders.forEach(o => {
+        const card = document.createElement('div');
+        card.className = `sms-order-card ${o.selected ? 'selected' : ''} ${o.smsContent ? 'expanded' : ''}`;
+        card.innerHTML = `
+          <div class="sms-send-row">
+            <div class="sms-send-left">
+              <input type="checkbox" ${o.selected ? 'checked' : ''} onchange="sms_toggleOrderSelection(${o.id})">
+            </div>
+            <div class="sms-send-summary" onclick="sms_toggleCardExpand(${o.id})">
+              <div class="sms-send-summary-top">
