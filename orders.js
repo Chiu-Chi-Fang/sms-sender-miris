@@ -35,6 +35,76 @@ function addOrderFromForm(){
 
   orders.push(o)
   saveOrders()
+  
+// --- 批量匯入訂單（從文字框） ---
+function bulkImportFromText(){
+  const textarea = document.getElementById('bulkInput')
+  if(!textarea) return
+
+  const text = textarea.value.trim()
+  if(!text){
+    alert('請先貼上要匯入的資料')
+    return
+  }
+
+  const lines = text.split('\n')
+  let success = 0
+  let fail = 0
+
+  lines.forEach(raw => {
+    const line = raw.trim()
+    if(!line) return
+
+    // 1. 用逗號切，順便去掉前後空白
+    const parts = line.split(',').map(p => p.trim())
+
+    // 預期格式：
+    // 0: 訂單編號
+    // 1: 姓名
+    // 2: 手機
+    // 3: 平台（賣貨便 / 好賣+）
+    // 4: 門市（可空）
+    // 5: 取貨期限（YYYY-MM-DD，可空）
+    if(parts.length < 3){
+      fail++
+      return
+    }
+
+    const orderNo = parts[0]
+    const name    = parts[1]
+    const phone   = parts[2]
+    const platform= parts[3] || '賣貨便'
+    const store   = parts[4] || ''
+    const deadline= parts[5] || ''
+
+    if(!orderNo || !name || !phone){
+      fail++
+      return
+    }
+
+    const o = {
+      id: Date.now() + Math.random(),   // 避免同秒重複
+      orderNo,
+      name,
+      phone,
+      platform,
+      store: store || null,
+      pickupDeadline: deadline || null,
+      pickupDate: null,
+      settlement: null,
+      payout: null,
+      lastSmsAt: null,
+      lastSmsContent: null
+    }
+
+    orders.push(o)
+    success++
+  })
+
+  saveOrders()
+
+  alert(`匯入完成：成功 ${success} 筆，失敗 ${fail} 筆`)
+}
 
   // 清空表單 + 回到 Step1
   orderNoEl.value = ''
