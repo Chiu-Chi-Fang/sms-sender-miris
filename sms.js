@@ -1,630 +1,439 @@
-// ===== 模擬 Firebase（測試用）=====
-const firebaseConfig = {
-  apiKey: "test-key",
-  databaseURL: "https://test-demo.firebaseio.com"
-};
+// SMS 模組 JavaScript
 
-// 模擬 Firebase 物件
-const smsDB = {
-  ref: (path) => ({
-    on: (event, callback) => {
-      if (path === '.info/connected') {
-        setTimeout(() => callback({ val: () => true }), 500);
-      }
-    },
-    set: () => Promise.resolve(),
-    push: () => ({ key: Date.now() }),
-    once: () => Promise.resolve({ val: () => null })
-  })
-};
-
-setTimeout(() => {
-  const statusEl = document.getElementById('smsSyncStatus');
-  if (statusEl) {
-    statusEl.textContent = '✅ 雲端已連線（模擬）';
-    statusEl.style.color = '#10b981';
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById('main-sms')) {
+    initSMS();
   }
-}, 1000);
+});
 
-
-/* ========================= SMS Module ========================= */
-
-const SMS_STORAGE_KEY = 'sms_orders_v2';
-const SMS_TEMPLATES_KEY = 'sms_templates_v2';
-
-let smsCurrentEditId = null;
-
-// ===== Storage =====
-function sms_getOrders() {
-  try {
-    return JSON.parse(localStorage.getItem(SMS_STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function sms_saveOrders(orders) {
-  localStorage.setItem(SMS_STORAGE_KEY, JSON.stringify(orders));
-}
-
-function sms_getTemplates() {
-  try {
-    const stored = localStorage.getItem(SMS_TEMPLATES_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return sms_getDefaultTemplates();
-}
-
-function sms_saveTemplates(templates) {
-  localStorage.setItem(SMS_TEMPLATES_KEY, JSON.stringify(templates));
-}
-
-function sms_getDefaultTemplates() {
-  return [
-    {
-      id: 1,
-      name: '取貨通知',
-      content: '親愛的{customerName}您好，您的訂單{orderNumber}已送達{storeType}{storeName}，請於{pickupDeadline}前取貨。'
-    },
-    {
-      id: 2,
-      name: '取貨提醒',
-      content: '{customerName}您好，提醒您訂單{orderNumber}將於{pickupDeadline}到期，請盡快至{storeType}{storeName}取貨。'
-    },
-    {
-      id: 3,
-      name: '感謝購買',
-      content: '{customerName}您好，感謝您的購買！您的訂單{orderNumber}已完成，期待下次再為您服務。'
+function initSMS() {
+  console.log('SMS 模組初始化...');
+  
+  // 模擬雲端同步狀態
+  setTimeout(() => {
+    const statusEl = document.getElementById('sms-sync-status');
+    if (statusEl) {
+      statusEl.innerHTML = '<span style="color: #10b981;">✅ 雲端已連線（模擬）</span>';
     }
-  ];
+  }, 1000);
+  
+  // 載入訂單
+  renderOrders();
+  
+  // 載入範本
+  renderTemplates();
 }
 
-// ===== Tab Switch =====
-function sms_switchTab(evt, tabName) {
-  const parent = document.getElementById('main-sms');
-  parent.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
-  parent.querySelectorAll('.tab-content').forEach(p => p.classList.remove('active'));
-  evt.target.classList.add('active');
-  document.getElementById('sms' + tabName.charAt(0).toUpperCase() + tabName.slice(1) + 'Tab').classList.add('active');
-
-  if (tabName === 'orders') sms_renderOrders();
-  if (tabName === 'templates') sms_renderTemplates();
-  if (tabName === 'send') sms_renderSendTab();
-}
-
-// ===== Modal =====
-function sms_showAddOrderModal() {
-  document.getElementById('smsAddOrderModal').classList.add('active');
-  document.getElementById('smsOrderPhone').value = '';
-  document.getElementById('smsOrderName').value = '';
-  document.getElementById('smsOrderNumber').value = '';
-  document.getElementById('smsOrderStoreType').value = '全家';
-  document.getElementById('smsOrderStoreName').value = '';
-  document.getElementById('smsOrderDeadline').value = '';
-}
-
-function sms_showBulkImportModal() {
-  document.getElementById('smsBulkImportModal').classList.add('active');
-  document.getElementById('smsBulkImportData').value = '';
-}
-
-function sms_showAddTemplateModal() {
-  document.getElementById('smsAddTemplateModal').classList.add('active');
-  document.getElementById('smsTemplateName').value = '';
-  document.getElementById('smsTemplateContent').value = '';
-}
-
-function sms_closeModal(modalId) {
-  document.getElementById(modalId).classList.remove('active');
-}
-
-// ===== Add Order =====
-function sms_addOrder() {
-  const phone = document.getElementById('smsOrderPhone').value.trim();
-  const name = document.getElementById('smsOrderName').value.trim();
-  const orderNumber = document.getElementById('smsOrderNumber').value.trim();
-  const storeType = document.getElementById('smsOrderStoreType').value;
-  const storeName = document.getElementById('smsOrderStoreName').value.trim();
-  const deadline = document.getElementById('smsOrderDeadline').value;
-
-  if (!phone) return alert('請輸入手機號碼');
-  if (!name) return alert('請輸入客戶姓名');
-
-  const orders = sms_getOrders();
-  orders.push({
-    id: Date.now() + Math.random(),
-    phone,
-    customerName: name,
-    orderNumber: orderNumber || '-',
-    storeType,
-    storeName: storeName || '-',
-    pickupDeadline: deadline || '-',
-    smsContent: '',
-    status: 'draft',
-    sendHistory: []
-  });
-
-  sms_saveOrders(orders);
-  sms_closeModal('smsAddOrderModal');
-  sms_renderOrders();
-  alert('✅ 訂單新增成功！');
-}
-
-// ===== Bulk Import =====
-function sms_bulkImport() {
-  const data = document.getElementById('smsBulkImportData').value.trim();
-  if (!data) return alert('請貼上資料');
-
-  const lines = data.split('\n').filter(l => l.trim());
-  const orders = sms_getOrders();
-  let success = 0;
-
-  lines.forEach(line => {
-    const parts = line.split(/[\t,]/).map(p => p.trim());
-    if (parts.length < 2) return;
-
-    const [phone, name, orderNumber, storeType, storeName, deadline] = parts;
-    if (!phone || !name) return;
-
-    orders.push({
-      id: Date.now() + Math.random(),
-      phone,
-      customerName: name,
-      orderNumber: orderNumber || '-',
-      storeType: storeType || '全家',
-      storeName: storeName || '-',
-      pickupDeadline: deadline || '-',
-      smsContent: '',
-      status: 'draft',
-      sendHistory: []
-    });
-    success++;
-  });
-
-  sms_saveOrders(orders);
-  sms_closeModal('smsBulkImportModal');
-  sms_renderOrders();
-  alert(`✅ 成功匯入 ${success} 筆訂單！`);
-}
-
-// ===== Delete Order =====
-function sms_deleteOrder(id) {
-  if (!confirm('確定要刪除此訂單嗎？')) return;
-  let orders = sms_getOrders();
-  orders = orders.filter(o => o.id !== id);
-  sms_saveOrders(orders);
-  sms_renderOrders();
-}
-
-// ===== Clear All =====
-function sms_clearAllOrders() {
-  if (!confirm('⚠️ 確定要清空所有訂單嗎？此操作無法復原！')) return;
-  localStorage.removeItem(SMS_STORAGE_KEY);
-  sms_renderOrders();
-  alert('✅ 已清空所有訂單');
-}
-
-// ===== Export Orders =====
-function sms_exportOrders() {
-  const orders = sms_getOrders();
-  if (orders.length === 0) return alert('沒有訂單可以匯出');
-
-  const data = orders.map(o => ({
-    '手機號碼': o.phone,
-    '客戶姓名': o.customerName,
-    '訂單號碼': o.orderNumber,
-    '門市類別': o.storeType,
-    '門市名稱': o.storeName,
-    '取貨期限': o.pickupDeadline,
-    '簡訊內容': o.smsContent,
-    '狀態': o.status === 'sent' ? '已發送' : '草稿'
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'SMS訂單');
-  XLSX.writeFile(wb, `SMS訂單_${new Date().toISOString().slice(0, 10)}.xlsx`);
-}
-
-// ===== Render Orders =====
-function sms_renderOrders() {
-  const orders = sms_getOrders();
-  const container = document.getElementById('smsOrdersList');
-
+// 渲染訂單列表
+function renderOrders() {
+  const orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  const container = document.getElementById('smsOrderList');
+  
+  if (!container) return;
+  
   if (orders.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📋</div>
-        <div class="empty-title">尚無訂單資料</div>
-        <div class="empty-text">點擊「新增訂單」或「批量匯入」開始使用</div>
+      <div style="text-align: center; padding: 40px; color: #6b7280;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+        <p>尚無訂單資料</p>
+        <p style="font-size: 14px; margin-top: 8px;">可以手動新增或從付款模組匯入</p>
       </div>
     `;
     return;
   }
-
-  container.innerHTML = orders.map(o => `
-    <div class="order-card">
-      <div class="order-header">
-        <div class="order-title">
-          <div>
-            <div class="order-name">${o.customerName} (${o.phone})</div>
-            <div style="font-size: 13px; color: var(--gray-600); margin-top: 2px;">訂單：${o.orderNumber}</div>
-          </div>
+  
+  container.innerHTML = orders.map(order => `
+    <div class="sms-order-card ${order.status === 'picked' ? 'picked' : ''}" data-order-id="${order.id}">
+      <div class="sms-order-header">
+        <div class="sms-order-checkbox">
+          <input type="checkbox" id="order-${order.id}" onchange="toggleOrderSelection(${order.id})">
         </div>
-        <span class="badge ${o.status === 'sent' ? 'badge-picked' : 'badge-draft'}">
-          ${o.status === 'sent' ? '已發送' : '草稿'}
-        </span>
-      </div>
-
-      <div class="order-grid">
-        <div>
-          <div class="order-field-label">門市</div>
-          <div class="order-field-value">${o.storeType} ${o.storeName}</div>
+        <div class="sms-order-title">
+          <h3>#${order.id} ${order.name}</h3>
+          <div class="sms-order-phone">${order.phone}</div>
         </div>
-        <div>
-          <div class="order-field-label">取貨期限</div>
-          <div class="order-field-value">${o.pickupDeadline}</div>
+        <div class="sms-order-badge ${order.status === 'picked' ? 'badge-picked' : 'badge-pending'}">
+          ${order.status === 'picked' ? '待取貨' : '未取貨'}
         </div>
       </div>
-
-      ${o.smsContent ? `
+      
+      <div class="sms-order-details">
+        <div class="sms-detail-row">
+          <span class="sms-detail-label">平台</span>
+          <span class="sms-detail-value">${order.platform || '賣貨便'}</span>
+        </div>
+        <div class="sms-detail-row">
+          <span class="sms-detail-label">門市</span>
+          <span class="sms-detail-value">${order.store || '高雄門市'}</span>
+        </div>
+        <div class="sms-detail-row">
+          <span class="sms-detail-label">出貨日</span>
+          <span class="sms-detail-value">${order.shipDate || '2026/01/14'}</span>
+        </div>
+        <div class="sms-detail-row">
+          <span class="sms-detail-label">取貨期限</span>
+          <span class="sms-detail-value">${order.deadline || '2026-01-23'}</span>
+        </div>
+      </div>
+      
+      ${order.pickupDate ? `
+        <div style="margin-top: 12px; padding: 10px; background: #d1fae5; border-radius: 6px; color: #065f46; font-size: 13px; font-weight: 500;">
+          ✅ 已標記取貨日：${order.pickupDate}
+        </div>
+      ` : ''}
+      
+      ${order.smsContent ? `
         <div class="sms-preview">
-          <div class="sms-preview-label">簡訊內容</div>
-          <div class="sms-preview-content">${o.smsContent}</div>
+          <div class="sms-preview-label">📱 簡訊內容預覽：</div>
+          <div class="sms-preview-content">${order.smsContent}</div>
         </div>
       ` : ''}
-
-      ${o.sendHistory && o.sendHistory.length > 0 ? `
-        <div class="send-history">
-          <div class="send-history-header">📤 發送記錄</div>
-          <div class="send-history-summary">
-            <span>總發送次數：${o.sendHistory.length}</span>
-            <span>最後發送：${o.sendHistory[o.sendHistory.length - 1].timestamp}</span>
-          </div>
-          <div class="send-history-list">
-            ${o.sendHistory.slice(-3).reverse().map(h => `
-              <div class="history-item">🕐 ${h.timestamp} - ${h.content.substring(0, 30)}...</div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <div class="order-actions">
-        <button class="btn btn-danger btn-sm" onclick="sms_deleteOrder(${o.id})">
-          <span>🗑️</span> 刪除
+      
+      <div class="sms-order-actions">
+        <button class="btn-mark-pickup" onclick="markPickupToday(${order.id})">
+          ✓ 標記今天取貨
+        </button>
+        <button class="btn-select-date" onclick="selectPickupDate(${order.id})">
+          📅 選擇取貨日期
+        </button>
+        <button class="btn-delete" onclick="deleteOrder(${order.id})">
+          🗑️ 刪除
         </button>
       </div>
     </div>
   `).join('');
 }
 
-// ===== Templates =====
-function sms_addTemplate() {
-  const name = document.getElementById('smsTemplateName').value.trim();
-  const content = document.getElementById('smsTemplateContent').value.trim();
-
-  if (!name) return alert('請輸入範本名稱');
-  if (!content) return alert('請輸入範本內容');
-
-  const templates = sms_getTemplates();
-  const maxId = templates.length > 0 ? Math.max(...templates.map(t => t.id)) : 0;
-
-  templates.push({
-    id: maxId + 1,
-    name,
-    content
-  });
-
-  sms_saveTemplates(templates);
-  sms_closeModal('smsAddTemplateModal');
-  sms_renderTemplates();
-  alert('✅ 範本新增成功！');
+// 標記今天取貨
+function markPickupToday(orderId) {
+  const orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  const order = orders.find(o => o.id === orderId);
+  
+  if (order) {
+    const today = new Date().toISOString().split('T')[0];
+    order.pickupDate = today;
+    order.status = 'picked';
+    localStorage.setItem('smsOrders', JSON.stringify(orders));
+    
+    showNotification(`✅ 已標記取貨日：${today}`, 'success');
+    renderOrders();
+  }
 }
 
-function sms_deleteTemplate(id) {
-  if (!confirm('確定要刪除此範本嗎？')) return;
-  let templates = sms_getTemplates();
-  templates = templates.filter(t => t.id !== id);
-  sms_saveTemplates(templates);
-  sms_renderTemplates();
+// 選擇取貨日期
+function selectPickupDate(orderId) {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // 建立對話框
+  const dialog = document.createElement('div');
+  dialog.id = 'pickup-date-dialog';
+  dialog.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 24px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 10000;
+    min-width: 320px;
+  `;
+  
+  dialog.innerHTML = `
+    <h3 style="margin: 0 0 16px 0; color: #1f2937; font-size: 18px;">📅 選擇取貨日期</h3>
+    <div style="margin-bottom: 20px;">
+      <input type="date" id="pickup-date-input" 
+        min="${today}"
+        value="${today}"
+        style="width: 100%; padding: 10px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 15px; box-sizing: border-box;">
+    </div>
+    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <button onclick="closePickupDateDialog()" 
+        style="padding: 10px 20px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+        取消
+      </button>
+      <button onclick="confirmPickupDate(${orderId})" 
+        style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+        確認
+      </button>
+    </div>
+  `;
+  
+  // 建立遮罩
+  const overlay = document.createElement('div');
+  overlay.id = 'pickup-date-overlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+  `;
+  overlay.onclick = closePickupDateDialog;
+  
+  document.body.appendChild(overlay);
+  document.body.appendChild(dialog);
+  
+  // 聚焦到日期輸入框
+  setTimeout(() => {
+    document.getElementById('pickup-date-input').focus();
+  }, 100);
 }
 
-function sms_exportTemplates() {
-  const templates = sms_getTemplates();
-  const data = templates.map(t => ({
-    '範本名稱': t.name,
-    '範本內容': t.content
-  }));
-
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '簡訊範本');
-  XLSX.writeFile(wb, `簡訊範本_${new Date().toISOString().slice(0, 10)}.xlsx`);
+// 確認取貨日期
+function confirmPickupDate(orderId) {
+  const dateInput = document.getElementById('pickup-date-input');
+  const selectedDate = dateInput.value;
+  
+  if (!selectedDate) {
+    alert('請選擇日期！');
+    return;
+  }
+  
+  // 更新訂單的取貨日期
+  const orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  const order = orders.find(o => o.id === orderId);
+  
+  if (order) {
+    order.pickupDate = selectedDate;
+    order.status = 'picked';
+    localStorage.setItem('smsOrders', JSON.stringify(orders));
+    
+    // 顯示成功訊息
+    showNotification(`✅ 已標記取貨日：${selectedDate}`, 'success');
+    
+    // 重新渲染
+    renderOrders();
+  }
+  
+  closePickupDateDialog();
 }
 
-function sms_importTemplates() {
-  alert('請使用「新增範本」功能手動建立範本');
+// 關閉對話框
+function closePickupDateDialog() {
+  const dialog = document.getElementById('pickup-date-dialog');
+  const overlay = document.getElementById('pickup-date-overlay');
+  if (dialog) dialog.remove();
+  if (overlay) overlay.remove();
 }
 
-function sms_resetTemplates() {
-  if (!confirm('⚠️ 確定要重置為預設範本嗎？目前的自訂範本將會被清除！')) return;
-  localStorage.removeItem(SMS_TEMPLATES_KEY);
-  sms_renderTemplates();
-  alert('✅ 已重置為預設範本');
+// 顯示通知
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 24px;
+    background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10001;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease;
+  `;
+  notification.textContent = message;
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideOut 0.3s ease';
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
 }
 
-function sms_renderTemplates() {
-  const templates = sms_getTemplates();
-  const container = document.getElementById('smsTemplatesList');
+// 加入動畫樣式
+if (!document.getElementById('notification-animations')) {
+  const style = document.createElement('style');
+  style.id = 'notification-animations';
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
+// 刪除訂單
+function deleteOrder(orderId) {
+  if (!confirm('確定要刪除這筆訂單嗎？')) return;
+  
+  let orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  orders = orders.filter(o => o.id !== orderId);
+  localStorage.setItem('smsOrders', JSON.stringify(orders));
+  
+  showNotification('✅ 訂單已刪除', 'success');
+  renderOrders();
+}
+
+// 切換訂單選擇
+function toggleOrderSelection(orderId) {
+  // 這個功能可以用於批量操作
+  console.log('訂單選擇切換:', orderId);
+}
+
+// 渲染範本列表
+function renderTemplates() {
+  const templates = JSON.parse(localStorage.getItem('smsTemplates') || '[]');
+  const container = document.getElementById('smsTemplateList');
+  
+  if (!container) return;
+  
   if (templates.length === 0) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">💬</div>
-        <div class="empty-title">尚無範本</div>
-        <div class="empty-text">點擊「新增範本」開始建立</div>
+      <div style="text-align: center; padding: 40px; color: #6b7280;">
+        <div style="font-size: 48px; margin-bottom: 16px;">📝</div>
+        <p>尚無簡訊範本</p>
+        <p style="font-size: 14px; margin-top: 8px;">點擊上方按鈕新增範本</p>
       </div>
     `;
     return;
   }
-
-  container.innerHTML = templates.map(t => `
-    <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
-        <h3 style="font-size: 18px; color: var(--gray-900); margin: 0;">${t.name}</h3>
-        <button class="btn btn-danger btn-sm" onclick="sms_deleteTemplate(${t.id})">
-          <span>🗑️</span> 刪除
-        </button>
+  
+  container.innerHTML = templates.map(template => `
+    <div class="sms-template-card">
+      <div class="sms-template-header">
+        <h3>${template.name}</h3>
+        <button class="btn-delete-small" onclick="deleteTemplate(${template.id})">🗑️</button>
       </div>
-      <div class="sms-preview">
-        <div class="sms-preview-content">${t.content}</div>
+      <div class="sms-template-content">${template.content}</div>
+      <div class="sms-template-actions">
+        <button class="btn-apply" onclick="applyTemplate(${template.id})">套用到選中訂單</button>
       </div>
     </div>
   `).join('');
 }
 
-// ===== Send Tab =====
-function sms_renderSendTab() {
-  const orders = sms_getOrders();
-  const templates = sms_getTemplates();
-  const container = document.getElementById('smsSendOrdersList');
-
-  // Update template select
-  const select = document.getElementById('smsTemplateSelect');
-  select.innerHTML = '<option value="">-- 請選擇範本 --</option>' +
-    templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
-  if (orders.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📤</div>
-        <div class="empty-title">尚無訂單</div>
-        <div class="empty-text">請先在「訂單管理」中新增訂單</div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = orders.map(o => `
-    <div class="order-card ${o.selected ? 'selected' : ''}">
-      <div class="order-header">
-        <div class="order-title">
-          <input type="checkbox" class="sms-order-checkbox" data-id="${o.id}" ${o.selected ? 'checked' : ''} onchange="sms_toggleOrderSelect(${o.id})">
-          <div>
-            <div class="order-name">${o.customerName} (${o.phone})</div>
-            <div style="font-size: 13px; color: var(--gray-600); margin-top: 2px;">訂單：${o.orderNumber}</div>
-          </div>
-        </div>
-        <span class="badge ${o.status === 'sent' ? 'badge-picked' : 'badge-draft'}">
-          ${o.status === 'sent' ? '已發送' : '草稿'}
-        </span>
-      </div>
-
-      <div class="order-grid">
-        <div>
-          <div class="order-field-label">門市</div>
-          <div class="order-field-value">${o.storeType} ${o.storeName}</div>
-        </div>
-        <div>
-          <div class="order-field-label">取貨期限</div>
-          <div class="order-field-value">${o.pickupDeadline}</div>
-        </div>
-      </div>
-
-      ${o.smsContent ? `
-        <div class="sms-preview">
-          <div class="sms-preview-label">簡訊內容預覽</div>
-          <div class="sms-preview-content">${o.smsContent}</div>
-        </div>
-      ` : ''}
-
-      <div class="order-actions">
-        <button class="btn btn-primary btn-sm" onclick="sms_editSms(${o.id})">
-          <span>✏️</span> 編輯簡訊
-        </button>
-        ${o.smsContent ? `
-          <button class="btn btn-success btn-sm" onclick="sms_sendSingle(${o.id})">
-            <span>📤</span> 發送
-          </button>
-        ` : ''}
-      </div>
-    </div>
-  `).join('');
+// 新增訂單（示例）
+function addNewOrder() {
+  const name = prompt('請輸入客戶姓名：');
+  if (!name) return;
+  
+  const phone = prompt('請輸入手機號碼：');
+  if (!phone) return;
+  
+  const orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  const newOrder = {
+    id: Date.now(),
+    name: name,
+    phone: phone,
+    platform: '賣貨便',
+    store: '高雄門市',
+    shipDate: new Date().toISOString().split('T')[0],
+    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'pending'
+  };
+  
+  orders.push(newOrder);
+  localStorage.setItem('smsOrders', JSON.stringify(orders));
+  
+  showNotification('✅ 訂單新增成功', 'success');
+  renderOrders();
 }
 
-function sms_toggleOrderSelect(id) {
-  const orders = sms_getOrders();
-  const order = orders.find(o => o.id === id);
-  if (order) {
-    order.selected = !order.selected;
-    sms_saveOrders(orders);
-    sms_renderSendTab();
-  }
+// 新增範本
+function addNewTemplate() {
+  const name = prompt('請輸入範本名稱：');
+  if (!name) return;
+  
+  const content = prompt('請輸入簡訊內容：\n(可使用 {name}, {phone}, {store} 等變數)');
+  if (!content) return;
+  
+  const templates = JSON.parse(localStorage.getItem('smsTemplates') || '[]');
+  const newTemplate = {
+    id: Date.now(),
+    name: name,
+    content: content
+  };
+  
+  templates.push(newTemplate);
+  localStorage.setItem('smsTemplates', JSON.stringify(templates));
+  
+  showNotification('✅ 範本新增成功', 'success');
+  renderTemplates();
 }
 
-function sms_toggleSelectAll() {
-  const checked = document.getElementById('smsSelectAllOrders').checked;
-  const orders = sms_getOrders();
-  orders.forEach(o => o.selected = checked);
-  sms_saveOrders(orders);
-  sms_renderSendTab();
+// 刪除範本
+function deleteTemplate(templateId) {
+  if (!confirm('確定要刪除這個範本嗎？')) return;
+  
+  let templates = JSON.parse(localStorage.getItem('smsTemplates') || '[]');
+  templates = templates.filter(t => t.id !== templateId);
+  localStorage.setItem('smsTemplates', JSON.stringify(templates));
+  
+  showNotification('✅ 範本已刪除', 'success');
+  renderTemplates();
 }
 
-function sms_previewTemplate() {
-  const templateId = parseInt(document.getElementById('smsTemplateSelect').value);
-  if (!templateId) {
-    document.getElementById('smsTemplatePreview').value = '';
-    return;
-  }
-
-  const templates = sms_getTemplates();
+// 套用範本
+function applyTemplate(templateId) {
+  const templates = JSON.parse(localStorage.getItem('smsTemplates') || '[]');
   const template = templates.find(t => t.id === templateId);
-  if (template) {
-    document.getElementById('smsTemplatePreview').value = template.content;
+  
+  if (!template) return;
+  
+  // 獲取選中的訂單
+  const orders = JSON.parse(localStorage.getItem('smsOrders') || '[]');
+  const checkboxes = document.querySelectorAll('#smsOrderList input[type="checkbox"]:checked');
+  
+  if (checkboxes.length === 0) {
+    alert('請先選擇要套用範本的訂單！');
+    return;
   }
-}
-
-function sms_applyTemplateToSelected() {
-  const content = document.getElementById('smsTemplatePreview').value.trim();
-  if (!content) return alert('請先選擇或編輯範本內容');
-
-  const orders = sms_getOrders();
-  const selected = orders.filter(o => o.selected);
-
-  if (selected.length === 0) return alert('請先勾選要套用的客戶');
-
-  selected.forEach(o => {
-    o.smsContent = content
-      .replace(/{customerName}/g, o.customerName)
-      .replace(/{orderNumber}/g, o.orderNumber)
-      .replace(/{storeType}/g, o.storeType)
-      .replace(/{storeName}/g, o.storeName)
-      .replace(/{pickupDeadline}/g, o.pickupDeadline);
+  
+  let count = 0;
+  checkboxes.forEach(checkbox => {
+    const orderId = parseInt(checkbox.id.replace('order-', ''));
+    const order = orders.find(o => o.id === orderId);
+    
+    if (order) {
+      // 替換變數
+      let content = template.content;
+      content = content.replace(/{name}/g, order.name);
+      content = content.replace(/{phone}/g, order.phone);
+      content = content.replace(/{store}/g, order.store || '高雄門市');
+      content = content.replace(/{shipDate}/g, order.shipDate || '');
+      content = content.replace(/{deadline}/g, order.deadline || '');
+      
+      order.smsContent = content;
+      count++;
+    }
   });
-
-  sms_saveOrders(orders);
-  sms_renderSendTab();
-  alert(`✅ 已套用範本到 ${selected.length} 位客戶！`);
+  
+  localStorage.setItem('smsOrders', JSON.stringify(orders));
+  
+  showNotification(`✅ 已套用範本到 ${count} 筆訂單`, 'success');
+  renderOrders();
 }
 
-function sms_saveDrafts() {
-  alert('✅ 草稿已自動儲存！');
-}
-
-function sms_editSms(id) {
-  const orders = sms_getOrders();
-  const order = orders.find(o => o.id === id);
-  if (!order) return;
-
-  smsCurrentEditId = id;
-  document.getElementById('smsEditSmsCustomer').textContent = `${order.customerName} (${order.phone})`;
-  document.getElementById('smsEditSmsContent').value = order.smsContent || '';
-  document.getElementById('smsEditSmsModal').classList.add('active');
-}
-
-function sms_saveEditedSms() {
-  if (!smsCurrentEditId) return;
-
-  const content = document.getElementById('smsEditSmsContent').value.trim();
-  const orders = sms_getOrders();
-  const order = orders.find(o => o.id === smsCurrentEditId);
-
-  if (order) {
-    order.smsContent = content;
-    sms_saveOrders(orders);
+// 批量發送簡訊（模擬）
+function sendBulkSMS() {
+  const checkboxes = document.querySelectorAll('#smsOrderList input[type="checkbox"]:checked');
+  
+  if (checkboxes.length === 0) {
+    alert('請先選擇要發送簡訊的訂單！');
+    return;
   }
-
-  sms_closeModal('smsEditSmsModal');
-  sms_renderSendTab();
-  alert('✅ 簡訊內容已儲存！');
+  
+  if (!confirm(`確定要發送 ${checkboxes.length} 則簡訊嗎？`)) return;
+  
+  // 模擬發送
+  showNotification(`📱 正在發送 ${checkboxes.length} 則簡訊...`, 'info');
+  
+  setTimeout(() => {
+    showNotification(`✅ 已成功發送 ${checkboxes.length} 則簡訊`, 'success');
+  }, 1500);
 }
 
-function sms_sendSingle(id) {
-  const orders = sms_getOrders();
-  const order = orders.find(o => o.id === id);
-  if (!order || !order.smsContent) return alert('請先編輯簡訊內容');
-
-  if (!confirm(`確定要發送簡訊給 ${order.customerName} (${order.phone}) 嗎？`)) return;
-
-  if (!order.sendHistory) order.sendHistory = [];
-  order.sendHistory.push({
-    timestamp: new Date().toLocaleString('zh-TW'),
-    content: order.smsContent
-  });
-  order.status = 'sent';
-
-  sms_saveOrders(orders);
-  sms_renderSendTab();
-  alert('✅ 簡訊已發送！（模擬）');
-}
-
-function sms_startSending() {
-  const orders = sms_getOrders();
-  const toSend = orders.filter(o => o.selected && o.smsContent);
-
-  if (toSend.length === 0) return alert('沒有可發送的簡訊（請確認已勾選且有簡訊內容）');
-
-  if (!confirm(`確定要發送 ${toSend.length} 則簡訊嗎？`)) return;
-
-  toSend.forEach(o => {
-    if (!o.sendHistory) o.sendHistory = [];
-    o.sendHistory.push({
-      timestamp: new Date().toLocaleString('zh-TW'),
-      content: o.smsContent
-    });
-    o.status = 'sent';
-    o.selected = false;
-  });
-
-  sms_saveOrders(orders);
-  sms_renderSendTab();
-  alert(`✅ 已成功發送 ${toSend.length} 則簡訊！（模擬）`);
-}
-
-// ===== Import from Pay Module =====
-window.sms_importFromPay = function(payOrders) {
-  const smsOrders = sms_getOrders();
-  let imported = 0;
-
-  payOrders.forEach(po => {
-    const exists = smsOrders.find(so => so.phone === po.phone && so.orderNumber === po.orderNumber);
-    if (exists) return;
-
-    const [storeType, ...storeNameParts] = (po.store || '').split(' ');
-    smsOrders.push({
-      id: Date.now() + Math.random(),
-      phone: po.phone,
-      customerName: po.customerName,
-      orderNumber: po.orderNumber,
-      storeType: storeType || '全家',
-      storeName: storeNameParts.join(' ') || '-',
-      pickupDeadline: po.pickupDeadline || '-',
-      smsContent: '',
-      status: 'draft',
-      sendHistory: []
-    });
-    imported++;
-  });
-
-  sms_saveOrders(smsOrders);
-  sms_renderOrders();
-  return imported;
-};
-
-// ===== Remove orders by order numbers (called from Pay module) =====
-window.sms_removeOrdersByOrderNumbers = function(orderNumbers) {
-  let orders = sms_getOrders();
-  const before = orders.length;
-  orders = orders.filter(o => !orderNumbers.includes(o.orderNumber));
-  const removed = before - orders.length;
-  if (removed > 0) {
-    sms_saveOrders(orders);
-    console.log(`SMS模組：已移除 ${removed} 筆已取貨訂單`);
-  }
-};
-
-// ===== Init =====
-window.addEventListener('DOMContentLoaded', () => {
-  sms_renderOrders();
-  sms_renderTemplates();
-});
+console.log('SMS 模組載入完成');
