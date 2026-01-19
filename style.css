@@ -1,396 +1,117 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+/* style.css - 樣式表 */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
 
-:root {
-  /* -- 主題色系：櫻花棉花糖 -- */
-  --primary-color: #ff8fab; /* 主色調：櫻花粉 */
-  --primary-gradient: linear-gradient(135deg, #ff8fab 0%, #ffc2d1 100%); /* 可愛漸層 */
-  --secondary-color: #aed9e0; /* 次要色調：粉嫩藍 */
-  --bg-body: #fff0f5; /* 背景色：極淺的粉紅 */
-  --bg-card: #ffffff; /* 卡片背景：純白 */
-  --text-dark: #5a4a55; /* 深色文字：帶點紫的深灰，不那麼死板 */
-  --text-light: #9e8a95; /* 淺色文字 */
-  --border-radius-card: 24px; /* 卡片大圓角 */
-  --border-radius-btn: 50px; /* 按鈕膠囊狀圓角 */
-  --shadow-soft: 0 10px 30px -10px rgba(255, 143, 171, 0.3); /* 柔和粉色陰影 */
-}
-
-* {
-  box-sizing: border-box;
-  /* 使用圓潤可愛的字體 */
-  font-family: 'Nunito', 'Noto Sans TC', sans-serif;
-}
-
+* { box-sizing: border-box; }
 body {
   margin: 0;
-  padding: 20px;
-  background-color: var(--bg-body);
-  color: var(--text-dark);
-  /* 增加一點可愛的背景紋理（選用） */
-  background-image: radial-gradient(circle at 10% 20%, rgb(255, 245, 247) 0%, rgb(255, 240, 245) 90%);
+  font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+  background: linear-gradient(135deg, #fff0f5 0%, #ffe4e1 100%); /* 櫻花粉背景 */
   min-height: 100vh;
+  padding: 16px;
+  color: #4a4a4a;
 }
 
-/* --- Header --- */
-.header {
-  text-align: center;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 25px;
-  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
-}
-
-/* --- Navigation Tabs --- */
-.tabs {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 25px;
-  padding: 5px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: var(--border-radius-btn);
-  backdrop-filter: blur(5px);
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.tab {
-  background: transparent;
-  border: none;
-  padding: 12px 24px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-light);
-  border-radius: var(--border-radius-btn);
-  transition: all 0.3s ease;
-}
-
-.tab:hover {
-  color: var(--primary-color);
-  background: rgba(255, 240, 245, 0.8);
-}
-
-/* 選中的 Tab 樣式 */
-.tab.active {
-  background: var(--primary-gradient);
-  color: white;
-  box-shadow: 0 4px 15px rgba(255, 143, 171, 0.4);
-  transform: translateY(-2px);
-}
-
-/* --- Main Layout & Panels --- */
-main {
+/* 外框容器 */
+.shell {
   max-width: 1200px;
   margin: 0 auto;
+  background: #fff;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(255, 182, 193, 0.4); /* 粉色陰影 */
+  border: 2px solid #fff;
 }
 
-.panel {
-  display: none;
-  animation: fadeIn 0.4s ease-in-out;
+.shell-header {
+  background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); /* 漸層粉 */
+  color: #fff;
+  padding: 22px 18px;
+  text-align: center;
 }
+.shell-header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 900; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+.shell-header p { margin: 0; opacity: 0.95; font-size: 13px; font-weight: 500; }
 
-.panel.active {
-  display: block;
+/* 分頁籤 */
+.shell-tabs { display: flex; background: #fff5f7; border-bottom: 2px solid #ffdde1; }
+.shell-tab {
+  flex: 1; padding: 16px 10px; border: 0; cursor: pointer;
+  font-weight: 900; font-size: 15px; background: transparent; color: #ffb7b2;
+  transition: all 0.3s;
 }
+.shell-tab.active { background: #fff; color: #ff6b81; border-bottom: 4px solid #ff6b81; }
+.shell-tab:hover { background: #fff0f3; color: #ff8fa3; }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+.shell-content { padding: 20px; }
+.shell-panel { display: none; animation: fadeIn 0.3s ease-in-out; }
+.shell-panel.active { display: block; }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Pay 內部樣式 */
+.pay-tabs { display:flex; gap: 10px; margin-bottom: 20px; }
+.pay-tab {
+    padding: 10px 20px; border-radius: 50px; border: 2px solid #ffdde1; background: #fff;
+    color: #888; font-weight: 700; cursor: pointer; transition: all 0.2s;
 }
+.pay-tab.active { background: #ff6b81; color: white; border-color: #ff6b81; box-shadow: 0 4px 10px rgba(255, 107, 129, 0.3); }
 
-/* 雙欄佈局設定 */
-.layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 25px;
-}
+.pay-panel { display:none; }
+.pay-panel.active { display:block; }
 
-@media (min-width: 768px) {
-  .layout {
-    grid-template-columns: 3fr 2fr; /* 左邊寬一點，右邊窄一點 */
-  }
-  /* SMS 頁面可能需要左右平均或反過來 */
-  #sms .layout {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-/* --- Cards (卡片) --- */
-.card {
-  background: var(--bg-card);
-  padding: 30px;
-  border-radius: var(--border-radius-card);
-  box-shadow: var(--shadow-soft);
-  border: 2px solid white; /* 增加一點邊框層次 */
-}
-
-h2 {
-  color: var(--primary-color);
-  margin-top: 0;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-h3 {
-    color: var(--text-dark);
-    font-weight: 600;
-}
-
-/* --- Forms & Inputs --- */
+/* 表單與按鈕 */
+.pay-form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:15px; margin-bottom: 20px; }
 input, select, textarea {
-  width: 100%;
-  padding: 14px 18px;
-  margin-bottom: 16px;
-  border: 2px solid #eee;
-  border-radius: 16px; /* 輸入框也要圓圓的 */
-  font-size: 1rem;
-  background: #fcfcfc;
-  transition: all 0.3s ease;
-  color: var(--text-dark);
+  width:100%; padding:12px 15px; border:2px solid #ffe4e1; border-radius: 12px; font-size:15px;
+  transition: border 0.3s; background: #fffbfb;
 }
+input:focus, select:focus, textarea:focus { outline:none; border-color:#ff9a9e; background: #fff; }
+label { display:block; margin-bottom:6px; font-weight:700; color:#666; font-size: 14px; }
 
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  background: white;
-  box-shadow: 0 0 0 4px rgba(255, 143, 171, 0.15); /* 聚焦時的柔和光暈 */
-}
-
-textarea {
-  resize: vertical;
-  min-height: 100px;
-  line-height: 1.5;
-}
-
-.label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--text-dark);
-    cursor: pointer;
-}
-
-/* --- Buttons --- */
 .btn {
-  padding: 12px 24px;
-  border: none;
-  border-radius: var(--border-radius-btn);
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: #e0e0e0; /* 預設灰色按鈕 */
-  color: var(--text-dark);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  padding:10px 18px; border:0; border-radius:12px; font-weight:900; cursor:pointer; 
+  transition: transform 0.1s, box-shadow 0.2s; display: inline-flex; align-items: center; justify-content: center;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: linear-gradient(135deg, #ff9a9e 0%, #ff6b81 100%); color: white; box-shadow: 0 4px 12px rgba(255, 107, 129, 0.3); }
+.btn-secondary { background: #f0f0f0; color: #666; }
+.btn-danger { background: #ff8fa3; color: white; }
+.btn-success { background: #9be1a0; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.1); } /* 柔和綠 */
+.btn-warning { background: #ffeaa7; color: #d35400; }
+.btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 8px; }
+
+/* 批量日期框 */
+.batch-date-box {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #e8f5e9; border: 1px solid #c8e6c9; padding: 6px 12px; border-radius: 12px;
 }
 
-.btn:hover {
-    filter: brightness(0.95);
-    transform: translateY(-1px);
-}
+/* 表格優化 */
+.table-wrap { overflow-x: auto; border-radius: 16px; border: 1px solid #ffe4e1; }
+table { width:100%; border-collapse:collapse; min-width: 800px; }
+thead { background: #fff0f3; color: #ff6b81; }
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #fff0f5; font-size: 14px; }
+tbody tr:hover { background: #fffbfc; }
 
-.btn:active {
-    transform: translateY(1px);
-}
-
-/* 主要按鈕 (Primary) */
-.btn.primary {
-  background: var(--primary-gradient);
-  color: white;
-  box-shadow: 0 4px 12px rgba(255, 143, 171, 0.3);
-}
-
-.btn.primary:hover {
-  box-shadow: 0 6px 16px rgba(255, 143, 171, 0.5);
-  filter: brightness(1.05);
-}
-
-/* 小型按鈕 */
-.btn.small {
-    padding: 8px 16px;
-    font-size: 0.9rem;
-    background: white;
-    border: 2px solid #eee;
-}
-.btn.small:hover {
-    border-color: var(--secondary-color);
-    color: var(--secondary-color);
-}
-
-/* 兩步驟的按鈕容器 */
-.actions {
-  display: flex;
-  gap: 15px;
-  margin-top: 20px;
-}
-.actions .btn {
-    flex: 1; /* 讓兩個按鈕平均分配寬度 */
-}
-
-/* --- Lists & Utilities --- */
-.list {
-  min-height: 100px;
-  /* 列表的佔位符樣式，讓空列表看起來不那麼空 */
-  background: #f9f9f9;
-  border-radius: 16px;
-  padding: 15px;
-  /* 這裡之後可以透過 JS 動態加入內容的樣式 */
-}
-
-/* 列表內的單個項目 (假設之後 JS 會產生 .list-item) */
-.list-item {
-    background: white;
-    padding: 12px;
-    margin-bottom: 8px;
-    border-radius: 12px;
-    border: 1px solid #eee;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* 批量匯入的 details 優化 */
-details summary {
-    padding: 10px 16px;
-    background: #fff;
-    border: 2px solid #eee;
-    border-radius: 12px;
-    font-weight: 600;
-    color: var(--primary-color);
-    transition: all 0.2s;
-    user-select: none;
-}
-details[open] summary {
-    background: #fff0f5;
-    border-color: var(--primary-color);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
-details[open] > div, details[open] > textarea {
-    border: 2px solid #eee;
-    border-top: none;
-    background: #fff;
-    padding: 15px;
-    border-bottom-left-radius: 12px;
-    border-bottom-right-radius: 12px;
-    margin-top: 0 !important; /* 覆蓋 inline style */
-}
-#bulkInput {
-    border-radius: 0 !important; /* 覆蓋預設圓角以配合 details */
-    margin-bottom: 0 !important;
-    border: none !important;
-    background: transparent !important;
-}
-
-.list-toolbar {
-    margin-bottom: 15px;
-    display: flex;
-    gap: 10px;
-}
-/* --- 新增：單欄佈局 (移除右邊欄位後使用) --- */
-.layout.single-column {
-    grid-template-columns: 1fr; /* 變成滿版 */
-}
-.card.full-width {
-    max-width: 900px; /* 限制最大寬度，避免在電腦螢幕太寬難讀 */
-    margin: 0 auto;   /* 置中 */
-}
-
-/* --- 新增：危險按鈕 (刪除用) --- */
-.btn.danger {
-    background: white;
-    color: #ff6b6b;
-    border: 2px solid #ff6b6b;
-}
-.btn.danger:hover {
-    background: #ff6b6b;
-    color: white;
-}
-
-/* --- 重點修改：優化後的訂單卡片 (橫式) --- */
-.list-header {
-    display: grid;
-    grid-template-columns: 40px 1.5fr 2fr 1.2fr;
-    padding: 10px 20px;
-    font-size: 0.9rem;
-    font-weight: bold;
-    color: var(--text-light);
-    border-bottom: 2px solid #eee;
-    margin-bottom: 10px;
-}
-/* 手機版隱藏標題列 */
-@media (max-width: 600px) { .list-header { display: none; } }
-
-/* 每一筆訂單的卡片樣式 */
-.order-item {
-    display: grid;
-    grid-template-columns: 40px 1.5fr 2fr 1.2fr; /* 格線佈局 */
-    align-items: center;
-    background: white;
-    margin-bottom: 12px;
-    padding: 15px;
-    border-radius: 16px;
-    border: 1px solid #f0f0f0;
-    transition: all 0.2s ease;
-    gap: 10px;
-}
-
-.order-item:hover {
-    border-color: var(--primary-color);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    transform: translateY(-2px);
-}
-
-/* 欄位細節設定 */
-.col-check input {
-    width: 20px; height: 20px; margin: 0; cursor: pointer;
-}
-
-.col-info strong {
-    display: block;
-    color: var(--primary-color);
-    font-size: 1.1rem;
-}
-.platform-badge {
+/* ★★★ 關鍵修正：隱形日期選單定位 ★★★ */
+.action-wrapper {
+    position: relative; /* 讓子元素的 absolute 參考這裡 */
     display: inline-block;
-    font-size: 0.75rem;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: #eee;
-    color: #666;
-    margin-top: 4px;
-}
-.platform-badge.seven { background: #e0f7fa; color: #006064; } /* 賣貨便配色 */
-.platform-badge.fami { background: #e8f5e9; color: #1b5e20; }  /* 好賣+配色 */
-
-.col-customer {
-    font-size: 0.95rem;
-    color: var(--text-dark);
-}
-.col-customer div { margin-bottom: 4px; }
-.col-customer span { color: #999; font-size: 0.85rem; }
-
-.col-action {
-    text-align: right;
 }
 
-/* --- 手機版適應 (變成直式但保持漂亮) --- */
-@media (max-width: 600px) {
-    .order-item {
-        grid-template-columns: 40px 1fr; /* 左邊勾選，右邊內容 */
-        grid-template-rows: auto auto auto;
-        gap: 5px;
-    }
-    .col-check { grid-row: 1 / span 3; }
-    .col-action { text-align: left; margin-top: 10px; }
+.hidden-date-input {
+    position: absolute;
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+    opacity: 0; /* 完全透明 */
+    cursor: pointer;
+    z-index: 10; /* 蓋在按鈕上面 */
 }
+
+/* SMS 區域 */
+.sms-card { background: #f8f9fa; border: 2px solid #eee; border-radius: 16px; padding: 15px; margin-bottom: 10px; }
+.sms-card.selected { background: #fff0f3; border-color: #ffb7b2; }
+.sms-status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; }
+.dot-online { background: #4ade80; }
+.dot-offline { background: #ff6b81; }
