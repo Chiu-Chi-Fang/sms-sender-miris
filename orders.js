@@ -1,39 +1,68 @@
-// orders.js - 處理訂單資料、日期計算
+// orders.js - 處理訂單資料、日期計算 (修正撥款邏輯版)
 
-// 1. 初始化資料 (從 LocalStorage 讀取，避免重整消失)
+// 1. 初始化資料
 let payOrders = JSON.parse(localStorage.getItem('payOrders')) || [];
 
 function savePayOrders() {
     localStorage.setItem('payOrders', JSON.stringify(payOrders));
 }
 
-// 2. 核心：日期計算邏輯
+// 2. 核心：日期計算工具 (恢復精準邏輯)
+function getNextWeekday(date, targetDay) {
+    const d = new Date(date);
+    const cur = d.getDay(); // 0=週日
+    let add = targetDay - cur;
+    if (add <= 0) add += 7; // 如果是今天或已過，就找下週
+    d.setDate(d.getDate() + add);
+    return d;
+}
+
+function addDays(date, days) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+}
+
+// 核心：撥款日計算
 function calculatePaymentDate(platform, pickupDateStr) {
     if (!pickupDateStr) return { settlement: '-', payment: '-' };
-    const date = new Date(pickupDateStr);
-    const day = date.getDay(); // 0=週日
-    
-    // 簡單推算：賣貨便(週四結算,下週一匯款)、好賣+(週三/五結算)
-    // 這裡使用簡化邏輯演示，您可以根據實際需求微調天數
-    let daysToAdd = 7; 
-    if(platform.includes('賣貨便')) {
-        // 假設邏輯：週一~週三取 -> 下週四撥款 (約+8~10天)
-        daysToAdd = 10; 
+    const pickupDate = new Date(pickupDateStr);
+    const dow = pickupDate.getDay(); // 0=Sun, 1=Mon...
+
+    let settlementDate, paymentDate;
+
+    if (platform.includes('賣貨便')) {
+        // --- 賣貨便邏輯 ---
+        if (dow >= 1 && dow <= 3) { 
+            // 週一(1) ~ 週三(3) 取貨 -> 下週四結算(4) -> 再+4天撥款
+            settlementDate = getNextWeekday(pickupDate, 4);
+            paymentDate = addDays(settlementDate, 4);
+        } else {
+            // 週四(4) ~ 週日(0) 取貨 -> 下週一結算(1) -> 再+2天撥款
+            // 您的案例: 1/18(日) -> 下週一(1/19) -> +2天 = 1/21(三)
+            settlementDate = getNextWeekday(pickupDate, 1);
+            paymentDate = addDays(settlementDate, 2);
+        }
     } else {
-        // 好賣+
-        daysToAdd = 8;
+        // --- 好賣+ 邏輯 ---
+        if (dow >= 1 && dow <= 3) {
+            // 週一~週三 -> 下週五結算 -> +4天
+            settlementDate = getNextWeekday(pickupDate, 5);
+            paymentDate = addDays(settlementDate, 4);
+        } else {
+            // 週四~週日 -> 下週三結算 -> +1天
+            settlementDate = getNextWeekday(pickupDate, 3);
+            paymentDate = addDays(settlementDate, 1);
+        }
     }
-    
-    const payDate = new Date(date);
-    payDate.setDate(date.getDate() + daysToAdd);
-    
+
     return {
-        settlement: pickupDateStr, // 簡化顯示
-        payment: payDate.toISOString().split('T')[0]
+        settlement: settlementDate.toISOString().split('T')[0],
+        payment: paymentDate.toISOString().split('T')[0]
     };
 }
 
-// 3. 渲染訂單列表 (包含隱形按鈕)
+// 3. 渲染訂單列表
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -50,14 +79,13 @@ function renderPayTable() {
                     <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">
                         ✅ 已取 (${order.pickupDate.slice(5)})
                     </button>
-                    <div style="font-size:12px; color:#ff6b81; font-weight:bold; margin-top:2px;">
+                    <div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">
                         💰 撥款: ${calc.payment}
                     </div>
                 </div>
             `;
         } else {
-            // 未取貨：顯示紅色按鈕 + 隱形日期選單 (修復選單飛走的問題)
-            // 注意 class="action-wrapper" 和 class="hidden-date-input"
+            // 未取貨：隱形日期選單
             statusHtml = `
                 <div class="action-wrapper">
                     <button class="btn btn-danger btn-sm" style="pointer-events: none;">📦 未取貨</button>
@@ -102,7 +130,6 @@ function addNewOrder() {
     savePayOrders();
     renderPayTable();
     alert('新增成功！');
-    // switchPaySubTab('orders'); // 可選擇是否自動切換回列表
 }
 
 function updateOrderPickup(index, dateStr) {
@@ -110,11 +137,8 @@ function updateOrderPickup(index, dateStr) {
         payOrders[index].pickupDate = dateStr;
         savePayOrders();
         renderPayTable();
-        
-        // ★ 自動連動 SMS：刪除該訂單 (如果有的話)
-        if(window.removeSMSOrder) {
-            window.removeSMSOrder(payOrders[index].no);
-        }
+        // 連動 SMS 刪除
+        if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no);
     }
 }
 
@@ -134,7 +158,7 @@ function deleteOrder(index) {
     }
 }
 
-// 5. 批量功能 (包含您要求的新功能)
+// 5. 批量功能
 function toggleSelectAllPay() {
     const checked = document.getElementById('selectAllPay').checked;
     document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked);
@@ -147,7 +171,7 @@ function getSelectedIndices() {
     return indices;
 }
 
-// ★★★ 新功能：批量指定日期 ★★★
+// 批量指定日期
 function batchSetDate() {
     const indices = getSelectedIndices();
     if(indices.length === 0) return alert('請先勾選訂單');
@@ -158,7 +182,6 @@ function batchSetDate() {
     if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) {
         indices.forEach(i => {
             payOrders[i].pickupDate = dateVal;
-            // 連動刪除 SMS
             if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no);
         });
         savePayOrders();
@@ -170,7 +193,6 @@ function batchDeleteOrders() {
     const indices = getSelectedIndices();
     if(indices.length === 0) return;
     if(confirm(`刪除 ${indices.length} 筆？`)) {
-        // 從後面刪回來才不會影響 index
         indices.sort((a,b) => b-a).forEach(i => payOrders.splice(i, 1));
         savePayOrders();
         renderPayTable();
@@ -178,32 +200,30 @@ function batchDeleteOrders() {
     }
 }
 
-// 傳送資料給 SMS 模組
+// 傳送給 SMS
 function pushToSMS() {
     const indices = getSelectedIndices();
     if(indices.length === 0) return alert('請先勾選訂單');
     
     const dataToSync = indices.map(i => payOrders[i]);
     
-    // 呼叫 sms.js 的函數 (透過 window 全域變數)
     if(window.receiveOrdersFromPay) {
         window.receiveOrdersFromPay(dataToSync);
         alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`);
-        // 切換分頁
         switchMainTab('sms');
     } else {
         alert('SMS 模組尚未載入，請稍候');
     }
 }
 
-// 匯入功能
+// 匯入
 function importFromText() {
     const txt = document.getElementById('importText').value;
     if(!txt) return;
     const lines = txt.split('\n');
     let count = 0;
     lines.forEach(line => {
-        const cols = line.split(/[|\t,]/).map(c=>c.trim()); // 支援 | 或 tab 或 逗號
+        const cols = line.split(/[|\t,]/).map(c=>c.trim());
         if(cols.length >= 3) {
             payOrders.push({
                 no: cols[0], name: cols[1], phone: cols[2], 
@@ -218,14 +238,14 @@ function importFromText() {
     document.getElementById('importText').value = '';
 }
 
-// 讓 HTML 按鈕找得到這些函數
+// 綁定全域
 window.renderPayTable = renderPayTable;
 window.addNewOrder = addNewOrder;
 window.updateOrderPickup = updateOrderPickup;
 window.resetOrderStatus = resetOrderStatus;
 window.deleteOrder = deleteOrder;
 window.toggleSelectAllPay = toggleSelectAllPay;
-window.batchSetDate = batchSetDate; // 綁定新功能
+window.batchSetDate = batchSetDate;
 window.batchDeleteOrders = batchDeleteOrders;
 window.pushToSMS = pushToSMS;
 window.importFromText = importFromText;
