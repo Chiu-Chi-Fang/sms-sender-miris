@@ -1,65 +1,11 @@
-:root{
-display:flex;
-background:white;
-}
-.tab{
-flex:1;
-padding:14px;
-border:none;
-background:none;
-font-weight:700;
-cursor:pointer;
-}
-.tab.active{background:var(--purple)}
-
-
-main{padding:16px}
-.panel{display:none}
+body{margin:0;font-family:"Microsoft JhengHei";background:#FFF7F9}
+.header{text-align:center;padding:20px;background:#FADADD;font-size:24px}
+.tabs{display:flex}
+.tab{flex:1;padding:14px;border:none;background:#fff;font-weight:700;cursor:pointer}
+.tab.active{background:#E8DFF5}
+.panel{display:none;padding:20px}
 .panel.active{display:block}
-
-
-.card{
-background:white;
-border-radius:20px;
-padding:16px;
-margin-bottom:16px;
-box-shadow:0 4px 12px rgba(0,0,0,.05)
-}
-
-
-.form-grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:10px;
-}
-.form-grid input,.form-grid select,textarea{
-padding:12px;
-border-radius:14px;
-border:1px solid #eee;
-}
-textarea{width:100%;min-height:100px}
-
-
-.btn{
-margin-top:12px;
-padding:12px;
-border:none;
-border-radius:16px;
-font-weight:700;
-cursor:pointer;
-}
-.btn.primary{background:var(--pink-dark)}
-
-
-.list{display:flex;flex-direction:column;gap:12px}
-.item{
-background:white;
-border-radius:18px;
-padding:14px;
-box-shadow:0 2px 8px rgba(0,0,0,.04)
-}
-
-
-@media(max-width:600px){
-.form-grid{grid-template-columns:1fr}
-}
+.card{background:#fff;border-radius:24px;padding:20px;max-width:800px;margin:auto;box-shadow:0 6px 18px rgba(0,0,0,.05)}
+input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:14px;border:1px solid #eee}
+.btn{padding:12px;border:none;border-radius:16px;background:#F3B6C2;font-weight:700;cursor:pointer}
+.order{padding:12px;border-radius:16px;background:#fff;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
