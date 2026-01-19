@@ -18,13 +18,14 @@ const smsDB = {
   })
 };
 
-// 初始化後更新狀態
 setTimeout(() => {
-  const statusEl = document.getElementById('sms-sync-status');
+  const statusEl = document.getElementById('smsSyncStatus');
   if (statusEl) {
-    statusEl.innerHTML = '<span style="color: #10b981;">✅ 雲端已連線（模擬）</span>';
+    statusEl.textContent = '✅ 雲端已連線（模擬）';
+    statusEl.style.color = '#10b981';
   }
 }, 1000);
+
 
 /* ========================= SMS Module ========================= */
 
