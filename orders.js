@@ -134,7 +134,7 @@ function renderPayTable() {
 // ★★★ 重點修正：增強版匯入功能 (支援空白鍵) ★★★
 // ==========================================
 window.importFromText = function() {
-    const txt = document.getElementById('bulkInput').value;
+    const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
 
     const lines = txt.split('\n');
