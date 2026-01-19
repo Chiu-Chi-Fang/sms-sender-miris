@@ -1,21 +1,30 @@
-// ===== Firebase 測試設定 =====
+// ===== 模擬 Firebase（測試用）=====
 const firebaseConfig = {
-  apiKey: "AIzaSyAqL8Zy5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5",
-  authDomain: "sms-test-demo.firebaseapp.com",
-  databaseURL: "https://sms-test-demo-default-rtdb.firebaseio.com",
-  projectId: "sms-test-demo",
-  storageBucket: "sms-test-demo.appspot.com",
-  messagingSenderId: "987654321098",
-  appId: "1:987654321098:web:test123456789"
+  apiKey: "test-key",
+  databaseURL: "https://test-demo.firebaseio.com"
 };
 
-// 初始化 Firebase
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+// 模擬 Firebase 物件
+const smsDB = {
+  ref: (path) => ({
+    on: (event, callback) => {
+      if (path === '.info/connected') {
+        setTimeout(() => callback({ val: () => true }), 500);
+      }
+    },
+    set: () => Promise.resolve(),
+    push: () => ({ key: Date.now() }),
+    once: () => Promise.resolve({ val: () => null })
+  })
+};
 
-// 建立資料庫連線
-const smsDB = firebase.database();
+// 初始化後更新狀態
+setTimeout(() => {
+  const statusEl = document.getElementById('sms-sync-status');
+  if (statusEl) {
+    statusEl.innerHTML = '<span style="color: #10b981;">✅ 雲端已連線（模擬）</span>';
+  }
+}, 1000);
 
 /* ========================= SMS Module ========================= */
 
@@ -35,7 +44,6 @@ function sms_getOrders() {
 
 function sms_saveOrders(orders) {
   localStorage.setItem(SMS_STORAGE_KEY, JSON.stringify(orders));
-  sms_updateSyncStatus();
 }
 
 function sms_getTemplates() {
@@ -572,26 +580,6 @@ function sms_startSending() {
   alert(`✅ 已成功發送 ${toSend.length} 則簡訊！（模擬）`);
 }
 
-function sms_updateSyncStatus() {
-  const statusEl = document.getElementById('sms-sync-status');
-  if (!statusEl) return;
-
-  // 檢查 Firebase 連線狀態
-  if (typeof smsDB !== 'undefined' && smsDB) {
-    // 測試連線
-    smsDB.ref('.info/connected').on('value', (snapshot) => {
-      if (snapshot.val() === true) {
-        statusEl.innerHTML = '<span style="color: #10b981;">✅ 雲端已連線</span>';
-      } else {
-        statusEl.innerHTML = '<span style="color: #f59e0b;">⚠️ 雲端連線中...</span>';
-      }
-    });
-  } else {
-    statusEl.innerHTML = '<span style="color: #ef4444;">❌ 雲端未連線</span>';
-  }
-}
-
-
 // ===== Import from Pay Module =====
 window.sms_importFromPay = function(payOrders) {
   const smsOrders = sms_getOrders();
@@ -638,6 +626,4 @@ window.sms_removeOrdersByOrderNumbers = function(orderNumbers) {
 window.addEventListener('DOMContentLoaded', () => {
   sms_renderOrders();
   sms_renderTemplates();
-  sms_updateSyncStatus();
 });
-
