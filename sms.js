@@ -1,3 +1,22 @@
+// ===== Firebase 設定 =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBNhaZzLh7IqBN9u3LqJXyP7AEvBwZ_234",
+  authDomain: "sms-sender-miris.firebaseapp.com",
+  databaseURL: "https://sms-sender-miris-default-rtdb.firebaseio.com",
+  projectId: "sms-sender-miris",
+  storageBucket: "sms-sender-miris.appspot.com",
+  messagingSenderId: "123456789012",
+  appId: "1:123456789012:web:abcdef1234567890abcdef"
+};
+
+// 初始化 Firebase
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
+// 建立資料庫連線
+const smsDB = firebase.database();
+
 /* ========================= SMS Module ========================= */
 
 const SMS_STORAGE_KEY = 'sms_orders_v2';
