@@ -1,70 +1,61 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>收款 × SMS 整合系統</title>
+<title>🌸 訂單與撥款管理</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+<header class="header">🌸 訂單與撥款管理系統</header>
 
 
-<header class="app-header">
-<h1>🌸 訂單管理小幫手</h1>
-<p>收款・取貨・簡訊，一次完成</p>
-</header>
-
-
-<nav class="main-tabs">
-<button class="tab active" onclick="switchTab('pay')">📦 收款訂單</button>
-<button class="tab" onclick="switchTab('sms')">💬 SMS 簡訊</button>
+<nav class="tabs">
+<button class="tab active" onclick="switchTab('add')">新增訂單</button>
+<button class="tab" onclick="switchTab('list')">訂單列表</button>
+<button class="tab" onclick="switchTab('import')">批量匯入</button>
 </nav>
 
 
 <main>
-<section id="pay" class="panel active">
+<section id="add" class="panel active">
 <div class="card">
-<h2>➕ 新增訂單</h2>
-<div class="form-grid">
-<input id="orderNumber" placeholder="訂單號 #123" />
-<input id="customerName" placeholder="客戶姓名" />
-<input id="phone" placeholder="手機號碼" />
+<h2>新增訂單</h2>
+<input id="orderNo" placeholder="訂單編號" />
+<input id="name" placeholder="客戶姓名" />
+<input id="phone" placeholder="手機" />
 <select id="platform">
-<option>賣貨便</option>
-<option>好賣+</option>
+<option value="賣貨便">賣貨便（7-11）</option>
+<option value="好賣+">好賣+（全家）</option>
 </select>
-<input type="date" id="shipDate" />
+<button class="btn" onclick="addOrder()">新增</button>
 </div>
-<button class="btn primary" onclick="addOrder()">新增</button>
-</div>
-
-
-<div id="orderList" class="list"></div>
 </section>
 
 
-<section id="sms" class="panel">
+<section id="list" class="panel">
 <div class="card">
-<h2>💬 SMS 發送</h2>
-<textarea id="smsContent" placeholder="請輸入簡訊內容..."></textarea>
-<button class="btn primary" onclick="sendSMS()">發送簡訊</button>
+<h2>訂單列表</h2>
+<div id="orderList"></div>
 </div>
-<div id="smsList" class="list"></div>
+</section>
+
+
+<section id="import" class="panel">
+<div class="card">
+<h2>批量匯入（CSV）</h2>
+<input type="file" accept=".csv" onchange="importCSV(event)" />
+</div>
 </section>
 </main>
 
 
-<script src="pay.js"></script>
-<script src="sms.js"></script>
+<script src="utils.js"></script>
+<script src="rules.js"></script>
+<script src="orders.js"></script>
 <script>
-function switchTab(tab){
+function switchTab(id){
 document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'))
 document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
-document.getElementById(tab).classList.add('active')
+document.getElementById(id).classList.add('active')
 event.target.classList.add('active')
 }
 </script>
-
-
 </body>
 </html>
