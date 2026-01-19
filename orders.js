@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (修復匯入按鈕：支援空白鍵分隔)
+// orders.js - 雲端同步版 (平台名稱自動轉換：賣貨便->7-11, 好賣+->全家)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -49,13 +49,15 @@ function addDays(date, days) {
     return d;
 }
 
+// ★★★ 修正計算邏輯：讓系統看得懂 7-11 和 全家 ★★★
 function calculatePaymentDate(platform, pickupDateStr) {
     if (!pickupDateStr) return { settlement: '-', payment: '-' };
     const pickupDate = new Date(pickupDateStr);
     const dow = pickupDate.getDay(); 
     let settlementDate, paymentDate;
 
-    if (platform && platform.includes('賣貨便')) {
+    // 判斷邏輯：賣貨便 或 7-11 都用同一套規則
+    if (platform && (platform.includes('賣貨便') || platform.includes('7-11'))) {
         if (dow >= 1 && dow <= 3) { 
             settlementDate = getNextWeekday(pickupDate, 4);
             paymentDate = addDays(settlementDate, 4);
@@ -64,7 +66,7 @@ function calculatePaymentDate(platform, pickupDateStr) {
             paymentDate = addDays(settlementDate, 2);
         }
     } else {
-        // 好賣+
+        // 其他 (好賣+ 或 全家)
         if (dow >= 1 && dow <= 3) {
             settlementDate = getNextWeekday(pickupDate, 5);
             paymentDate = addDays(settlementDate, 4);
@@ -131,9 +133,10 @@ function renderPayTable() {
 }
 
 // ==========================================
-// ★★★ 重點修正：增強版匯入功能 (支援空白鍵) ★★★
+// ★★★ 匯入功能：自動轉換名稱 (賣貨便->7-11, 好賣+->全家) ★★★
 // ==========================================
 window.importFromText = function() {
+    // 這裡維持 importText 對應您的 HTML
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
 
@@ -143,22 +146,28 @@ window.importFromText = function() {
     lines.forEach(line => {
         if(!line.trim()) return;
 
-        // ★★★ 關鍵修正 ★★★
-        // split(/[|\t,\s]+/)：表示遇到「直線、Tab、逗號、或空白(Space)」通通切開
-        // 這樣您的 "#1489 謝毓潔" 中間的空白就會被當成分隔符號
+        // 切割資料
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
 
-        // 確保至少有 3 個欄位 (訂單號、姓名、電話)
-        // 您的格式：[0]單號 [1]姓名 [2]電話 [3]平台 [4]門市 [5]出貨日 [6]期限
         if(cols.length >= 3) {
+            // ★ 名稱轉換邏輯 ★
+            let rawPlatform = cols[3] || '';
+            let finalPlatform = rawPlatform;
+            
+            if(rawPlatform.includes('賣貨便')) {
+                finalPlatform = '7-11';
+            } else if(rawPlatform.includes('好賣')) {
+                finalPlatform = '全家';
+            }
+
             payOrders.push({
                 no: cols[0],
                 name: cols[1],
                 phone: cols[2],
-                platform: cols[3] || '賣貨便',
-                store: cols[4] || '',     // 門市 (雖然列表沒顯示，但會存起來)
-                shipDate: cols[5] || '',  // 出貨日
-                deadline: cols[6] || '',  // 期限
+                platform: finalPlatform, // 使用轉換後的名稱
+                store: cols[4] || '',     
+                shipDate: cols[5] || '',  
+                deadline: cols[6] || '',  
                 pickupDate: null
             });
             count++;
@@ -166,26 +175,31 @@ window.importFromText = function() {
     });
 
     if(count > 0) {
-        savePayOrders(); // 存到雲端
+        savePayOrders();
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
-        // 自動切換回訂單列表
         if(window.switchPaySubTab) window.switchPaySubTab('orders');
     } else {
         alert('匯入失敗：格式不符。\n請確認資料是用空白或Tab隔開，且包含：訂單號 姓名 電話');
     }
 };
 
+// 綁定其他功能
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
     const phone = document.getElementById('addPhone').value;
     if(!no || !name) return alert('請填寫完整資訊');
     
+    // 手動新增時，也順便做轉換 (看下拉選單選什麼)
+    let p = document.getElementById('addPlatform').value;
+    if(p.includes('賣貨便')) p = '7-11';
+    if(p.includes('好賣')) p = '全家';
+
     payOrders.push({
         no: no.startsWith('#') ? no : '#'+no,
         name, phone,
-        platform: document.getElementById('addPlatform').value,
+        platform: p,
         store: '', 
         shipDate: document.getElementById('addShipDate').value,
         deadline: document.getElementById('addDeadline').value,
