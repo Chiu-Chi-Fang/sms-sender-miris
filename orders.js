@@ -229,24 +229,6 @@ document.getElementById('deleteSelectedBtn').addEventListener('click', () => {
   alert('功能需搭配後端邏輯實作'); 
 });
 
-// --- 簡單撥款 summary ---
-function renderSummary(){
-  const box = document.getElementById('summary')
-  if(!box) return
-  const byDate = {}
-  orders.forEach(o => {
-    if(!o.payout) return
-    if(!byDate[o.payout]) byDate[o.payout] = 0
-    byDate[o.payout] += 1
-  })
-  const dates = Object.keys(byDate).sort()
-  if(dates.length === 0){
-    box.textContent = '目前尚未有已計算之撥款。'
-    return
-  }
-  box.innerHTML = dates.map(d => `${d}：${byDate[d]} 筆訂單`).join('<br>')
-}
-
 // 初始 render
 renderOrders()
 renderRecent()
