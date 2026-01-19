@@ -1,4 +1,4 @@
-// sms.js - 最終版 (支援短日期 01/23 以節省簡訊費)
+// sms.js - 最終版 (含範本新增、修改、刪除功能)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -18,6 +18,7 @@ const db = getDatabase(app);
 
 let smsOrders = [];
 let templates = [];
+let editingIndex = -1; // 用來記錄現在正在編輯哪一個範本 (-1 代表新增模式)
 
 const defaultTemplates = [
     { name: "到貨通知", content: "{name} 您好，您訂購的商品 {no} 已抵達 {storeType} {storeName}，請於 {deadline} 前取貨，謝謝！" },
@@ -41,7 +42,7 @@ onValue(tplRef, (snapshot) => {
     updateTemplateSelect();
 });
 
-// 2. 接收來自 Pay 模組的資料
+// 2. 接收訂單 (含門市與平台)
 window.receiveOrdersFromPay = function(orderList) {
     let count = 0;
     orderList.forEach(newOrd => {
@@ -59,22 +60,16 @@ window.receiveOrdersFromPay = function(orderList) {
             count++;
         }
     });
-    
-    if(count > 0) {
-        set(ordersRef, smsOrders);
-    }
+    if(count > 0) set(ordersRef, smsOrders);
 };
 
-// 3. 接收刪除指令
 window.removeSMSOrder = function(orderNo) {
     const initialLen = smsOrders.length;
     smsOrders = smsOrders.filter(o => o.no !== orderNo);
-    if(smsOrders.length !== initialLen) {
-        set(ordersRef, smsOrders);
-    }
+    if(smsOrders.length !== initialLen) set(ordersRef, smsOrders);
 };
 
-// 4. 渲染 SMS 列表 (修正 undefined 問題)
+// 3. 渲染 SMS 列表
 function renderSmsList() {
     const container = document.getElementById('smsListContainer');
     if(!container) return;
@@ -104,25 +99,96 @@ function renderSmsList() {
     }).join('');
 }
 
-// 5. 範本邏輯
+// ==========================================
+// ★★★ 4. 範本管理 (新增/修改/刪除) ★★★
+// ==========================================
+
+// 渲染範本列表 (加上編輯與刪除按鈕)
 function renderTemplates() {
     const container = document.getElementById('templateListContainer');
     if(!container) return;
     container.innerHTML = templates.map((t, i) => `
-        <div style="border-bottom:1px solid #eee; padding:10px;">
-            <strong>${t.name}</strong>
-            <p style="font-size:12px; color:#666; margin:5px 0;">${t.content}</p>
+        <div style="border-bottom:1px solid #eee; padding:10px; display:flex; justify-content:space-between; align-items:start;">
+            <div style="flex:1;">
+                <div style="font-weight:bold; color:#333;">${t.name}</div>
+                <div style="font-size:12px; color:#666; margin-top:4px; white-space:pre-wrap;">${t.content}</div>
+            </div>
+            <div style="display:flex; gap:5px; margin-left:10px;">
+                <button class="btn btn-sm btn-warning" onclick="editTemplate(${i})">✏️</button>
+                <button class="btn btn-sm btn-secondary" onclick="deleteTemplate(${i})">🗑️</button>
+            </div>
         </div>
     `).join('');
 }
 
+// 點擊「編輯」：把資料帶入上方輸入框
+window.editTemplate = function(idx) {
+    editingIndex = idx;
+    const t = templates[idx];
+    document.getElementById('tplNameInput').value = t.name;
+    document.getElementById('tplContentInput').value = t.content;
+    document.getElementById('tplNameInput').focus();
+    // 讓按鈕文字變更，提示使用者現在是修改模式
+    document.querySelector('#sms-sub-tpl .btn-primary').innerText = "💾 更新範本";
+};
+
+// 點擊「儲存」：新增或更新
+window.saveTemplate = function() {
+    const name = document.getElementById('tplNameInput').value;
+    const content = document.getElementById('tplContentInput').value;
+    
+    if(!name || !content) return alert('名稱和內容不能為空！');
+    
+    if(editingIndex >= 0) {
+        // 更新現有
+        templates[editingIndex] = { name, content };
+        alert('範本已更新！');
+    } else {
+        // 新增
+        templates.push({ name, content });
+        alert('新範本已建立！');
+    }
+    
+    // 存入 Firebase
+    set(tplRef, templates);
+    
+    // 清空輸入框
+    window.clearTemplateInput();
+};
+
+// 點擊「刪除」
+window.deleteTemplate = function(idx) {
+    if(confirm('確定要刪除這個範本嗎？')) {
+        templates.splice(idx, 1);
+        set(tplRef, templates);
+    }
+};
+
+// 清空 / 取消編輯
+window.clearTemplateInput = function() {
+    editingIndex = -1;
+    document.getElementById('tplNameInput').value = '';
+    document.getElementById('tplContentInput').value = '';
+    document.querySelector('#sms-sub-tpl .btn-primary').innerText = "💾 儲存範本";
+};
+
+// 更新下拉選單
 function updateTemplateSelect() {
     const sel = document.getElementById('smsTemplateSelect');
     if(!sel) return;
+    
+    // 記住使用者當前選的是哪個，更新後試著選回來
+    const currentVal = sel.value;
+    
     sel.innerHTML = '<option value="">-- 請選擇範本 --</option>' + 
         templates.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
+        
+    if(currentVal && templates[currentVal]) {
+        sel.value = currentVal;
+    }
 }
 
+// 預覽與重置
 window.previewTemplate = function() {
     const idx = document.getElementById('smsTemplateSelect').value;
     if(idx === "") return;
@@ -131,7 +197,7 @@ window.previewTemplate = function() {
 };
 
 window.resetDefaultTemplates = function() {
-    if(confirm('重置將恢復預設範本，確定嗎？')) {
+    if(confirm('重置將恢復預設範本，您自訂的範本會消失，確定嗎？')) {
         set(tplRef, defaultTemplates);
         alert('已重置！');
     }
@@ -142,21 +208,16 @@ window.deleteSmsOrder = function(idx) {
     set(ordersRef, smsOrders);
 };
 
-// ==========================================
-// ★★★ 小工具：把長日期變成短日期 (MM/DD) ★★★
-// ==========================================
+// 6. 發送功能 (含日期瘦身工具)
 function formatShortDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    // 如果日期格式不對，就回傳原本的字串，避免錯誤
     if (isNaN(date.getTime())) return dateStr; 
-    
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
-    return `${m}/${d}`; // 這裡決定格式，例如 01/23
+    return `${m}/${d}`; 
 }
 
-// 6. 發送功能 (已整合短日期)
 window.sendSelectedSMS = function() {
     const chks = document.querySelectorAll('.sms-chk:checked');
     if(chks.length === 0) return alert('請先勾選名單');
@@ -167,25 +228,17 @@ window.sendSelectedSMS = function() {
     chks.forEach(chk => {
         const idx = parseInt(chk.value);
         const order = smsOrders[idx];
-        
-        // ★ 取得短日期 ★
         const shortDeadline = formatShortDate(order.deadline);
 
-        // 參數替換
         let finalMsg = rawContent
-            // 姓名
             .replace(/{name}/g, order.name || '')
             .replace(/{customerName}/g, order.name || '')
-            // 單號
             .replace(/{no}/g, order.no || '')
             .replace(/{orderNumber}/g, order.no || '')
-            // ★★★ 期限 (現在會換成 01/23 這種短格式) ★★★
             .replace(/{deadline}/g, shortDeadline)
             .replace(/{pickupDeadline}/g, shortDeadline)
-            // 門市
             .replace(/{storeName}/g, order.store || '')
             .replace(/{store}/g, order.store || '')
-            // 平台
             .replace(/{storeType}/g, order.platform || '');
             
         const url = `sms:${order.phone}?body=${encodeURIComponent(finalMsg)}`;
