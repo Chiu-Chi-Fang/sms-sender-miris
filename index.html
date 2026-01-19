@@ -1,61 +1,149 @@
 <!DOCTYPE html>
-<title>🌸 訂單與撥款管理</title>
-<link rel="stylesheet" href="style.css" />
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌸 訂單 / 撥款 / SMS 管理系統</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-<header class="header">🌸 訂單與撥款管理系統</header>
-
+<header class="header">
+  🌸 訂單・撥款・簡訊 一次搞定
+</header>
 
 <nav class="tabs">
-<button class="tab active" onclick="switchTab('add')">新增訂單</button>
-<button class="tab" onclick="switchTab('list')">訂單列表</button>
-<button class="tab" onclick="switchTab('import')">批量匯入</button>
+  <button class="tab active" data-target="add">📥 新增訂單</button>
+  <button class="tab" data-target="list">📋 訂單列表</button>
+  <button class="tab" data-target="sms">💬 SMS 通知</button>
 </nav>
 
-
 <main>
-<section id="add" class="panel active">
-<div class="card">
-<h2>新增訂單</h2>
-<input id="orderNo" placeholder="訂單編號" />
-<input id="name" placeholder="客戶姓名" />
-<input id="phone" placeholder="手機" />
-<select id="platform">
-<option value="賣貨便">賣貨便（7-11）</option>
-<option value="好賣+">好賣+（全家）</option>
-</select>
-<button class="btn" onclick="addOrder()">新增</button>
-</div>
-</section>
 
+  <!-- 新增訂單（兩步驟） -->
+  <section id="add" class="panel active">
+    <div class="layout">
+      <div class="card">
+        <h2>🧾 新增訂單</h2>
 
-<section id="list" class="panel">
-<div class="card">
-<h2>訂單列表</h2>
-<div id="orderList"></div>
-</div>
-</section>
+        <!-- Step 1 必填 -->
+        <div id="step1">
+          <input id="orderNo" placeholder="訂單編號" />
+          <input id="name" placeholder="客戶姓名" />
+          <input id="phone" placeholder="手機號碼" />
+          <select id="platform">
+            <option value="賣貨便">賣貨便（7-11）</option>
+            <option value="好賣+">好賣+（全家）</option>
+          </select>
+          <button class="btn primary" id="nextStepBtn">下一步 ➜</button>
+        </div>
 
+        <!-- Step 2 補充 -->
+        <div id="step2" class="hidden">
+          <input id="store" placeholder="取貨門市（選填）" />
+          <label class="label">取貨期限（選填）
+            <input type="date" id="pickupDeadline" />
+          </label>
+          <div class="actions">
+            <button class="btn" id="prevStepBtn">← 上一步</button>
+            <button class="btn primary" id="addOrderBtn">完成新增</button>
+          </div>
+        </div>
+      </div>
 
-<section id="import" class="panel">
-<div class="card">
-<h2>批量匯入（CSV）</h2>
-<input type="file" accept=".csv" onchange="importCSV(event)" />
-</div>
-</section>
+      <div class="card">
+        <h2>📂 最近新增訂單</h2>
+        <div id="recentOrders" class="list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 訂單列表 + 撥款 -->
+  <section id="list" class="panel">
+    <div class="layout">
+      <div class="card">
+        <h2>📋 訂單列表</h2>
+        <div class="list-toolbar">
+          <button class="btn small" id="selectAllBtn">全選</button>
+          <button class="btn small" id="clearSelectionBtn">清除勾選</button>
+        </div>
+        <div id="orderList" class="list"></div>
+      </div>
+
+      <div class="card">
+        <h2>💰 撥款總覽</h2>
+        <div id="summary"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SMS 通知 -->
+  <section id="sms" class="panel">
+    <div class="layout">
+      <!-- 左邊：已勾選訂單 -->
+      <div class="card">
+        <h2>✅ 已勾選訂單（將收到簡訊）</h2>
+        <div id="selectedOrders" class="list"></div>
+      </div>
+
+      <!-- 右邊：SMS 編輯 + Log -->
+      <div class="card">
+        <h2>💬 簡訊內容</h2>
+
+        <!-- 模板下拉 -->
+        <select id="smsTemplateSelect"></select>
+
+        <textarea id="smsContent">
+您好，您的包裹已到店，請儘速取貨，謝謝。
+        </textarea>
+        <button class="btn primary" id="sendSmsBtn">發送簡訊</button>
+
+        <h3 style="margin-top:20px;">📜 發送紀錄</h3>
+        <div id="smsLog" class="list"></div>
+      </div>
+    </div>
+  </section>
+
 </main>
-
 
 <script src="utils.js"></script>
 <script src="rules.js"></script>
 <script src="orders.js"></script>
+<script src="sms.js"></script>
 <script>
-function switchTab(id){
-document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'))
-document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
-document.getElementById(id).classList.add('active')
-event.target.classList.add('active')
-}
+  // Tabs 切換
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', e => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+      const target = e.currentTarget.dataset.target
+      e.currentTarget.classList.add('active')
+      document.getElementById(target).classList.add('active')
+    })
+  })
+
+  // 新增訂單兩步驟
+  const step1 = document.getElementById('step1')
+  const step2 = document.getElementById('step2')
+  document.getElementById('nextStepBtn').onclick = () => {
+    step1.classList.add('hidden')
+    step2.classList.remove('hidden')
+  }
+  document.getElementById('prevStepBtn').onclick = () => {
+    step2.classList.add('hidden')
+    step1.classList.remove('hidden')
+  }
+  document.getElementById('addOrderBtn').onclick = () => addOrderFromForm()
+
+  // 列表工具按鈕
+  document.getElementById('selectAllBtn').onclick = () => selectAllOrders()
+  document.getElementById('clearSelectionBtn').onclick = () => clearSelection()
+
+  // SMS 發送
+  document.getElementById('sendSmsBtn').onclick = () => sendSMS()
 </script>
 </body>
 </html>
