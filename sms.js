@@ -75,7 +75,7 @@ window.removeSMSOrder = function(orderNo) {
     }
 };
 
-// 4. 渲染 SMS 列表
+// sms.js - 修正列表顯示邏輯 (避免 undefined)
 function renderSmsList() {
     const container = document.getElementById('smsListContainer');
     if(!container) return;
@@ -85,7 +85,12 @@ function renderSmsList() {
         return;
     }
 
-    container.innerHTML = smsOrders.map((o, idx) => `
+    container.innerHTML = smsOrders.map((o, idx) => {
+        // ★★★ 這裡加強判斷：如果沒有平台或門市，就顯示空白，不要顯示 undefined ★★★
+        const platformText = o.platform || '平台未指定'; 
+        const storeText = o.store || '門市未指定';
+
+        return `
         <div class="sms-card">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                 <strong><input type="checkbox" class="sms-chk" value="${idx}"> ${o.name}</strong>
@@ -93,10 +98,12 @@ function renderSmsList() {
             </div>
             <div style="font-size:13px; color:#666;">
                 ${o.phone} | ${o.no} <br>
-                <span style="color:#2980b9; font-weight:bold;">${o.platform}</span> ${o.store} <span style="font-size:12px; color:#999;">(${o.deadline||'無期限'})</span>
+                <span style="color:#2980b9; font-weight:bold;">${platformText}</span> ${storeText} 
+                <span style="font-size:12px; color:#999;">(${o.deadline||'無期限'})</span>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 // 5. 範本邏輯
