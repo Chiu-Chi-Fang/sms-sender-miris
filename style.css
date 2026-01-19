@@ -1,199 +1,299 @@
-:root{
-  --pink:#FADADD;
-  --pink-dark:#F3B6C2;
-  --purple:#E8DFF5;
-  --bg:#FFF7F9;
-  --text:#444;
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+:root {
+  /* -- 主題色系：櫻花棉花糖 -- */
+  --primary-color: #ff8fab; /* 主色調：櫻花粉 */
+  --primary-gradient: linear-gradient(135deg, #ff8fab 0%, #ffc2d1 100%); /* 可愛漸層 */
+  --secondary-color: #aed9e0; /* 次要色調：粉嫩藍 */
+  --bg-body: #fff0f5; /* 背景色：極淺的粉紅 */
+  --bg-card: #ffffff; /* 卡片背景：純白 */
+  --text-dark: #5a4a55; /* 深色文字：帶點紫的深灰，不那麼死板 */
+  --text-light: #9e8a95; /* 淺色文字 */
+  --border-radius-card: 24px; /* 卡片大圓角 */
+  --border-radius-btn: 50px; /* 按鈕膠囊狀圓角 */
+  --shadow-soft: 0 10px 30px -10px rgba(255, 143, 171, 0.3); /* 柔和粉色陰影 */
 }
 
-*{
-  box-sizing:border-box;
-  font-family:"Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont;
+* {
+  box-sizing: border-box;
+  /* 使用圓潤可愛的字體 */
+  font-family: 'Nunito', 'Noto Sans TC', sans-serif;
 }
 
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
+body {
+  margin: 0;
+  padding: 20px;
+  background-color: var(--bg-body);
+  color: var(--text-dark);
+  /* 增加一點可愛的背景紋理（選用） */
+  background-image: radial-gradient(circle at 10% 20%, rgb(255, 245, 247) 0%, rgb(255, 240, 245) 90%);
+  min-height: 100vh;
 }
 
-.header{
-  text-align:center;
-  padding:20px;
-  background:var(--pink);
-  font-size:22px;
-  font-weight:700;
+/* --- Header --- */
+.header {
+  text-align: center;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  margin-bottom: 25px;
+  text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
 }
 
-.tabs{
-  display:flex;
-  background:white;
-  border-bottom:1px solid #f0e0e5;
+/* --- Navigation Tabs --- */
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 25px;
+  padding: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--border-radius-btn);
+  backdrop-filter: blur(5px);
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.tab{
-  flex:1;
-  padding:14px;
-  border:none;
-  background:#fff;
-  font-weight:700;
-  cursor:pointer;
-  transition:background .2s;
+.tab {
+  background: transparent;
+  border: none;
+  padding: 12px 24px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-light);
+  border-radius: var(--border-radius-btn);
+  transition: all 0.3s ease;
 }
 
-.tab.active{
-  background:var(--purple);
+.tab:hover {
+  color: var(--primary-color);
+  background: rgba(255, 240, 245, 0.8);
 }
 
-main{
-  padding:20px;
+/* 選中的 Tab 樣式 */
+.tab.active {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 4px 15px rgba(255, 143, 171, 0.4);
+  transform: translateY(-2px);
 }
 
-.panel{
-  display:none;
+/* --- Main Layout & Panels --- */
+main {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.panel.active{
-  display:block;
+.panel {
+  display: none;
+  animation: fadeIn 0.4s ease-in-out;
 }
 
-.layout{
-  display:grid;
-  grid-template-columns:1.2fr 1fr;
-  gap:20px;
+.panel.active {
+  display: block;
 }
 
-.card{
-  background:white;
-  border-radius:24px;
-  padding:20px;
-  box-shadow:0 6px 18px rgba(0,0,0,.05);
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-h2{
-  margin-top:0;
-  margin-bottom:12px;
+/* 雙欄佈局設定 */
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 25px;
 }
 
-h3{
-  margin-top:0;
-}
-
-/* 表單元素 */
-input,select,textarea{
-  width:100%;
-  padding:12px;
-  margin-bottom:10px;
-  border-radius:14px;
-  border:1px solid #eee;
-  font-size:14px;
-}
-
-textarea{
-  min-height:120px;
-  resize:vertical;
-}
-
-.label{
-  font-size:13px;
-  color:#777;
-  display:block;
-  margin-bottom:10px;
-}
-
-/* Buttons */
-.btn{
-  padding:10px 16px;
-  border:none;
-  border-radius:16px;
-  background:#ddd;
-  font-weight:700;
-  cursor:pointer;
-  font-size:14px;
-}
-
-.btn.primary{
-  background:var(--pink-dark);
-}
-
-.btn.small{
-  padding:6px 10px;
-  font-size:12px;
-  border-radius:12px;
-}
-
-/* 列表 & 項目 */
-.list{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-
-.order-item{
-  background:#fff;
-  border-radius:16px;
-  padding:12px;
-  box-shadow:0 2px 8px rgba(0,0,0,.04);
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-}
-
-.order-main{
-  flex:1;
-  font-size:14px;
-}
-
-.order-meta{
-  font-size:12px;
-  color:#777;
-}
-
-.order-actions{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.badge{
-  display:inline-block;
-  padding:2px 6px;
-  border-radius:999px;
-  font-size:11px;
-  background:#f0f0f0;
-  margin-right:4px;
-}
-
-/* SMS log item */
-.sms-item{
-  background:#fff;
-  border-radius:16px;
-  padding:10px 12px;
-  box-shadow:0 2px 6px rgba(0,0,0,.04);
-  font-size:13px;
-}
-
-/* 工具列 */
-.list-toolbar{
-  margin-bottom:10px;
-  display:flex;
-  gap:8px;
-}
-
-/* 兩步驟隱藏 */
-.hidden{
-  display:none;
-}
-
-/* 簡易 summary 區塊 */
-#summary{
-  font-size:14px;
-  line-height:1.6;
-}
-
-/* 響應式 */
-@media(max-width:900px){
-  .layout{
-    grid-template-columns:1fr;
+@media (min-width: 768px) {
+  .layout {
+    grid-template-columns: 3fr 2fr; /* 左邊寬一點，右邊窄一點 */
   }
+  /* SMS 頁面可能需要左右平均或反過來 */
+  #sms .layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* --- Cards (卡片) --- */
+.card {
+  background: var(--bg-card);
+  padding: 30px;
+  border-radius: var(--border-radius-card);
+  box-shadow: var(--shadow-soft);
+  border: 2px solid white; /* 增加一點邊框層次 */
+}
+
+h2 {
+  color: var(--primary-color);
+  margin-top: 0;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+h3 {
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+/* --- Forms & Inputs --- */
+input, select, textarea {
+  width: 100%;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border: 2px solid #eee;
+  border-radius: 16px; /* 輸入框也要圓圓的 */
+  font-size: 1rem;
+  background: #fcfcfc;
+  transition: all 0.3s ease;
+  color: var(--text-dark);
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 0 0 4px rgba(255, 143, 171, 0.15); /* 聚焦時的柔和光暈 */
+}
+
+textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.5;
+}
+
+.label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--text-dark);
+    cursor: pointer;
+}
+
+/* --- Buttons --- */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--border-radius-btn);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #e0e0e0; /* 預設灰色按鈕 */
+  color: var(--text-dark);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* 主要按鈕 (Primary) */
+.btn.primary {
+  background: var(--primary-gradient);
+  color: white;
+  box-shadow: 0 4px 12px rgba(255, 143, 171, 0.3);
+}
+
+.btn.primary:hover {
+  box-shadow: 0 6px 16px rgba(255, 143, 171, 0.5);
+  filter: brightness(1.05);
+}
+
+/* 小型按鈕 */
+.btn.small {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    background: white;
+    border: 2px solid #eee;
+}
+.btn.small:hover {
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+/* 兩步驟的按鈕容器 */
+.actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+.actions .btn {
+    flex: 1; /* 讓兩個按鈕平均分配寬度 */
+}
+
+/* --- Lists & Utilities --- */
+.list {
+  min-height: 100px;
+  /* 列表的佔位符樣式，讓空列表看起來不那麼空 */
+  background: #f9f9f9;
+  border-radius: 16px;
+  padding: 15px;
+  /* 這裡之後可以透過 JS 動態加入內容的樣式 */
+}
+
+/* 列表內的單個項目 (假設之後 JS 會產生 .list-item) */
+.list-item {
+    background: white;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 12px;
+    border: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 批量匯入的 details 優化 */
+details summary {
+    padding: 10px 16px;
+    background: #fff;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    transition: all 0.2s;
+    user-select: none;
+}
+details[open] summary {
+    background: #fff0f5;
+    border-color: var(--primary-color);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+details[open] > div, details[open] > textarea {
+    border: 2px solid #eee;
+    border-top: none;
+    background: #fff;
+    padding: 15px;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    margin-top: 0 !important; /* 覆蓋 inline style */
+}
+#bulkInput {
+    border-radius: 0 !important; /* 覆蓋預設圓角以配合 details */
+    margin-bottom: 0 !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.list-toolbar {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 10px;
 }
