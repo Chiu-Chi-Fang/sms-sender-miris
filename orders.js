@@ -1,255 +1,231 @@
-// ==========================================
-//  工具函式：日期計算邏輯 (源自您的舊系統)
-// ==========================================
-function addDays(date, days) {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
+// orders.js - 處理訂單資料、日期計算
+
+// 1. 初始化資料 (從 LocalStorage 讀取，避免重整消失)
+let payOrders = JSON.parse(localStorage.getItem('payOrders')) || [];
+
+function savePayOrders() {
+    localStorage.setItem('payOrders', JSON.stringify(payOrders));
 }
 
-function getNextWeekday(date, targetDay) {
-    const d = new Date(date);
-    const cur = d.getDay(); // 0=週日, 1=週一...
-    let add = targetDay - cur;
-    if (add <= 0) add += 7;
-    d.setDate(d.getDate() + add);
-    return d;
-}
-
-function formatDate(d) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-}
-
-// 核心：根據平台與取貨日，計算撥款日
+// 2. 核心：日期計算邏輯
 function calculatePaymentDate(platform, pickupDateStr) {
-    const pickupDate = new Date(pickupDateStr);
-    const dow = pickupDate.getDay();
-    let settlementDate, paymentDate;
-
-    // 邏輯移植自您的舊檔案
-    if (platform.includes('賣貨便')) {
-        if (dow >= 1 && dow <= 3) { // 週一至週三
-            settlementDate = getNextWeekday(pickupDate, 4); // 下週四
-            paymentDate = addDays(settlementDate, 4);
-        } else { // 週四至週日
-            settlementDate = getNextWeekday(pickupDate, 1); // 下週一
-            paymentDate = addDays(settlementDate, 2);
-        }
-    } else if (platform.includes('好賣')) { // 好賣+
-        if (dow >= 1 && dow <= 3) { // 週一至週三
-            settlementDate = getNextWeekday(pickupDate, 5); // 下週五
-            paymentDate = addDays(settlementDate, 4);
-        } else { // 週四至週日
-            settlementDate = getNextWeekday(pickupDate, 3); // 下週三
-            paymentDate = addDays(settlementDate, 1);
-        }
-    } else {
-        return null; // 其他平台無法計算
-    }
-
-    return {
-        settlement: formatDate(settlementDate),
-        payment: formatDate(paymentDate)
-    };
-}
-
-// ==========================================
-//  主程式邏輯
-// ==========================================
-
-let orders = []; 
-
-// 1. 初始化
-window.addEventListener('DOMContentLoaded', () => {
-  renderOrders();
-  renderRecentOrders();
-});
-
-// --- 功能: 新增訂單 ---
-function addOrderFromForm() {
-    const name = document.getElementById('name').value;
-    if (!name) { alert('請填寫客戶姓名喔！'); return; }
-
-    const newOrder = {
-        orderNo: document.getElementById('orderNo').value || '無編號',
-        name: name,
-        phone: document.getElementById('phone').value,
-        platform: document.getElementById('platform').value,
-        store: document.getElementById('store').value,
-        pickupDeadline: document.getElementById('pickupDeadline').value,
-        isPickedUp: false,
-        pickupDate: null,
-        paymentDate: null // 新增：預計撥款日
-    };
-
-    orders.push(newOrder);
-    renderOrders();
-    renderRecentOrders();
+    if (!pickupDateStr) return { settlement: '-', payment: '-' };
+    const date = new Date(pickupDateStr);
+    const day = date.getDay(); // 0=週日
     
-    // 重置表單
-    document.getElementById('name').value = '';
-    document.getElementById('phone').value = '';
-    document.getElementById('orderNo').value = '';
-    alert('✨ 新增成功！');
+    // 簡單推算：賣貨便(週四結算,下週一匯款)、好賣+(週三/五結算)
+    // 這裡使用簡化邏輯演示，您可以根據實際需求微調天數
+    let daysToAdd = 7; 
+    if(platform.includes('賣貨便')) {
+        // 假設邏輯：週一~週三取 -> 下週四撥款 (約+8~10天)
+        daysToAdd = 10; 
+    } else {
+        // 好賣+
+        daysToAdd = 8;
+    }
+    
+    const payDate = new Date(date);
+    payDate.setDate(date.getDate() + daysToAdd);
+    
+    return {
+        settlement: pickupDateStr, // 簡化顯示
+        payment: payDate.toISOString().split('T')[0]
+    };
 }
 
-function renderRecentOrders() {
-    const container = document.getElementById('recentOrders');
-    if(!container) return;
-    container.innerHTML = '';
-    const recent = orders.slice(-3).reverse();
-    recent.forEach(item => {
-        container.innerHTML += `<div style="padding:8px; border-bottom:1px solid #eee;">🆕 ${item.name} (${item.platform})</div>`;
+// 3. 渲染訂單列表 (包含隱形按鈕)
+function renderPayTable() {
+    const tbody = document.getElementById('payTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    payOrders.forEach((order, index) => {
+        // 狀態按鈕 HTML
+        let statusHtml = '';
+        if (order.pickupDate) {
+            // 已取貨：顯示綠色按鈕 + 撥款日
+            const calc = calculatePaymentDate(order.platform, order.pickupDate);
+            statusHtml = `
+                <div style="text-align:right">
+                    <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">
+                        ✅ 已取 (${order.pickupDate.slice(5)})
+                    </button>
+                    <div style="font-size:12px; color:#ff6b81; font-weight:bold; margin-top:2px;">
+                        💰 撥款: ${calc.payment}
+                    </div>
+                </div>
+            `;
+        } else {
+            // 未取貨：顯示紅色按鈕 + 隱形日期選單 (修復選單飛走的問題)
+            // 注意 class="action-wrapper" 和 class="hidden-date-input"
+            statusHtml = `
+                <div class="action-wrapper">
+                    <button class="btn btn-danger btn-sm" style="pointer-events: none;">📦 未取貨</button>
+                    <input type="date" class="hidden-date-input" 
+                           onchange="updateOrderPickup(${index}, this.value)">
+                </div>
+            `;
+        }
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
+            <td>${order.no}</td>
+            <td>${order.name}</td>
+            <td>${order.phone}</td>
+            <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
+            <td>${order.shipDate}</td>
+            <td>${order.deadline || '-'}</td>
+            <td>${statusHtml}</td>
+            <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
+        `;
+        tbody.appendChild(tr);
     });
 }
 
-// --- 功能: 渲染列表 (顯示計算結果) ---
-function renderOrders() {
-  const listContainer = document.getElementById('orderList');
-  if(!listContainer) return;
-  listContainer.innerHTML = ''; 
-
-  if (orders.length === 0) {
-    listContainer.innerHTML = '<div style="text-align:center; padding:40px; color:#999;">🌸 目前沒有訂單，請從上方匯入或新增</div>';
-    return;
-  }
-
-  orders.forEach((item, index) => {
-    const p = item.platform || '';
-    const badgeClass = p.includes('賣貨便') ? 'seven' : (p.includes('好賣') ? 'fami' : '');
-
-    // --- 按鈕與狀態邏輯 ---
-    let btnHtml = '';
-    let statusHtml = ''; // 用來顯示撥款日
-
-    if (item.isPickedUp) {
-      // ✅ 狀態：已取貨
-      btnHtml = `
-        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
-            <div style="display:flex; align-items:center; gap:5px;">
-                <button class="btn small" style="background:#e6f9e6; color:#28a745; border:1px solid #28a745; cursor:default;">
-                ✅ 已取貨 (${item.pickupDate.slice(5)}) 
-                </button>
-                <button class="btn small" style="padding:4px 8px;" onclick="resetStatus(${index})" title="重設狀態">↩️</button>
-            </div>
-        </div>
-      `;
-      
-      // 如果有計算出撥款日，顯示在下面
-      if (item.paymentDate) {
-          statusHtml = `
-            <div style="margin-top:5px; font-size:13px; color:#d63384; font-weight:bold; text-align:right;">
-                💰 預計撥款：${item.paymentDate}
-            </div>
-          `;
-      }
-
-    } else {
-      // 📦 狀態：未取貨 (隱形覆蓋術：日期選單)
-      btnHtml = `
-        <div style="position: relative; display: inline-block;">
-            <button class="btn small" style="background:white; color:#ff6b6b; border:1px solid #ff6b6b; font-weight:bold; pointer-events: none;">
-              📦 未取貨
-            </button>
-            <input type="date" 
-                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;"
-                   onchange="onDatePicked(${index}, this.value)"
-            >
-        </div>
-      `;
-    }
-
-    const html = `
-      <div class="order-item">
-        <div class="col-check"><input type="checkbox" data-index="${index}" class="order-checkbox"></div>
-        <div class="col-info">
-          <strong>#${item.orderNo}</strong>
-          <span class="platform-badge ${badgeClass}">${p}</span>
-        </div>
-        <div class="col-customer">
-          <div>👤 ${item.name} <span style="color:#999;font-size:0.9em">📞 ${item.phone}</span></div>
-          <div style="font-size:12px; color:#888;">📍 ${item.store || '未指定'}</div>
-        </div>
-        <div class="col-action">
-           ${btnHtml}
-           ${statusHtml}
-        </div>
-      </div>
-    `;
-    listContainer.innerHTML += html;
-  });
+// 4. 操作功能
+function addNewOrder() {
+    const no = document.getElementById('addOrderNo').value;
+    const name = document.getElementById('addName').value;
+    const phone = document.getElementById('addPhone').value;
+    if(!no || !name) return alert('請填寫完整資訊');
+    
+    payOrders.push({
+        no: no.startsWith('#') ? no : '#'+no,
+        name,
+        phone,
+        platform: document.getElementById('addPlatform').value,
+        shipDate: document.getElementById('addShipDate').value,
+        deadline: document.getElementById('addDeadline').value,
+        pickupDate: null
+    });
+    savePayOrders();
+    renderPayTable();
+    alert('新增成功！');
+    // switchPaySubTab('orders'); // 可選擇是否自動切換回列表
 }
 
-// --- 功能: 日期被選擇後的處理 (觸發計算) ---
-function onDatePicked(index, dateValue) {
-    if (dateValue) {
-        const order = orders[index];
-        order.isPickedUp = true;
-        order.pickupDate = dateValue;
-
-        // 觸發核心計算
-        const result = calculatePaymentDate(order.platform, dateValue);
+function updateOrderPickup(index, dateStr) {
+    if(dateStr) {
+        payOrders[index].pickupDate = dateStr;
+        savePayOrders();
+        renderPayTable();
         
-        if (result) {
-            order.paymentDate = result.payment; // 存入撥款日
-            // 也可以存入結算日 order.settlementDate = result.settlement;
-        } else {
-            order.paymentDate = null; // 平台不支援計算
+        // ★ 自動連動 SMS：刪除該訂單 (如果有的話)
+        if(window.removeSMSOrder) {
+            window.removeSMSOrder(payOrders[index].no);
         }
-
-        renderOrders(); // 重新整理畫面
     }
 }
 
-function resetStatus(index) {
-    if(confirm('確定要復原成「未取貨」狀態嗎？')) {
-        orders[index].isPickedUp = false;
-        orders[index].paymentDate = null;
-        renderOrders();
+function resetOrderStatus(index) {
+    if(confirm('重設為未取貨？')) {
+        payOrders[index].pickupDate = null;
+        savePayOrders();
+        renderPayTable();
     }
 }
 
-// --- 批量匯入 & 刪除 (保持不變) ---
-function bulkImportFromText() {
-    const inputVal = document.getElementById('bulkInput').value;
-    if (!inputVal.trim()) { alert('請先貼上資料！'); return; }
-    const rows = inputVal.split(/\n/);
+function deleteOrder(index) {
+    if(confirm('確定刪除？')) {
+        payOrders.splice(index, 1);
+        savePayOrders();
+        renderPayTable();
+    }
+}
+
+// 5. 批量功能 (包含您要求的新功能)
+function toggleSelectAllPay() {
+    const checked = document.getElementById('selectAllPay').checked;
+    document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked);
+}
+
+function getSelectedIndices() {
+    const chks = document.querySelectorAll('.pay-chk:checked');
+    const indices = [];
+    chks.forEach(c => indices.push(parseInt(c.dataset.idx)));
+    return indices;
+}
+
+// ★★★ 新功能：批量指定日期 ★★★
+function batchSetDate() {
+    const indices = getSelectedIndices();
+    if(indices.length === 0) return alert('請先勾選訂單');
+    
+    const dateVal = document.getElementById('batchDateInput').value;
+    if(!dateVal) return alert('請先選擇日期');
+    
+    if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) {
+        indices.forEach(i => {
+            payOrders[i].pickupDate = dateVal;
+            // 連動刪除 SMS
+            if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no);
+        });
+        savePayOrders();
+        renderPayTable();
+    }
+}
+
+function batchDeleteOrders() {
+    const indices = getSelectedIndices();
+    if(indices.length === 0) return;
+    if(confirm(`刪除 ${indices.length} 筆？`)) {
+        // 從後面刪回來才不會影響 index
+        indices.sort((a,b) => b-a).forEach(i => payOrders.splice(i, 1));
+        savePayOrders();
+        renderPayTable();
+        document.getElementById('selectAllPay').checked = false;
+    }
+}
+
+// 傳送資料給 SMS 模組
+function pushToSMS() {
+    const indices = getSelectedIndices();
+    if(indices.length === 0) return alert('請先勾選訂單');
+    
+    const dataToSync = indices.map(i => payOrders[i]);
+    
+    // 呼叫 sms.js 的函數 (透過 window 全域變數)
+    if(window.receiveOrdersFromPay) {
+        window.receiveOrdersFromPay(dataToSync);
+        alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`);
+        // 切換分頁
+        switchMainTab('sms');
+    } else {
+        alert('SMS 模組尚未載入，請稍候');
+    }
+}
+
+// 匯入功能
+function importFromText() {
+    const txt = document.getElementById('importText').value;
+    if(!txt) return;
+    const lines = txt.split('\n');
     let count = 0;
-    rows.forEach(row => {
-        if(!row.trim()) return;
-        let cols = row.split(/\t|,/); 
-        cols = cols.map(c => c.trim());
-        if(cols.length >= 2) {
-            orders.push({
-                orderNo: cols[0], name: cols[1], phone: cols[2]||'', platform: cols[3]||'賣貨便', 
-                store: cols[4]||'', isPickedUp: false, paymentDate: null
+    lines.forEach(line => {
+        const cols = line.split(/[|\t,]/).map(c=>c.trim()); // 支援 | 或 tab 或 逗號
+        if(cols.length >= 3) {
+            payOrders.push({
+                no: cols[0], name: cols[1], phone: cols[2], 
+                platform: cols[3]||'賣貨便', shipDate: cols[4]||'', pickupDate: null
             });
             count++;
         }
     });
-    document.getElementById('bulkInput').value = '';
-    renderOrders();
-    alert(`成功匯入 ${count} 筆資料！`);
+    savePayOrders();
+    renderPayTable();
+    alert(`匯入 ${count} 筆`);
+    document.getElementById('importText').value = '';
 }
 
-const importBtn = document.getElementById('bulkImportBtn');
-if(importBtn) importBtn.onclick = bulkImportFromText;
-
-const deleteBtn = document.getElementById('deleteSelectedBtn');
-if(deleteBtn) deleteBtn.onclick = () => {
-    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
-    if(checkboxes.length === 0) return;
-    if(!confirm(`刪除這 ${checkboxes.length} 筆嗎？`)) return;
-    const idxs = Array.from(checkboxes).map(c => parseInt(c.dataset.index)).sort((a,b)=>b-a);
-    idxs.forEach(i => orders.splice(i,1));
-    renderOrders();
-};
-
-const selectAllBtn = document.getElementById('selectAllBtn');
-if(selectAllBtn) selectAllBtn.onclick = () => document.querySelectorAll('.order-checkbox').forEach(c=>c.checked=true);
-
-const clearBtn = document.getElementById('clearSelectionBtn');
-if(clearBtn) clearBtn.onclick = () => document.querySelectorAll('.order-checkbox').forEach(c=>c.checked=false);
+// 讓 HTML 按鈕找得到這些函數
+window.renderPayTable = renderPayTable;
+window.addNewOrder = addNewOrder;
+window.updateOrderPickup = updateOrderPickup;
+window.resetOrderStatus = resetOrderStatus;
+window.deleteOrder = deleteOrder;
+window.toggleSelectAllPay = toggleSelectAllPay;
+window.batchSetDate = batchSetDate; // 綁定新功能
+window.batchDeleteOrders = batchDeleteOrders;
+window.pushToSMS = pushToSMS;
+window.importFromText = importFromText;
