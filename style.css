@@ -479,6 +479,29 @@ body {
   font-size: 14px;
 }
 
+/* 選擇取貨日期按鈕 */
+.btn-select-date {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-select-date:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-select-date:active {
+  transform: translateY(0);
+}
+
 .send-history {
   margin-top: 16px;
   padding: 16px;
