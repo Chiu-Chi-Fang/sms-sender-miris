@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌸 訂單 / 撥款 / SMS 管理系統</title>
+  <title>🌸 訂單 / SMS 管理系統</title>
   <link rel="stylesheet" href="style.css" />
-
-  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
+
 <header class="header">
   🌸 訂單・撥款・簡訊 一次搞定
 </header>
@@ -22,112 +21,110 @@
 </nav>
 
 <main>
-
-  <!-- 新增訂單（兩步驟） -->
   <section id="add" class="panel active">
-    <div class="layout">
-      <div class="card">
+    <div class="layout single-column"> <div class="card full-width" style="max-width: 600px;">
         <h2>🧾 新增訂單</h2>
 
-        <!-- Step 1 必填 -->
         <div id="step1">
-          <input id="orderNo" placeholder="訂單編號" />
+          <label class="label">訂單資訊</label>
+          <input id="orderNo" placeholder="訂單編號 (例如: 1001)" />
           <input id="name" placeholder="客戶姓名" />
-          <input id="phone" placeholder="手機號碼" />
+          <input id="phone" placeholder="手機號碼" type="tel" />
+          
+          <label class="label">購物平台</label>
           <select id="platform">
             <option value="賣貨便">賣貨便（7-11）</option>
             <option value="好賣+">好賣+（全家）</option>
+            <option value="其他">其他平台</option>
           </select>
-          <button class="btn primary" id="nextStepBtn">下一步 ➜</button>
+          
+          <button class="btn primary" id="nextStepBtn" style="width:100%; margin-top:10px;">下一步 ➜</button>
         </div>
 
-        <!-- Step 2 補充 -->
         <div id="step2" class="hidden">
-          <input id="store" placeholder="取貨門市（選填）" />
-          <label class="label">取貨期限（選填）
+          <label class="label">取貨資訊 (選填)</label>
+          <input id="store" placeholder="取貨門市名稱" />
+          <label class="label">取貨期限
             <input type="date" id="pickupDeadline" />
           </label>
+          
           <div class="actions">
             <button class="btn" id="prevStepBtn">← 上一步</button>
-            <button class="btn primary" id="addOrderBtn">完成新增</button>
+            <button class="btn primary" id="addOrderBtn">✨ 完成新增</button>
           </div>
         </div>
       </div>
-
-      <div class="card">
-        <h2>📂 最近新增訂單</h2>
-        <div id="recentOrders" class="list"></div>
+      
+      <div class="card full-width" style="max-width: 600px; margin-top: 20px;">
+        <h3>📂 剛剛新增的訂單</h3>
+        <div id="recentOrders" class="list" style="min-height: 50px;"></div>
       </div>
     </div>
   </section>
 
-  <!-- 訂單列表 + 撥款 -->
-<section id="list" class="panel">
-  <div class="layout single-column"> <div class="card full-width">
-      <h2>📋 訂單列表</h2>
+  <section id="list" class="panel">
+    <div class="layout single-column">
+      
+      <div class="card full-width">
+        <h2>📋 訂單列表</h2>
 
-      <details style="margin-bottom:12px;">
-        <summary style="cursor:pointer;">📥 從 Excel 批量複製貼上</summary>
-        <div style="margin-top:8px; font-size:13px; color:#666;">
-          支援 Excel 直接貼上！請複製 Excel 中的欄位並貼入下方：<br>
-          順序：<code>訂單編號 | 姓名 | 手機 | 平台 | 門市 | 取貨期限</code>
+        <details style="margin-bottom:15px;">
+          <summary>➕ 從 Excel 批量複製貼上</summary>
+          <div style="background:#fff; padding:15px; border:2px solid #eee; border-top:none; border-radius:0 0 12px 12px;">
+            <p style="font-size:13px; color:#666; margin-top:0;">
+              請直接從 Excel 複製表格內容 (Ctrl+C)，然後點擊下方方框貼上 (Ctrl+V)。<br>
+              欄位順序建議：<code>訂單編號 | 姓名 | 手機 | 平台 | 門市</code>
+            </p>
+            <textarea id="bulkInput" placeholder="點擊這裡，然後按 Ctrl+V 貼上 Excel 資料..."></textarea>
+            <button class="btn small primary" id="bulkImportBtn">確認匯入資料</button>
+          </div>
+        </details>
+
+        <div class="list-toolbar">
+          <button class="btn small" id="selectAllBtn">全選</button>
+          <button class="btn small" id="clearSelectionBtn">清除</button>
+          <button class="btn small danger" id="deleteSelectedBtn">🗑️ 刪除選取</button>
         </div>
-        <textarea id="bulkInput" placeholder="請直接從 Excel 複製資料，點擊這裡，然後按 Ctrl+V 貼上..."></textarea>
-        <button class="btn small" id="bulkImportBtn" style="margin-top:6px;">確認匯入</button>
-      </details>
 
-      <div class="list-toolbar">
-        <button class="btn small" id="selectAllBtn">全選</button>
-        <button class="btn small" id="clearSelectionBtn">清除</button>
-        <button class="btn small danger" id="deleteSelectedBtn">🗑️ 刪除選取</button>
+        <div class="list-header">
+          <span>選取</span>
+          <span>訂單資訊</span>
+          <span>客戶資料</span>
+          <span>狀態 / 操作</span>
+        </div>
+
+        <div id="orderList" class="list">
+          </div>
       </div>
 
-      <div class="list-header">
-        <span>選取</span>
-        <span>訂單資訊</span>
-        <span>客戶資料</span>
-        <span>狀態 / 操作</span>
-      </div>
-      <div id="orderList" class="list"></div>
     </div>
+  </section>
 
-  </div>
-</section>
-
-      <!-- 中：工具列 -->
-      <div class="list-toolbar">
-        <button class="btn small" id="selectAllBtn">全選</button>
-        <button class="btn small" id="clearSelectionBtn">清除勾選</button>
-      </div>
-
-      <!-- 下：訂單清單 -->
-      <div id="orderList" class="list"></div>
-    </div>
-
-
-  <!-- SMS 通知 -->
   <section id="sms" class="panel">
     <div class="layout">
-      <!-- 左邊：已勾選訂單 -->
       <div class="card">
-        <h2>✅ 已勾選訂單（將收到簡訊）</h2>
+        <h2>✅ 準備發送名單</h2>
+        <div style="font-size:13px; color:#666; margin-bottom:10px;">
+          請先在「訂單列表」勾選要通知的客人
+        </div>
         <div id="selectedOrders" class="list"></div>
       </div>
 
-      <!-- 右邊：SMS 編輯 + Log -->
       <div class="card">
-        <h2>💬 簡訊內容</h2>
+        <h2>💬 編輯簡訊</h2>
+        <label class="label">選擇罐頭訊息</label>
+        <select id="smsTemplateSelect">
+          <option value="default">預設：到貨通知</option>
+          <option value="remind">催促：取貨提醒</option>
+        </select>
 
-        <!-- 模板下拉 -->
-        <select id="smsTemplateSelect"></select>
+        <label class="label">簡訊內容</label>
+        <textarea id="smsContent">您好，您的包裹已抵達指定門市，請儘速取貨，謝謝！🌸</textarea>
+        
+        <button class="btn primary" id="sendSmsBtn" style="width:100%; font-size:1.1rem;">🚀 發送簡訊</button>
 
-        <textarea id="smsContent">
-您好，您的包裹已到店，請儘速取貨，謝謝。
-        </textarea>
-        <button class="btn primary" id="sendSmsBtn">發送簡訊</button>
-
-        <h3 style="margin-top:20px;">📜 發送紀錄</h3>
-        <div id="smsLog" class="list"></div>
+        <h3 style="margin-top:25px; border-top:2px solid #eee; padding-top:15px;">📜 發送紀錄</h3>
+        <div id="smsLog" class="list" style="height: 150px; overflow-y: auto;"></div>
       </div>
     </div>
   </section>
@@ -138,38 +135,53 @@
 <script src="rules.js"></script>
 <script src="orders.js"></script>
 <script src="sms.js"></script>
+
 <script>
-  // Tabs 切換
+  // 簡單的分頁切換邏輯
   document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', e => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
-      const target = e.currentTarget.dataset.target
-      e.currentTarget.classList.add('active')
-      document.getElementById(target).classList.add('active')
-    })
-  })
+      // 移除所有 active 狀態
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      
+      // 加上 active 狀態
+      const targetId = e.currentTarget.dataset.target;
+      e.currentTarget.classList.add('active');
+      document.getElementById(targetId).classList.add('active');
+    });
+  });
 
-  // 新增訂單兩步驟
-  const step1 = document.getElementById('step1')
-  const step2 = document.getElementById('step2')
+  // 新增訂單步驟切換
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  
   document.getElementById('nextStepBtn').onclick = () => {
-    step1.classList.add('hidden')
-    step2.classList.remove('hidden')
-  }
+    // 簡單防呆
+    if(!document.getElementById('name').value) { alert('請至少填寫客戶姓名喔！'); return; }
+    step1.classList.add('hidden');
+    step2.classList.remove('hidden');
+  };
+  
   document.getElementById('prevStepBtn').onclick = () => {
-    step2.classList.add('hidden')
-    step1.classList.remove('hidden')
-  }
-  document.getElementById('addOrderBtn').onclick = () => addOrderFromForm()
+    step2.classList.add('hidden');
+    step1.classList.remove('hidden');
+  };
 
-  // 列表工具按鈕
-  document.getElementById('selectAllBtn').onclick = () => selectAllOrders()
-  document.getElementById('clearSelectionBtn').onclick = () => clearSelection()
-  document.getElementById('bulkImportBtn').onclick = () => bulkImportFromText()
-
-  // SMS 發送
-  document.getElementById('sendSmsBtn').onclick = () => sendSMS()
+  // 綁定新增按鈕 (呼叫 orders.js 裡的邏輯，如果有的話)
+  // 這裡假設 orders.js 裡有 addOrderFromForm，如果沒有會報錯，可以先註解掉
+  document.getElementById('addOrderBtn').onclick = () => {
+     if(typeof addOrderFromForm === 'function') {
+         addOrderFromForm();
+         // 重置表單
+         document.querySelectorAll('input').forEach(i => i.value = '');
+         step2.classList.add('hidden');
+         step1.classList.remove('hidden');
+         alert('新增成功！');
+     } else {
+         alert('請確認 orders.js 是否包含 addOrderFromForm 函式');
+     }
+  };
 </script>
 
-
+</body>
+</html>
