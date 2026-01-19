@@ -1,30 +1,88 @@
 // 模擬資料 (如果沒有 Firebase，會用這個測試)
 let orders = []; 
 
-// 1. 初始化：載入時執行
+// 1. 初始化
 window.addEventListener('DOMContentLoaded', () => {
-  // 如果有 Firebase，這裡應該是讀取資料庫
-  // 這裡先用模擬資料示範，讓您看到效果
-  /* orders = [
-    { orderNo: '1001', name: '王小明', phone: '0912345678', platform: '賣貨便', store: '台北門市', isPickedUp: false },
-    { orderNo: '1002', name: '陳小美', phone: '0988777666', platform: '好賣+', store: '台中門市', isPickedUp: true, pickupDate: '2026-01-20' }
-  ];
-  */
   renderOrders();
+  renderRecentOrders(); // 也要渲染「最近新增」的小清單
 });
 
-// 2. 渲染訂單列表 (核心功能)
+// --- 核心功能 1: 新增訂單 (補回這個功能！) ---
+function addOrderFromForm() {
+    // 取得輸入框資料
+    const orderNo = document.getElementById('orderNo').value;
+    const name = document.getElementById('name').value;
+    const phone = document.getElementById('phone').value;
+    const platformSelect = document.getElementById('platform');
+    const platform = platformSelect.options[platformSelect.selectedIndex].text; // 抓取選單文字
+    
+    // 選填資料
+    const store = document.getElementById('store').value;
+    const pickupDeadline = document.getElementById('pickupDeadline').value;
+
+    // 簡單驗證
+    if (!name) {
+        alert('請填寫客戶姓名喔！');
+        return;
+    }
+
+    // 建立新訂單物件
+    const newOrder = {
+        orderNo: orderNo || '無編號',
+        name: name,
+        phone: phone,
+        platform: platform,
+        store: store,
+        pickupDeadline: pickupDeadline,
+        isPickedUp: false // 預設未取貨
+    };
+
+    // 加入陣列
+    orders.push(newOrder);
+    
+    // 更新畫面
+    renderOrders();
+    renderRecentOrders(); // 更新「剛剛新增的訂單」區域
+}
+
+// 輔助功能: 顯示最近新增的幾筆 (讓使用者確認有新增成功)
+function renderRecentOrders() {
+    const container = document.getElementById('recentOrders');
+    if(!container) return;
+    
+    container.innerHTML = '';
+    // 只顯示最後 3 筆，並反轉順序 (最新的在上面)
+    const recent = orders.slice(-3).reverse();
+    
+    if(recent.length === 0) {
+        container.innerHTML = '<div style="padding:10px; color:#ccc;">尚無新增紀錄</div>';
+        return;
+    }
+
+    recent.forEach(item => {
+        container.innerHTML += `
+            <div style="border-bottom:1px solid #eee; padding:10px; font-size:0.9rem; display:flex; align-items:center;">
+               <span style="color:#ff8fab; margin-right:8px;">●</span> 
+               <strong>${item.name}</strong> 
+               <span style="color:#999; margin-left:auto; font-size:0.8rem;">${item.platform}</span>
+            </div>
+        `;
+    });
+}
+
+// --- 核心功能 2: 渲染列表 & 日期選擇 ---
 function renderOrders() {
   const listContainer = document.getElementById('orderList');
-  listContainer.innerHTML = ''; // 清空畫面
+  if(!listContainer) return;
+  
+  listContainer.innerHTML = ''; // 清空列表
 
   if (orders.length === 0) {
-    listContainer.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">🌸 目前沒有訂單，請從上方匯入</div>';
+    listContainer.innerHTML = '<div style="text-align:center; padding:40px; color:#999; background:#fff; border-radius:12px;">🌸 目前沒有訂單，請從上方匯入</div>';
     return;
   }
 
   orders.forEach((item, index) => {
-    // 防呆：如果資料是 undefined，顯示空字串
     const orderNo = item.orderNo || '無編號';
     const name = item.name || '未知';
     const phone = item.phone || '';
@@ -39,12 +97,12 @@ function renderOrders() {
       // 狀態：已取貨
       btnHtml = `
         <button class="btn small" style="background:#eee; color:#999; cursor:default;">
-          ✅ 已取貨 (${item.pickupDate || '未知日期'})
+          ✅ 已取貨 (${item.pickupDate || '未知'})
         </button>
-        <button class="btn small" style="margin-left:5px; font-size:12px;" onclick="resetStatus(${index})">↩️</button>
+        <button class="btn small" style="margin-left:5px; padding:5px 10px;" onclick="resetStatus(${index})" title="復原為未取貨">↩️</button>
       `;
     } else {
-      // 狀態：待取貨 (點擊後觸發 pickDate 函式)
+      // 狀態：待取貨 (點擊後觸發 pickDate)
       btnHtml = `
         <button class="btn small primary" onclick="pickDate(${index})">
           📦 待取貨
@@ -77,38 +135,35 @@ function renderOrders() {
   });
 }
 
-// 3. 觸發日期選擇 (您要的功能！)
+// 觸發日期選擇
 function pickDate(index) {
-    // 建立一個隱藏的日期輸入框
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
-    // 預設為今天
-    dateInput.value = new Date().toISOString().split('T')[0];
+    dateInput.value = new Date().toISOString().split('T')[0]; // 預設今天
     
-    // 當使用者選好日期後
     dateInput.onchange = (e) => {
         const selectedDate = e.target.value;
         if (selectedDate) {
             orders[index].isPickedUp = true;
             orders[index].pickupDate = selectedDate;
-            console.log(`訂單 ${index} 更新為已取貨: ${selectedDate}`);
-            renderOrders(); // 重新整理畫面
-            // TODO: 記得在這裡呼叫 Firebase save() 
+            renderOrders(); // 重整畫面
         }
     };
 
-    // 自動彈出日期選單
-    // 注意：showPicker() 支援 Chrome/Edge/iOS 15+
+    // 嘗試自動彈出日期選單
     try {
         dateInput.showPicker();
     } catch (err) {
-        // 如果瀏覽器不支援，就直接把它加到畫面上讓使用者點
-        alert('請手動輸入日期');
-        // 這裡可以做降級處理，但通常現代瀏覽器都支援了
+        // 如果瀏覽器不支援 showPicker，改用 prompt 或是直接設為今天
+        const manualDate = prompt("請輸入取貨日期 (YYYY-MM-DD):", dateInput.value);
+        if(manualDate) {
+             orders[index].isPickedUp = true;
+             orders[index].pickupDate = manualDate;
+             renderOrders();
+        }
     }
 }
 
-// 4. 重置狀態 (如果不小心按錯)
 function resetStatus(index) {
     if(confirm('要將此訂單恢復為「未取貨」狀態嗎？')) {
         orders[index].isPickedUp = false;
@@ -117,29 +172,24 @@ function resetStatus(index) {
     }
 }
 
-// 5. 批量匯入邏輯 (解決 Excel 格式問題)
+// 批量匯入邏輯
 function bulkImportFromText() {
     const inputVal = document.getElementById('bulkInput').value;
-    if (!inputVal.trim()) {
-        alert('請先貼上資料喔！');
+    if (!inputVal || !inputVal.trim()) {
+        alert('請先貼上 Excel 資料喔！');
         return;
     }
 
-    // 依據換行符號切割每一行
     const rows = inputVal.split(/\n/);
+    let count = 0;
     
     rows.forEach(row => {
-        // 忽略空白行
         if(!row.trim()) return;
-
-        // 支援逗號(CSV) 或 Tab(Excel複製) 分隔
-        // 這行正則表達式會自動判斷是用逗號還是 Tab 隔開
-        let cols = row.split(/,|\t/);
-        
-        // 清除每個欄位的多餘空白
+        // 支援 Tab (Excel) 或 逗號 (CSV)
+        let cols = row.split(/\t|,/);
         cols = cols.map(c => c.trim());
 
-        // 確保至少有編號跟姓名
+        // 至少要有 2 個欄位才匯入
         if(cols.length >= 2) {
             const newOrder = {
                 orderNo: cols[0],
@@ -151,36 +201,54 @@ function bulkImportFromText() {
                 isPickedUp: false
             };
             orders.push(newOrder);
+            count++;
         }
     });
 
-    document.getElementById('bulkInput').value = ''; // 清空輸入框
-    renderOrders(); // 更新列表
-    alert(`成功匯入 ${rows.length} 筆資料！`);
+    document.getElementById('bulkInput').value = ''; 
+    renderOrders(); 
+    alert(`成功匯入 ${count} 筆資料！`);
 }
 
-// 綁定按鈕 (確保 HTML 有這些 ID)
-document.getElementById('bulkImportBtn').onclick = bulkImportFromText;
+// 綁定按鈕事件
+const importBtn = document.getElementById('bulkImportBtn');
+if(importBtn) importBtn.onclick = bulkImportFromText;
 
-// 刪除選取功能
-document.getElementById('deleteSelectedBtn').onclick = () => {
-    // 找出有被勾選的 index (從後面往前刪，才不會影響 index 順序)
-    const checkboxes = document.querySelectorAll('.order-checkbox:checked');
-    if(checkboxes.length === 0) {
-        alert('還沒勾選任何訂單喔！');
-        return;
-    }
+const deleteBtn = document.getElementById('deleteSelectedBtn');
+if(deleteBtn) {
+    deleteBtn.onclick = () => {
+        const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+        if(checkboxes.length === 0) {
+            alert('還沒勾選任何訂單喔！');
+            return;
+        }
 
-    if(!confirm(`確定要刪除這 ${checkboxes.length} 筆訂單嗎？`)) return;
+        if(!confirm(`確定要刪除這 ${checkboxes.length} 筆訂單嗎？`)) return;
 
-    // 轉換成陣列並反轉，方便刪除
-    const indexesToDelete = Array.from(checkboxes)
-                                 .map(cb => parseInt(cb.dataset.index))
-                                 .sort((a, b) => b - a);
+        const indexesToDelete = Array.from(checkboxes)
+                                     .map(cb => parseInt(cb.dataset.index))
+                                     .sort((a, b) => b - a);
 
-    indexesToDelete.forEach(idx => {
-        orders.splice(idx, 1);
-    });
+        indexesToDelete.forEach(idx => {
+            orders.splice(idx, 1);
+        });
 
-    renderOrders();
-};
+        renderOrders();
+        // 也要記得取消全選按鈕的狀態（這裡省略複雜邏輯，直接重整就好）
+    };
+}
+
+// 全選與清除
+const selectAllBtn = document.getElementById('selectAllBtn');
+if(selectAllBtn) {
+    selectAllBtn.onclick = () => {
+        document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = true);
+    };
+}
+
+const clearBtn = document.getElementById('clearSelectionBtn');
+if(clearBtn) {
+    clearBtn.onclick = () => {
+        document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = false);
+    };
+}
