@@ -1,11 +1,199 @@
-body{margin:0;font-family:"Microsoft JhengHei";background:#FFF7F9}
-.header{text-align:center;padding:20px;background:#FADADD;font-size:24px}
-.tabs{display:flex}
-.tab{flex:1;padding:14px;border:none;background:#fff;font-weight:700;cursor:pointer}
-.tab.active{background:#E8DFF5}
-.panel{display:none;padding:20px}
-.panel.active{display:block}
-.card{background:#fff;border-radius:24px;padding:20px;max-width:800px;margin:auto;box-shadow:0 6px 18px rgba(0,0,0,.05)}
-input,select{width:100%;padding:12px;margin-bottom:10px;border-radius:14px;border:1px solid #eee}
-.btn{padding:12px;border:none;border-radius:16px;background:#F3B6C2;font-weight:700;cursor:pointer}
-.order{padding:12px;border-radius:16px;background:#fff;margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+:root{
+  --pink:#FADADD;
+  --pink-dark:#F3B6C2;
+  --purple:#E8DFF5;
+  --bg:#FFF7F9;
+  --text:#444;
+}
+
+*{
+  box-sizing:border-box;
+  font-family:"Microsoft JhengHei", system-ui, -apple-system, BlinkMacSystemFont;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.header{
+  text-align:center;
+  padding:20px;
+  background:var(--pink);
+  font-size:22px;
+  font-weight:700;
+}
+
+.tabs{
+  display:flex;
+  background:white;
+  border-bottom:1px solid #f0e0e5;
+}
+
+.tab{
+  flex:1;
+  padding:14px;
+  border:none;
+  background:#fff;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .2s;
+}
+
+.tab.active{
+  background:var(--purple);
+}
+
+main{
+  padding:20px;
+}
+
+.panel{
+  display:none;
+}
+
+.panel.active{
+  display:block;
+}
+
+.layout{
+  display:grid;
+  grid-template-columns:1.2fr 1fr;
+  gap:20px;
+}
+
+.card{
+  background:white;
+  border-radius:24px;
+  padding:20px;
+  box-shadow:0 6px 18px rgba(0,0,0,.05);
+}
+
+h2{
+  margin-top:0;
+  margin-bottom:12px;
+}
+
+h3{
+  margin-top:0;
+}
+
+/* 表單元素 */
+input,select,textarea{
+  width:100%;
+  padding:12px;
+  margin-bottom:10px;
+  border-radius:14px;
+  border:1px solid #eee;
+  font-size:14px;
+}
+
+textarea{
+  min-height:120px;
+  resize:vertical;
+}
+
+.label{
+  font-size:13px;
+  color:#777;
+  display:block;
+  margin-bottom:10px;
+}
+
+/* Buttons */
+.btn{
+  padding:10px 16px;
+  border:none;
+  border-radius:16px;
+  background:#ddd;
+  font-weight:700;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.btn.primary{
+  background:var(--pink-dark);
+}
+
+.btn.small{
+  padding:6px 10px;
+  font-size:12px;
+  border-radius:12px;
+}
+
+/* 列表 & 項目 */
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.order-item{
+  background:#fff;
+  border-radius:16px;
+  padding:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+}
+
+.order-main{
+  flex:1;
+  font-size:14px;
+}
+
+.order-meta{
+  font-size:12px;
+  color:#777;
+}
+
+.order-actions{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.badge{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  font-size:11px;
+  background:#f0f0f0;
+  margin-right:4px;
+}
+
+/* SMS log item */
+.sms-item{
+  background:#fff;
+  border-radius:16px;
+  padding:10px 12px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04);
+  font-size:13px;
+}
+
+/* 工具列 */
+.list-toolbar{
+  margin-bottom:10px;
+  display:flex;
+  gap:8px;
+}
+
+/* 兩步驟隱藏 */
+.hidden{
+  display:none;
+}
+
+/* 簡易 summary 區塊 */
+#summary{
+  font-size:14px;
+  line-height:1.6;
+}
+
+/* 響應式 */
+@media(max-width:900px){
+  .layout{
+    grid-template-columns:1fr;
+  }
+}
