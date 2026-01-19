@@ -1,4 +1,4 @@
-// sms.js - 最終版 (支援 7-11/全家 名稱與門市參數)
+// sms.js - 最終版 (支援短日期 01/23 以節省簡訊費)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -19,7 +19,6 @@ const db = getDatabase(app);
 let smsOrders = [];
 let templates = [];
 
-// 預設範本 (防止空白)
 const defaultTemplates = [
     { name: "到貨通知", content: "{name} 您好，您訂購的商品 {no} 已抵達 {storeType} {storeName}，請於 {deadline} 前取貨，謝謝！" },
     { name: "催領通知(3天)", content: "{name} 您好，您的包裹 {no} 已到店 3 天，請盡快取貨以免退回。" },
@@ -42,7 +41,7 @@ onValue(tplRef, (snapshot) => {
     updateTemplateSelect();
 });
 
-// 2. 接收來自 Pay 模組的資料 (含轉換後的平台名稱與門市)
+// 2. 接收來自 Pay 模組的資料
 window.receiveOrdersFromPay = function(orderList) {
     let count = 0;
     orderList.forEach(newOrd => {
@@ -53,8 +52,8 @@ window.receiveOrdersFromPay = function(orderList) {
                 name: newOrd.name,
                 phone: newOrd.phone,
                 deadline: newOrd.deadline,
-                store: newOrd.store || '',       // 門市名稱
-                platform: newOrd.platform || '', // 這裡收到的已經是 "7-11" 或 "全家"
+                store: newOrd.store || '',       
+                platform: newOrd.platform || '', 
                 addedAt: new Date().toISOString()
             });
             count++;
@@ -75,7 +74,7 @@ window.removeSMSOrder = function(orderNo) {
     }
 };
 
-// sms.js - 修正列表顯示邏輯 (避免 undefined)
+// 4. 渲染 SMS 列表 (修正 undefined 問題)
 function renderSmsList() {
     const container = document.getElementById('smsListContainer');
     if(!container) return;
@@ -86,10 +85,9 @@ function renderSmsList() {
     }
 
     container.innerHTML = smsOrders.map((o, idx) => {
-        // ★★★ 這裡加強判斷：如果沒有平台或門市，就顯示空白，不要顯示 undefined ★★★
-        const platformText = o.platform || '平台未指定'; 
+        const platformText = o.platform || '平台未指定';
         const storeText = o.store || '門市未指定';
-
+        
         return `
         <div class="sms-card">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
@@ -144,7 +142,21 @@ window.deleteSmsOrder = function(idx) {
     set(ordersRef, smsOrders);
 };
 
-// 6. 發送功能 (參數替換核心)
+// ==========================================
+// ★★★ 小工具：把長日期變成短日期 (MM/DD) ★★★
+// ==========================================
+function formatShortDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    // 如果日期格式不對，就回傳原本的字串，避免錯誤
+    if (isNaN(date.getTime())) return dateStr; 
+    
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${m}/${d}`; // 這裡決定格式，例如 01/23
+}
+
+// 6. 發送功能 (已整合短日期)
 window.sendSelectedSMS = function() {
     const chks = document.querySelectorAll('.sms-chk:checked');
     if(chks.length === 0) return alert('請先勾選名單');
@@ -156,7 +168,10 @@ window.sendSelectedSMS = function() {
         const idx = parseInt(chk.value);
         const order = smsOrders[idx];
         
-        // ★★★ 參數替換 (支援您的範本) ★★★
+        // ★ 取得短日期 ★
+        const shortDeadline = formatShortDate(order.deadline);
+
+        // 參數替換
         let finalMsg = rawContent
             // 姓名
             .replace(/{name}/g, order.name || '')
@@ -164,13 +179,13 @@ window.sendSelectedSMS = function() {
             // 單號
             .replace(/{no}/g, order.no || '')
             .replace(/{orderNumber}/g, order.no || '')
-            // 期限
-            .replace(/{deadline}/g, order.deadline || '')
-            .replace(/{pickupDeadline}/g, order.deadline || '')
+            // ★★★ 期限 (現在會換成 01/23 這種短格式) ★★★
+            .replace(/{deadline}/g, shortDeadline)
+            .replace(/{pickupDeadline}/g, shortDeadline)
             // 門市
             .replace(/{storeName}/g, order.store || '')
             .replace(/{store}/g, order.store || '')
-            // 平台 (storeType) -> 會自動換成 7-11 或 全家
+            // 平台
             .replace(/{storeType}/g, order.platform || '');
             
         const url = `sms:${order.phone}?body=${encodeURIComponent(finalMsg)}`;
