@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (修正匯入格式：支援門市欄位)
+// orders.js - 雲端同步版 (修復匯入按鈕：支援空白鍵分隔)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-// ★★★ 請填入您的 Firebase 設定 ★★★
+// ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
   apiKey: "AIzaSyDcKclyNssDs08E0DIwfrc7lzq3QQL4QS8",
   authDomain: "sms-miris.firebaseapp.com",
@@ -13,6 +13,7 @@ const firebaseConfig = {
   appId: "1:340097404227:web:554901219608cbed42f3f6"
 };
 
+// 初始化
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const payOrdersRef = ref(db, 'pay_orders'); 
@@ -29,7 +30,7 @@ onValue(payOrdersRef, (snapshot) => {
 function savePayOrders() {
     set(payOrdersRef, payOrders)
         .then(() => console.log('同步成功'))
-        .catch((err) => alert('同步失敗，請檢查網路'));
+        .catch((err) => alert('同步失敗，請檢查網路或 Firebase 設定'));
 }
 
 // 2. 日期計算工具
@@ -130,7 +131,7 @@ function renderPayTable() {
 }
 
 // ==========================================
-// ★★★ 重點：支援 7 欄位匯入 (含門市) ★★★
+// ★★★ 重點修正：增強版匯入功能 (支援空白鍵) ★★★
 // ==========================================
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
@@ -142,26 +143,22 @@ window.importFromText = function() {
     lines.forEach(line => {
         if(!line.trim()) return;
 
-        // 自動切割：支援 Tab、逗號、直線、或是「連續空白」
-        const cols = line.split(/[|\t,]+|\s{2,}/).map(c => c.trim()).filter(c => c !== '');
+        // ★★★ 關鍵修正 ★★★
+        // split(/[|\t,\s]+/)：表示遇到「直線、Tab、逗號、或空白(Space)」通通切開
+        // 這樣您的 "#1489 謝毓潔" 中間的空白就會被當成分隔符號
+        const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
 
-        // 簡單判斷：如果切出來只有1欄(可能是用單一空白隔開)，就試著用單一空白切
-        let finalCols = cols;
-        if(cols.length < 3 && line.includes(' ')) {
-             finalCols = line.trim().split(/\s+/);
-        }
-
-        // 格式對應：
-        // [0]訂單號, [1]姓名, [2]電話, [3]平台, [4]門市(可能省略), [5]出貨日, [6]期限
-        if(finalCols.length >= 3) {
+        // 確保至少有 3 個欄位 (訂單號、姓名、電話)
+        // 您的格式：[0]單號 [1]姓名 [2]電話 [3]平台 [4]門市 [5]出貨日 [6]期限
+        if(cols.length >= 3) {
             payOrders.push({
-                no: finalCols[0],
-                name: finalCols[1],
-                phone: finalCols[2],
-                platform: finalCols[3] || '賣貨便',
-                store: finalCols[4] || '',     // ★ 新增：把門市存起來
-                shipDate: finalCols[5] || '',  // ★ 修正：出貨日往後移
-                deadline: finalCols[6] || '',  // ★ 修正：期限往後移
+                no: cols[0],
+                name: cols[1],
+                phone: cols[2],
+                platform: cols[3] || '賣貨便',
+                store: cols[4] || '',     // 門市 (雖然列表沒顯示，但會存起來)
+                shipDate: cols[5] || '',  // 出貨日
+                deadline: cols[6] || '',  // 期限
                 pickupDate: null
             });
             count++;
@@ -169,11 +166,13 @@ window.importFromText = function() {
     });
 
     if(count > 0) {
-        savePayOrders();
+        savePayOrders(); // 存到雲端
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
+        // 自動切換回訂單列表
+        if(window.switchPaySubTab) window.switchPaySubTab('orders');
     } else {
-        alert('匯入失敗，請確認格式：\n訂單號 姓名 電話 平台 門市 出貨日 期限');
+        alert('匯入失敗：格式不符。\n請確認資料是用空白或Tab隔開，且包含：訂單號 姓名 電話');
     }
 };
 
@@ -187,7 +186,7 @@ window.addNewOrder = function() {
         no: no.startsWith('#') ? no : '#'+no,
         name, phone,
         platform: document.getElementById('addPlatform').value,
-        store: '', // 手動新增暫時留空
+        store: '', 
         shipDate: document.getElementById('addShipDate').value,
         deadline: document.getElementById('addDeadline').value,
         pickupDate: null
