@@ -489,7 +489,39 @@
     }
     function pay_normalizePhone(p){ return String(p || '').trim().replace(/\s+/g,''); }
 
-    // ★ 新增：平台 → 門市類別（用於收款端合併顯示 & 匯出）
+    // ★ 新增：去除門市前綴（避免使用者輸入「7-11 XXX」造成雙前綴）
+    function pay_stripStorePrefix(storeName){
+      let s = String(storeName || '').trim();
+      if (!s) return '';
+      s = s.replace(/^(7-11|全家|萊爾富|OK超商|OK便利商店|OK)\s*/,'');
+      return s.trim();
+    }
+
+    // ★ 新增：相容舊資料（store / storeName）
+    function pay_getStoreNameAny(o){
+      const a = pay_stripStorePrefix(o && o.storeName);
+      if (a) return a;
+      const b = pay_stripStorePrefix(o && o.store);
+      if (b) return b;
+      return '';
+    }
+
+    // ★ 新增：讀取時自動搬移舊欄位 store → storeName
+    function pay_migrateOrdersStoreField(orders){
+      let changed = false;
+      for (const o of orders) {
+        if (!o) continue;
+        if ((!o.storeName || !String(o.storeName).trim()) && o.store && String(o.store).trim()) {
+          o.storeName = String(o.store).trim();
+          changed = true;
+        }
+        const stripped = pay_stripStorePrefix(o.storeName);
+        if (o.storeName !== stripped) { o.storeName = stripped; changed = true; }
+      }
+      return changed;
+    }
+
+    // ★ 平台 → 門市類別（用於收款端合併顯示 & 匯出）
     function pay_storeTypeFromPlatform(platform){
       const p = String(platform || '').trim();
       if (p === '賣貨便') return '7-11';
@@ -498,7 +530,7 @@
     }
     function pay_storeMerged(platform, storeName){
       const type = pay_storeTypeFromPlatform(platform);
-      const name = String(storeName || '').trim();
+      const name = pay_stripStorePrefix(storeName);
       if (!type && !name) return '';
       if (!type) return name;
       if (!name) return type;
@@ -565,8 +597,14 @@
     }
 
     function pay_getOrders(){
-      try { return JSON.parse(localStorage.getItem('pay_orders_final') || '[]'); }
-      catch { return []; }
+      try {
+        const orders = JSON.parse(localStorage.getItem('pay_orders_final') || '[]');
+        const changed = pay_migrateOrdersStoreField(orders);
+        if (changed) localStorage.setItem('pay_orders_final', JSON.stringify(orders));
+        return orders;
+      } catch {
+        return [];
+      }
     }
     function pay_saveOrders(orders){
       localStorage.setItem('pay_orders_final', JSON.stringify(orders));
@@ -577,7 +615,7 @@
       const customerName = document.getElementById('payCustomerName').value.trim();
       const phone = pay_normalizePhone(document.getElementById('payPhone').value);
       const platform = document.getElementById('payOrderPlatform').value;
-      const storeName = String(document.getElementById('payStore').value || '').trim();
+      const storeName = pay_stripStorePrefix(document.getElementById('payStore').value);
       const shipStr = document.getElementById('payOrderShipDate').value;
       const deadlineStr = document.getElementById('payPickupDeadline').value;
 
@@ -602,7 +640,7 @@
         customerName,
         phone,
         platform,
-        storeName,
+        storeName, // 只存門市名稱（不含 7-11/全家）
         shipDate: pay_formatDate(ship),
         pickupDeadline,
         pickupDate: '-',
@@ -766,9 +804,9 @@
         const td3 = document.createElement('td'); td3.textContent = o.phone || ''; tr.appendChild(td3);
         const td4 = document.createElement('td'); td4.textContent = o.platform || ''; tr.appendChild(td4);
 
-        // ★ 這裡：門市合併顯示
+        // ★ 門市合併顯示（相容舊資料 store/storeName）
         const td5 = document.createElement('td');
-        td5.textContent = pay_storeMerged(o.platform, o.storeName);
+        td5.textContent = pay_storeMerged(o.platform, pay_getStoreNameAny(o));
         tr.appendChild(td5);
 
         const td6 = document.createElement('td'); td6.textContent = o.shipDate || ''; tr.appendChild(td6);
@@ -822,8 +860,7 @@
         '姓名': o.customerName,
         '電話': o.phone,
         '平台': o.platform,
-        // ★ 這裡：匯出也用合併顯示
-        '門市': pay_storeMerged(o.platform, o.storeName),
+        '門市': pay_storeMerged(o.platform, pay_getStoreNameAny(o)),
         '出貨日': o.shipDate,
         '取貨期限': o.pickupDeadline,
         '取貨日': o.pickupDate,
@@ -870,7 +907,7 @@
             const customerName = pay_findField(r, ['姓名','客戶姓名','客户姓名','收件人','客戶','客户']);
             const phoneRaw = pay_findField(r, ['電話','手機','手機號碼','手机号','電話號碼','手机号码','phone']);
             const platform = pay_findField(r, ['平台']);
-            const storeName = pay_findField(r, ['門市','取貨門市','门市','取件门市','店','門市名稱','门店']);
+            const storeNameRaw = pay_findField(r, ['門市','取貨門市','门市','取件门市','店','門市名稱','门店']);
             const shipRaw = pay_findField(r, ['出貨日','出貨日期','出货日','出货日期','出貨']);
             const deadlineRaw = pay_findField(r, ['取貨期限','取貨到期日','取件期限','取件到期日','取货期限','取货到期日','pickupDeadline']);
 
@@ -891,7 +928,7 @@
               customerName: String(customerName).trim(),
               phone: pay_normalizePhone(phoneRaw),
               platform: String(platform).trim(),
-              storeName: storeName ? String(storeName).trim() : '',
+              storeName: pay_stripStorePrefix(storeNameRaw ? String(storeNameRaw).trim() : ''),
               shipDate: pay_formatDate(ship),
               pickupDeadline,
               pickupDate: '-',
@@ -939,7 +976,7 @@
           customerName: o.customerName,
           phone: o.phone,
           platform: o.platform,
-          storeName: o.storeName || '',
+          storeName: pay_getStoreNameAny(o),  // ✅ 修正：舊資料 store / 新資料 storeName 都吃得到
           pickupDeadline: o.pickupDeadline || ''
         }))
         .filter(o => o.orderNumber && o.customerName && o.phone && o.platform);
