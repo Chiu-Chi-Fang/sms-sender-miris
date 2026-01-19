@@ -127,14 +127,27 @@
         <div id="smsListContainer"></div>
       </div>
 
-      <div id="sms-sub-tpl" class="pay-panel">
-         <div id="templateListContainer"></div>
-         <button class="btn btn-secondary" style="width:100%; margin-top:10px" onclick="resetDefaultTemplates()">🔄 重置預設範本</button>
-      </div>
-    </div>
+<div id="sms-sub-tpl" class="pay-panel">
+         
+         <div style="background:#fff; padding:15px; border-radius:12px; margin-bottom:15px; border:2px solid #ffe4e1;">
+             <h3 style="margin:0 0 10px 0; font-size:16px; color:#ff6b81;">📝 編輯 / 新增範本</h3>
+             
+             <label>範本名稱</label>
+             <input type="text" id="tplNameInput" placeholder="例如: 取貨通知" style="margin-bottom:10px;">
+             
+             <label>簡訊內容 (可用參數: {name} {no} {storeName} {deadline})</label>
+             <textarea id="tplContentInput" rows="5" placeholder="輸入簡訊內容..."></textarea>
+             
+             <div style="margin-top:10px; display:flex; gap:10px;">
+                 <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
+                 <button class="btn btn-secondary" onclick="clearTemplateInput()">❌ 取消</button>
+             </div>
+         </div>
 
-  </div>
-</div>
+         <div id="templateListContainer"></div>
+         
+         <button class="btn btn-secondary" style="width:100%; margin-top:20px; background:#eee; color:#666;" onclick="resetDefaultTemplates()">🔄 重置回預設值</button>
+      </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module" src="orders.js"></script>
