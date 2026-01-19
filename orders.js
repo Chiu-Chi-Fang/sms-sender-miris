@@ -175,79 +175,59 @@ function renderRecent(){
   })
 }
 
-// --- 渲染：訂單列表 ---
-function renderOrders(){
-  const list = document.getElementById('orderList')
-  if(!list) return
-  list.innerHTML = ''
+// 在 orders.js 裡面的渲染函式
+function renderOrders() {
+  const listContainer = document.getElementById('orderList');
+  listContainer.innerHTML = ''; // 清空列表
 
-  orders.slice().reverse().forEach(o => {
-    const wrap = document.createElement('div')
-    wrap.className = 'order-item'
+  // 假設 orders 是您的訂單資料陣列
+  // 注意：請確認您的資料欄位是 item.orderNo 還是 item.id
+  orders.forEach((item, index) => {
+    
+    // 判斷平台顏色
+    const badgeClass = item.platform === '賣貨便' ? 'seven' : 'fami';
+    
+    // 建立一個漂亮的橫條 HTML
+    const html = `
+      <div class="order-item">
+        <div class="col-check">
+          <input type="checkbox" data-index="${index}" class="order-checkbox">
+        </div>
 
-    const checkbox = document.createElement('input')
-    checkbox.type = 'checkbox'
-    checkbox.checked = selectedIds.has(o.id)
-    checkbox.onchange = () => toggleSelect(o.id)
+        <div class="col-info">
+          <strong>#${item.orderNo || '無編號'}</strong>
+          <span class="platform-badge ${badgeClass}">${item.platform || '未知平台'}</span>
+        </div>
 
-    const main = document.createElement('div')
-    main.className = 'order-main'
-    main.innerHTML = `
-      <strong>#${o.orderNo}</strong>｜${o.name}｜${o.platform}<br>
-      <span class="order-meta">
-        📱 ${o.phone}${o.store ? '｜🏪 '+o.store : ''}<br>
-        取件：${o.pickupDate || '未取'}<br>
-        結算：${o.settlement || '-'}｜撥款：${o.payout || '-'}<br>
-        ${o.lastSmsAt ? `<span class="badge">上次 SMS：${o.lastSmsAt}</span>` : ''}
-      </span>
-    `
+        <div class="col-customer">
+          <div>👤 ${item.name} <span style="margin-left:5px">📞 ${item.phone}</span></div>
+          <div>📍 ${item.store || '未指定門市'}</div>
+          ${item.pickupDeadline ? `<div style="color:#ff6b6b; font-size:12px">⏳ 期限: ${item.pickupDeadline}</div>` : ''}
+        </div>
 
-    const actions = document.createElement('div')
-    actions.className = 'order-actions'
-
-    if(!o.pickupDate){
-      const btnPick = document.createElement('button')
-      btnPick.className = 'btn small'
-      btnPick.textContent = '已取貨（今天）'
-      btnPick.onclick = () => markPicked(o.id)
-      actions.appendChild(btnPick)
-    }
-
-    wrap.appendChild(checkbox)
-    wrap.appendChild(main)
-    wrap.appendChild(actions)
-
-    list.appendChild(wrap)
-  })
-}
-
-// --- 渲染：SMS Tab 左側（已勾選訂單） ---
-function renderSelected(){
-  const box = document.getElementById('selectedOrders')
-  if(!box) return
-  box.innerHTML = ''
-
-  const selectedList = orders.filter(o => selectedIds.has(o.id))
-  if(selectedList.length === 0){
-    box.innerHTML = '<div class="order-meta">尚未勾選任何訂單，可到「訂單列表」勾選。</div>'
-    return
-  }
-
-  selectedList.forEach(o => {
-    const div = document.createElement('div')
-    div.className = 'order-item'
-    div.innerHTML = `
-      <div class="order-main">
-        <strong>#${o.orderNo}</strong>｜${o.name}<br>
-        <span class="order-meta">
-          📱 ${o.phone}｜${o.platform}${o.store ? '｜🏪 '+o.store : ''}<br>
-          撥款：${o.payout || '-'}
-        </span>
+        <div class="col-action">
+           <button class="btn small" onclick="toggleStatus(${index})">
+             ${item.isPickedUp ? '✅ 已取貨' : '📦 待取貨'}
+           </button>
+        </div>
       </div>
-    `
-    box.appendChild(div)
-  })
+    `;
+
+    listContainer.innerHTML += html;
+  });
 }
+
+// 綁定刪除按鈕的功能 (記得加在 script 裡)
+document.getElementById('deleteSelectedBtn').addEventListener('click', () => {
+  if(!confirm('確定要刪除選取的訂單嗎？')) return;
+  
+  // 這裡寫刪除邏輯，例如：
+  // 1. 找出所有被勾選的 checkbox
+  // 2. 從 orders 陣列中移除對應資料
+  // 3. 重新 renderOrders()
+  // 4. 儲存到 Firebase
+  alert('功能需搭配後端邏輯實作'); 
+});
 
 // --- 簡單撥款 summary ---
 function renderSummary(){
