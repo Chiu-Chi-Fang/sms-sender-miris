@@ -6,168 +6,147 @@
   <title>整合系統：收款日期 + SMS（最終完整版）</title>
 
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      padding: 16px;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Microsoft JhengHei",sans-serif;
+      background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+      min-height:100vh;
+      padding:16px
     }
-    .shell {
-      max-width: 1200px;
-      margin: 0 auto;
-      background: #fff;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    .shell{max-width:1200px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .shell-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:22px 18px;text-align:center}
+    .shell-header h1{margin:0 0 6px 0;font-size:22px;font-weight:900}
+    .shell-header p{margin:0;opacity:.92;font-size:13px;line-height:1.6}
+    .shell-tabs{display:flex;background:#f8f9fa;border-bottom:2px solid #e9ecef}
+    .shell-tab{flex:1;padding:14px 10px;border:0;cursor:pointer;font-weight:900;font-size:15px;background:transparent;color:#6c757d}
+    .shell-tab.active{background:#fff;color:#667eea;border-bottom:3px solid #667eea}
+    .shell-content{padding:18px}
+    .shell-panel{display:none}
+    .shell-panel.active{display:block}
+    @media (max-width:768px){body{padding:10px}.shell{border-radius:0}.shell-content{padding:12px}}
+
+    /* Pay */
+    .pay-tabs{display:flex;background:#f8f9fa;border-bottom:2px solid #e9ecef;border-radius:14px;overflow:hidden}
+    .pay-tab{flex:1;padding:12px 10px;cursor:pointer;border:none;background:#f8f9fa;font-size:15px;font-weight:900}
+    .pay-tab.active{background:#fff;color:#667eea;border-bottom:3px solid #667eea}
+    .pay-panel{display:none;padding:16px 4px}
+    .pay-panel.active{display:block}
+    .pay-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    @media (max-width:768px){.pay-form-grid{grid-template-columns:1fr}}
+    .pay-form-group{margin-bottom:12px}
+    .pay-form-group label{display:block;margin-bottom:8px;font-weight:900;color:#333}
+    .pay-input,.pay-select{width:100%;padding:10px 12px;border:2px solid #e9ecef;border-radius:12px;font-size:16px}
+    .pay-input:focus,.pay-select:focus{outline:none;border-color:#667eea}
+    .pay-btn{padding:10px 16px;border:0;border-radius:12px;font-weight:900;cursor:pointer}
+    .pay-btn + .pay-btn{margin-left:8px}
+    .pay-btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+    .pay-btn-secondary{background:#6c757d;color:#fff}
+    .pay-btn-success{background:#28a745;color:#fff}
+    .pay-btn-danger{background:#dc3545;color:#fff}
+    .pay-btn-warning{background:#ffc107;color:#000}
+    .pay-btn-sm{padding:6px 10px;font-size:12px;border-radius:10px}
+    .pay-result{margin-top:14px;background:#f8f9fa;padding:14px;border-radius:14px;display:none}
+    .pay-result h3{margin:0 0 10px 0;color:#667eea}
+    .pay-result-row{display:flex;justify-content:space-between;gap:10px;background:#fff;padding:10px 12px;border-radius:12px;margin-bottom:8px}
+    .pay-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:12px 0}
+    .pay-stat-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px;border-radius:14px;text-align:center}
+    .pay-stat-card h3{margin:0 0 6px 0;font-size:28px}
+    .pay-stat-card p{margin:0;opacity:.95;font-size:12px}
+    .pay-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+    .pay-table-wrap{overflow-x:auto}
+    .pay-table{width:100%;border-collapse:collapse;margin-top:10px}
+    .pay-table thead{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+    .pay-table th,.pay-table td{padding:10px;border-bottom:1px solid #e9ecef;text-align:left;white-space:nowrap;vertical-align:middle}
+    .pay-checkbox-cell{width:44px;text-align:center}
+    .pay-checkbox-cell input{width:18px;height:18px;cursor:pointer}
+    .pay-status-pending{color:#f0a500;font-weight:900}
+    .pay-status-picked{color:#1e7e34;font-weight:900}
+    .pay-pickup-inline{display:flex;align-items:center;gap:6px}
+    .pay-pickup-inline input[type="date"]{width:140px;padding:6px 8px;border:1px solid #dfe3e6;border-radius:10px;font-size:12px}
+    .pay-upload{border:2px dashed #667eea;padding:22px;text-align:center;border-radius:14px;cursor:pointer;user-select:none;background:#fff}
+    .pay-upload:hover{background:#f8f9fa}
+    .pay-upload input{display:none}
+    .pay-hint{margin-top:14px;background:#f8f9fa;padding:14px;border-radius:14px;color:#444;line-height:1.7}
+
+    /* SMS */
+    .sms-reset-btn{
+      position:fixed;bottom:20px;right:20px;background:#dc3545;color:#fff;
+      padding:10px 20px;border-radius:50px;border:none;font-weight:900;cursor:pointer;
+      box-shadow:0 4px 12px rgba(220,53,69,.4);z-index:999;display:none
     }
-    .shell-header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      padding: 22px 18px;
-      text-align: center;
+    .sms-container{max-width:1200px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+    .sms-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:22px;text-align:center}
+    .sms-header h1{margin:0 0 8px 0;font-size:24px}
+    .sms-sync-status{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.2);padding:8px 16px;border-radius:20px;font-size:14px;margin-top:8px}
+    .sms-sync-indicator{width:8px;height:8px;border-radius:50%;background:#4ade80;animation:sms_pulse 2s infinite}
+    .sms-sync-indicator.offline{background:#f87171;animation:none}
+    @keyframes sms_pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .sms-tabs{display:flex;background:#f8f9fa;border-bottom:2px solid #e9ecef}
+    .sms-tab{flex:1;padding:16px 10px;text-align:center;cursor:pointer;font-weight:900;color:#6c757d;border:none;background:none;font-size:15px}
+    .sms-tab.active{color:#667eea;background:#fff;border-bottom:3px solid #667eea}
+    .sms-tab-content{display:none;padding:18px}
+    .sms-tab-content.active{display:block;animation:sms_fade .25s}
+    @keyframes sms_fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .sms-form-group{margin-bottom:16px}
+    .sms-form-group label{display:block;margin-bottom:8px;font-weight:900;color:#495057}
+    .sms-form-group input,.sms-form-group select,.sms-form-group textarea{width:100%;padding:12px;border:2px solid #e9ecef;border-radius:12px;font-size:16px}
+    .sms-form-group textarea{min-height:120px;resize:vertical}
+    .sms-btn{padding:12px 18px;border:none;border-radius:12px;font-size:15px;font-weight:900;cursor:pointer;display:inline-block}
+    .sms-btn-primary{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff}
+    .sms-btn-secondary{background:#6c757d;color:#fff}
+    .sms-btn-success{background:#28a745;color:#fff}
+    .sms-btn-danger{background:#dc3545;color:#fff}
+    .sms-btn-warning{background:#ffc107;color:#000}
+    .sms-btn-small{padding:8px 12px;font-size:13px;border-radius:10px}
+    .sms-button-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .sms-order-card{background:#f8f9fa;border-radius:15px;padding:18px;margin-bottom:12px;border:2px solid #e9ecef;transition:all .2s}
+    .sms-order-card:hover{border-color:#667eea;box-shadow:0 5px 15px rgba(0,0,0,.08)}
+    .sms-order-card.selected{border-color:#667eea;background:#f0f4ff}
+    .sms-order-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:10px}
+    .sms-template-card{background:#f8f9fa;border-radius:15px;padding:18px;margin-bottom:12px;border:2px solid #e9ecef}
+    .sms-template-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+    .sms-template-name{font-size:18px;font-weight:900;color:#212529}
+    .sms-template-content{color:#495057;line-height:1.6;white-space:pre-wrap}
+    .sms-empty-state{text-align:center;padding:50px 12px;color:#6c757d}
+    .sms-badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:900;margin-left:8px}
+    .sms-badge-draft{background:#fff3cd;color:#856404}
+    .sms-preview{background:#f8f9fa;border-radius:10px;padding:14px;margin-top:10px;border-left:4px solid #667eea}
+    .sms-preview-label{font-size:12px;color:#6c757d;margin-bottom:8px;font-weight:900}
+    .sms-preview-content{color:#212529;line-height:1.6;white-space:pre-wrap}
+    .sms-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:20px}
+    .sms-modal.active{display:flex}
+    .sms-modal-content{background:#fff;border-radius:18px;padding:20px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto}
+    .sms-modal-header{font-size:20px;font-weight:900;margin-bottom:14px;color:#212529}
+    .sms-alert{padding:12px 14px;border-radius:12px;margin-bottom:14px;background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb}
+    @media (max-width:768px){
+      .sms-tab-content{padding:14px}
+      .sms-order-info{grid-template-columns:1fr}
+      .sms-button-group{flex-direction:column}
+      .sms-btn{width:100%}
     }
-    .shell-header h1 { margin: 0 0 6px 0; font-size: 22px; font-weight: 900; }
-    .shell-header p { margin: 0; opacity: 0.92; font-size: 13px; line-height: 1.6; }
-    .shell-tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; }
-    .shell-tab {
-      flex: 1; padding: 14px 10px; border: 0; cursor: pointer;
-      font-weight: 900; font-size: 15px; background: transparent; color: #6c757d;
-    }
-    .shell-tab.active { background: #fff; color: #667eea; border-bottom: 3px solid #667eea; }
-    .shell-content { padding: 18px; }
-    .shell-panel { display: none; }
-    .shell-panel.active { display: block; }
-    @media (max-width: 768px) {
-      body { padding: 10px; }
-      .shell { border-radius: 0; }
-      .shell-content { padding: 12px; }
-    }
 
-    /* ===== Pay (收款) ===== */
-    .pay-tabs { display:flex; background:#f8f9fa; border-bottom:2px solid #e9ecef; border-radius:14px; overflow:hidden; }
-    .pay-tab { flex:1; padding:12px 10px; cursor:pointer; border:none; background:#f8f9fa; font-size:15px; font-weight:900; }
-    .pay-tab.active { background:#fff; color:#667eea; border-bottom:3px solid #667eea; }
-    .pay-panel { display:none; padding:16px 4px; }
-    .pay-panel.active { display:block; }
-
-    .pay-form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; }
-    @media (max-width: 768px) { .pay-form-grid { grid-template-columns: 1fr; } }
-
-    .pay-form-group { margin-bottom:12px; }
-    .pay-form-group label { display:block; margin-bottom:8px; font-weight:900; color:#333; }
-    .pay-input, .pay-select {
-      width:100%; padding:10px 12px; border:2px solid #e9ecef; border-radius:12px; font-size:16px;
-    }
-    .pay-input:focus, .pay-select:focus { outline:none; border-color:#667eea; }
-
-    .pay-btn { padding:10px 16px; border:0; border-radius:12px; font-weight:900; cursor:pointer; }
-    .pay-btn + .pay-btn { margin-left:8px; }
-    .pay-btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; }
-    .pay-btn-secondary { background:#6c757d; color:#fff; }
-    .pay-btn-success { background:#28a745; color:#fff; }
-    .pay-btn-danger { background:#dc3545; color:#fff; }
-    .pay-btn-warning { background:#ffc107; color:#000; }
-    .pay-btn-sm { padding:6px 10px; font-size:12px; border-radius:10px; }
-
-    .pay-result { margin-top:14px; background:#f8f9fa; padding:14px; border-radius:14px; display:none; }
-    .pay-result h3 { margin:0 0 10px 0; color:#667eea; }
-    .pay-result-row { display:flex; justify-content:space-between; gap:10px; background:#fff; padding:10px 12px; border-radius:12px; margin-bottom:8px; }
-
-    .pay-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin:12px 0; }
-    .pay-stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; padding:14px; border-radius:14px; text-align:center; }
-    .pay-stat-card h3 { margin:0 0 6px 0; font-size:28px; }
-    .pay-stat-card p { margin:0; opacity:0.95; font-size:12px; }
-
-    .pay-actions { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; }
-
-    .pay-table-wrap { overflow-x:auto; }
-    .pay-table { width:100%; border-collapse:collapse; margin-top:10px; }
-    .pay-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:#fff; }
-    .pay-table th, .pay-table td { padding:10px; border-bottom:1px solid #e9ecef; text-align:left; white-space:nowrap; vertical-align:middle; }
-    .pay-checkbox-cell { width:44px; text-align:center; }
-    .pay-checkbox-cell input { width:18px; height:18px; cursor:pointer; }
-    .pay-status-pending { color:#f0a500; font-weight:900; }
-    .pay-status-picked { color:#1e7e34; font-weight:900; }
-    .pay-pickup-inline { display:flex; align-items:center; gap:6px; }
-    .pay-pickup-inline input[type="date"] { width:140px; padding:6px 8px; border:1px solid #dfe3e6; border-radius:10px; font-size:12px; }
-
-    .pay-upload { border:2px dashed #667eea; padding:22px; text-align:center; border-radius:14px; cursor:pointer; user-select:none; background:#fff; }
-    .pay-upload:hover { background:#f8f9fa; }
-    .pay-upload input { display:none; }
-    .pay-hint { margin-top:14px; background:#f8f9fa; padding:14px; border-radius:14px; color:#444; line-height:1.7; }
-
-    /* ===== SMS (略：保留完整功能樣式) ===== */
-    .sms-reset-btn {
-      position: fixed; bottom: 20px; right: 20px;
-      background: #dc3545; color: white;
-      padding: 10px 20px; border-radius: 50px; border: none;
-      font-weight: 900; cursor: pointer;
-      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
-      z-index: 999;
-      display: none;
-    }
-    .sms-container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-    .sms-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 22px; text-align: center; }
-    .sms-header h1 { margin: 0 0 8px 0; font-size: 24px; }
-    .sms-sync-status { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-size: 14px; margin-top: 8px; }
-    .sms-sync-indicator { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: sms_pulse 2s infinite; }
-    .sms-sync-indicator.offline { background: #f87171; animation: none; }
-    @keyframes sms_pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    .sms-tabs { display: flex; background: #f8f9fa; border-bottom: 2px solid #e9ecef; }
-    .sms-tab { flex: 1; padding: 16px 10px; text-align: center; cursor: pointer; font-weight: 900; color: #6c757d; border: none; background: none; font-size: 15px; }
-    .sms-tab.active { color: #667eea; background: white; border-bottom: 3px solid #667eea; }
-    .sms-tab-content { display: none; padding: 18px; }
-    .sms-tab-content.active { display: block; animation: sms_fade 0.25s; }
-    @keyframes sms_fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .sms-form-group { margin-bottom: 16px; }
-    .sms-form-group label { display:block; margin-bottom:8px; font-weight:900; color:#495057; }
-    .sms-form-group input,.sms-form-group select,.sms-form-group textarea { width: 100%; padding: 12px; border: 2px solid #e9ecef; border-radius: 12px; font-size: 16px; }
-    .sms-form-group textarea { min-height: 120px; resize: vertical; }
-    .sms-btn { padding: 12px 18px; border: none; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; display: inline-block; }
-    .sms-btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .sms-btn-secondary { background: #6c757d; color: white; }
-    .sms-btn-success { background: #28a745; color: white; }
-    .sms-btn-danger { background: #dc3545; color: white; }
-    .sms-btn-warning { background: #ffc107; color: #000; }
-    .sms-btn-small { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
-    .sms-button-group { display:flex; gap:10px; flex-wrap:wrap; margin-top: 14px; }
-    .sms-order-card { background: #f8f9fa; border-radius: 15px; padding: 18px; margin-bottom: 12px; border: 2px solid #e9ecef; transition: all 0.2s; }
-    .sms-order-card:hover { border-color:#667eea; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
-    .sms-order-card.selected { border-color:#667eea; background:#f0f4ff; }
-    .sms-order-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom: 12px; }
-    .sms-order-info { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px; }
-    .sms-checkbox-label { display:flex; align-items:center; gap:10px; cursor:pointer; }
-    .sms-checkbox-label input[type="checkbox"] { width: 20px; height: 20px; cursor:pointer; }
-    .sms-template-card { background:#f8f9fa; border-radius: 15px; padding: 18px; margin-bottom: 12px; border: 2px solid #e9ecef; }
-    .sms-template-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom: 8px; }
-    .sms-template-name { font-size: 18px; font-weight: 900; color:#212529; }
-    .sms-template-content { color:#495057; line-height:1.6; white-space: pre-wrap; }
-    .sms-empty-state { text-align:center; padding: 50px 12px; color:#6c757d; }
-    .sms-empty-state-icon { font-size: 56px; margin-bottom: 14px; opacity: 0.5; }
-    .sms-badge { display:inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 900; margin-left: 8px; }
-    .sms-badge-draft { background:#fff3cd; color:#856404; }
-    .sms-preview { background:#f8f9fa; border-radius: 10px; padding: 14px; margin-top: 10px; border-left: 4px solid #667eea; }
-    .sms-preview-label { font-size: 12px; color:#6c757d; margin-bottom: 8px; font-weight: 900; }
-    .sms-preview-content { color:#212529; line-height:1.6; white-space: pre-wrap; }
-    .sms-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-    .sms-modal.active { display:flex; }
-    .sms-modal-content { background: white; border-radius: 18px; padding: 20px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; }
-    .sms-modal-header { font-size: 20px; font-weight: 900; margin-bottom: 14px; color:#212529; }
-    .sms-alert { padding: 12px 14px; border-radius: 12px; margin-bottom: 14px; background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
-    .sms-send-history { margin-top: 12px; padding: 12px; background: #f0f9ff; border-radius: 10px; border-left: 4px solid #3b82f6; }
-    .sms-send-history-header { font-weight: 900; color: #3b82f6; margin-bottom: 8px; font-size: 14px; }
-    .sms-send-history-summary { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #666; flex-wrap: wrap; gap: 8px; }
-    .sms-send-history-summary strong { color: #3b82f6; font-weight: 900; }
-    .sms-send-history-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; }
-    .sms-history-item { font-size: 12px; color: #666; padding: 4px 8px; background: white; border-radius: 6px; }
-    @media (max-width: 768px) { .sms-tab-content { padding: 14px; } .sms-order-info { grid-template-columns: 1fr; } .sms-button-group { flex-direction: column; } .sms-btn { width: 100%; } }
+    /* SMS 發送頁：點擊展開 */
+    .sms-send-row{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center}
+    .sms-send-left{display:flex;align-items:flex-start;justify-content:center;padding-top:4px}
+    .sms-send-summary{cursor:pointer;user-select:none}
+    .sms-send-summary-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+    .sms-caret{font-weight:900;color:#667eea}
+    .sms-expand-area{margin-top:12px;padding-top:12px;border-top:1px solid #e9ecef;display:none}
+    .sms-order-card.expanded .sms-expand-area{display:block}
+    .sms-expand-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+    @media (max-width:768px){.sms-expand-grid{grid-template-columns:1fr}}
+    .sms-mini-label{font-size:12px;color:#6c757d;font-weight:900;margin-bottom:6px}
+    .sms-inline-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .sms-kpi-box{background:#fff;border:1px solid #e9ecef;border-radius:12px;padding:12px}
+    .sms-kpi-row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed #eee;font-size:14px}
+    .sms-kpi-row:last-child{border-bottom:none}
+    .sms-muted{color:#6c757d}
   </style>
 </head>
 
 <body>
-  <button class="sms-reset-btn" id="smsResetBtn" onclick="sms_resetTemplates()">🔄 重置範本</button>
+  <button class="sms-reset-btn" id="smsResetBtn" onclick="sms_resetTemplates()">重置範本</button>
 
   <div class="shell">
     <div class="shell-header">
@@ -291,26 +270,24 @@
             </table>
           </div>
 
-          <div class="pay-hint">
-            合併顯示規則：賣貨便→7-11；好賣+→全家。訂單號會自動正規化成 <code>#xxxx</code>。
-          </div>
+          <div class="pay-hint">合併顯示規則：賣貨便→7-11；好賣+→全家。訂單號會自動正規化成 <code>#xxxx</code>。</div>
         </div>
 
         <div id="pay-import" class="pay-panel">
-          <h3 style="margin: 8px 0 10px 0;">📊 Excel 批量匯入訂單</h3>
+          <h3 style="margin:8px 0 10px 0;">📊 Excel 批量匯入訂單</h3>
           <div class="pay-upload" onclick="document.getElementById('payFileInput').click()">
-            <div style="font-size: 18px; font-weight: 900; margin-bottom: 6px;">點擊上傳 Excel</div>
-            <div style="color:#666; font-size: 13px;">欄位：訂單號 / 姓名 / 電話 / 平台 / 門市 / 出貨日 / 取貨期限</div>
+            <div style="font-size:18px;font-weight:900;margin-bottom:6px;">點擊上傳 Excel</div>
+            <div style="color:#666;font-size:13px;">欄位：訂單號 / 姓名 / 電話 / 平台 / 門市 / 出貨日 / 取貨期限</div>
             <input type="file" id="payFileInput" accept=".xlsx,.xls" onchange="pay_handleFileUpload(event)">
           </div>
           <div class="pay-hint">「門市」欄請填門市名稱即可（例如：台北車站店）。表格會合併顯示成：7-11 台北車站店 / 全家 信義門市。</div>
-          <div style="margin-top: 12px;">
+          <div style="margin-top:12px;">
             <button class="pay-btn pay-btn-secondary" onclick="pay_downloadTemplate()">下載範本</button>
           </div>
         </div>
       </div>
 
-      <!-- SMS（完整功能，保持不變） -->
+      <!-- SMS -->
       <div id="main-sms" class="shell-panel">
         <div class="sms-container">
           <div class="sms-header">
@@ -373,7 +350,7 @@
           </div>
         </div>
 
-        <!-- SMS Modals（完整保留） -->
+        <!-- Modals -->
         <div id="smsAddOrderModal" class="sms-modal">
           <div class="sms-modal-content">
             <div class="sms-modal-header">新增訂單</div>
@@ -437,8 +414,8 @@
             </div>
           </div>
         </div>
-
       </div>
+
     </div>
   </div>
 
@@ -460,7 +437,7 @@
       }
     }
 
-    /* ===== Pay Logic ===== */
+    /* ===== Pay ===== */
     function pay_switchTab(evt, tabName) {
       document.querySelectorAll('.pay-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.pay-panel').forEach(p => p.classList.remove('active'));
@@ -489,15 +466,12 @@
     }
     function pay_normalizePhone(p){ return String(p || '').trim().replace(/\s+/g,''); }
 
-    // ★ 新增：去除門市前綴（避免使用者輸入「7-11 XXX」造成雙前綴）
     function pay_stripStorePrefix(storeName){
       let s = String(storeName || '').trim();
       if (!s) return '';
       s = s.replace(/^(7-11|全家|萊爾富|OK超商|OK便利商店|OK)\s*/,'');
       return s.trim();
     }
-
-    // ★ 新增：相容舊資料（store / storeName）
     function pay_getStoreNameAny(o){
       const a = pay_stripStorePrefix(o && o.storeName);
       if (a) return a;
@@ -505,8 +479,6 @@
       if (b) return b;
       return '';
     }
-
-    // ★ 新增：讀取時自動搬移舊欄位 store → storeName
     function pay_migrateOrdersStoreField(orders){
       let changed = false;
       for (const o of orders) {
@@ -521,7 +493,6 @@
       return changed;
     }
 
-    // ★ 平台 → 門市類別（用於收款端合併顯示 & 匯出）
     function pay_storeTypeFromPlatform(platform){
       const p = String(platform || '').trim();
       if (p === '賣貨便') return '7-11';
@@ -606,9 +577,7 @@
         return [];
       }
     }
-    function pay_saveOrders(orders){
-      localStorage.setItem('pay_orders_final', JSON.stringify(orders));
-    }
+    function pay_saveOrders(orders){ localStorage.setItem('pay_orders_final', JSON.stringify(orders)); }
 
     function pay_addOrder(){
       const orderNumber = pay_normalizeOrderNumber(document.getElementById('payOrderNumber').value);
@@ -636,16 +605,10 @@
       const orders = pay_getOrders();
       orders.push({
         id: Date.now() + Math.random(),
-        orderNumber,
-        customerName,
-        phone,
-        platform,
-        storeName, // 只存門市名稱（不含 7-11/全家）
+        orderNumber, customerName, phone, platform, storeName,
         shipDate: pay_formatDate(ship),
         pickupDeadline,
-        pickupDate: '-',
-        settlementDate: '-',
-        paymentDate: '-',
+        pickupDate: '-', settlementDate: '-', paymentDate: '-',
         status: '待取貨'
       });
       pay_saveOrders(orders);
@@ -692,7 +655,6 @@
 
       pay_saveOrders(orders);
       pay_loadOrders();
-
       pay_syncDeleteSMS([o.orderNumber]);
     }
 
@@ -710,7 +672,6 @@
 
       pay_saveOrders(orders);
       pay_loadOrders();
-
       pay_syncDeleteSMS([o.orderNumber]);
     }
 
@@ -761,7 +722,6 @@
 
       pay_saveOrders(orders);
       pay_loadOrders();
-
       pay_syncDeleteSMS(pickedOrderNumbers);
     }
 
@@ -804,7 +764,6 @@
         const td3 = document.createElement('td'); td3.textContent = o.phone || ''; tr.appendChild(td3);
         const td4 = document.createElement('td'); td4.textContent = o.platform || ''; tr.appendChild(td4);
 
-        // ★ 門市合併顯示（相容舊資料 store/storeName）
         const td5 = document.createElement('td');
         td5.textContent = pay_storeMerged(o.platform, pay_getStoreNameAny(o));
         tr.appendChild(td5);
@@ -847,812 +806,7 @@
       document.getElementById('payTotalOrders').textContent = orders.length;
       document.getElementById('payPendingOrders').textContent = pending;
       document.getElementById('payPickedOrders').textContent = picked;
-      const selectAll = document.getElementById('paySelectAll');
-      if(selectAll) selectAll.checked = false;
     }
-
-    function pay_exportToExcel(){
-      const orders = pay_getOrders();
-      if(orders.length === 0) return alert('沒有訂單可以匯出');
-
-      const data = orders.map(o => ({
-        '訂單號': o.orderNumber,
-        '姓名': o.customerName,
-        '電話': o.phone,
-        '平台': o.platform,
-        '門市': pay_storeMerged(o.platform, pay_getStoreNameAny(o)),
-        '出貨日': o.shipDate,
-        '取貨期限': o.pickupDeadline,
-        '取貨日': o.pickupDate,
-        '結算日': o.settlementDate,
-        '匯款日': o.paymentDate,
-        '狀態': o.status
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '訂單列表');
-      XLSX.writeFile(wb, `整合訂單_${new Date().toISOString().slice(0,10)}.xlsx`);
-    }
-
-    function pay_trimHeaderRow(row){
-      const out = {};
-      Object.keys(row || {}).forEach(k => out[String(k).trim()] = row[k]);
-      return out;
-    }
-    function pay_findField(obj, keys){
-      for (const k of keys){ if (obj[k] !== undefined) return obj[k]; }
-      return undefined;
-    }
-
-    function pay_handleFileUpload(event){
-      const file = event.target.files[0];
-      if(!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e){
-        try{
-          const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type:'array', cellDates:true });
-          const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, { raw:true });
-
-          let orders = pay_getOrders();
-          let success = 0, fail = 0;
-
-          rows.forEach(row => {
-            const r = pay_trimHeaderRow(row);
-
-            const orderNumberRaw = pay_findField(r, ['訂單號','訂單編號','订单号','订单编号','訂單']);
-            const customerName = pay_findField(r, ['姓名','客戶姓名','客户姓名','收件人','客戶','客户']);
-            const phoneRaw = pay_findField(r, ['電話','手機','手機號碼','手机号','電話號碼','手机号码','phone']);
-            const platform = pay_findField(r, ['平台']);
-            const storeNameRaw = pay_findField(r, ['門市','取貨門市','门市','取件门市','店','門市名稱','门店']);
-            const shipRaw = pay_findField(r, ['出貨日','出貨日期','出货日','出货日期','出貨']);
-            const deadlineRaw = pay_findField(r, ['取貨期限','取貨到期日','取件期限','取件到期日','取货期限','取货到期日','pickupDeadline']);
-
-            if(!orderNumberRaw || !customerName || !phoneRaw || !platform || !shipRaw){ fail++; return; }
-
-            const ship = pay_parseExcelDate(shipRaw);
-            if(!ship || isNaN(ship.getTime())){ fail++; return; }
-
-            let pickupDeadline = '';
-            if (deadlineRaw !== undefined && deadlineRaw !== null && String(deadlineRaw).trim() !== '') {
-              const dd = pay_parseExcelDate(deadlineRaw);
-              if (dd && !isNaN(dd.getTime())) pickupDeadline = pay_formatDateInput(dd);
-            }
-
-            orders.push({
-              id: Date.now() + Math.random(),
-              orderNumber: pay_normalizeOrderNumber(orderNumberRaw),
-              customerName: String(customerName).trim(),
-              phone: pay_normalizePhone(phoneRaw),
-              platform: String(platform).trim(),
-              storeName: pay_stripStorePrefix(storeNameRaw ? String(storeNameRaw).trim() : ''),
-              shipDate: pay_formatDate(ship),
-              pickupDeadline,
-              pickupDate: '-',
-              settlementDate: '-',
-              paymentDate: '-',
-              status: '待取貨'
-            });
-            success++;
-          });
-
-          pay_saveOrders(orders);
-          alert(`匯入完成：成功 ${success} 筆，失敗 ${fail} 筆`);
-          document.querySelectorAll('.pay-tab')[1].click();
-          pay_loadOrders();
-        } catch(err){
-          alert('匯入失敗：' + (err && err.message ? err.message : String(err)));
-        } finally {
-          event.target.value = '';
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    function pay_downloadTemplate(){
-      const template = [
-        { '訂單號': '#1468', '姓名': '王小明', '電話': '0912345678', '平台': '賣貨便', '門市': '台北車站店', '出貨日': '2026/1/5', '取貨期限': '2026/1/12' },
-        { '訂單號': '#1477', '姓名': '陳小華', '電話': '0987654321', '平台': '好賣+', '門市': '信義門市', '出貨日': '2026/1/5', '取貨期限': '2026/1/12' }
-      ];
-      const ws = XLSX.utils.json_to_sheet(template);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '匯入範本');
-      XLSX.writeFile(wb, '整合系統_匯入範本.xlsx');
-    }
-
-    function pay_pushSelectedToSMS(){
-      const ids = pay_selectedIds();
-      if (ids.length === 0) return alert('請先勾選要帶入 SMS 的訂單');
-
-      const orders = pay_getOrders();
-      const selected = orders.filter(o => ids.includes(o.id));
-
-      const valid = selected
-        .map(o => ({
-          orderNumber: pay_normalizeOrderNumber(o.orderNumber),
-          customerName: o.customerName,
-          phone: o.phone,
-          platform: o.platform,
-          storeName: pay_getStoreNameAny(o),  // ✅ 修正：舊資料 store / 新資料 storeName 都吃得到
-          pickupDeadline: o.pickupDeadline || ''
-        }))
-        .filter(o => o.orderNumber && o.customerName && o.phone && o.platform);
-
-      if (valid.length === 0) return alert('勾選的訂單缺少「訂單號/姓名/電話/平台」，無法帶入 SMS');
-      if (!window.sms_upsertOrdersFromPay) return alert('SMS 模組尚未載入完成，請稍等 2 秒再試一次（或切到 SMS 分頁讓它初始化）。');
-
-      window.sms_upsertOrdersFromPay(valid);
-      alert(`已帶入 SMS：${valid.length} 筆`);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const today = new Date();
-      const pd = document.getElementById('payPickupDate');
-      if(pd) pd.valueAsDate = today;
-      const sd = document.getElementById('payOrderShipDate');
-      if(sd) sd.valueAsDate = today;
-      pay_loadOrders();
-    });
-  </script>
-
-  <!-- SMS Module：維持你上一版「平台決定 storeType」的完整功能 -->
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getDatabase, ref, set, get, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
-    import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyDcKclyNssDs08E0DIwfrc7lzq3QQL4QS8",
-      authDomain: "sms-miris.firebaseapp.com",
-      databaseURL: "https://sms-miris-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "sms-miris",
-      storageBucket: "sms-miris.firebasestorage.app",
-      messagingSenderId: "340097404227",
-      appId: "1:340097404227:web:554901219608cbed42f3f6"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
-    const db = getFirestore(app);
-
-    const defaultTemplates = [
-      {
-        name: "到貨通知(已付款)",
-        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市:{storeType} {storeName})\n請您務必於【{pickupDeadline}】前攜帶證件取貨。\n美莉的家感謝您。"
-      },
-      {
-        name: "第一天 到貨通知(未付款)",
-        content: "【包裹取件通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n美莉的家感謝您。"
-      },
-      {
-        name: "第3天 到貨通知(未付款)",
-        content: "【取件剩餘4日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商3日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      },
-      {
-        name: "第5天 到貨通知(未付款)",
-        content: "【取件剩餘2日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商5日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      },
-      {
-        name: "第6天 到貨通知(未付款)",
-        content: "【取件最後1日通知】\n{customerName} 您好\n您在美莉的家訂購的商品 {orderNumber}\n已抵達超商6日（門市：{storeType} {storeName})\n請您務必於【{pickupDeadline}】前完成取貨付款。\n以避免包裹遭退回，影響您未來的購物權益。"
-      }
-    ];
-
-    window.sms_orders = [];
-    window.sms_templates = [];
-    window.sms_selectedOrders = new Set();
-    window.sms_smsContent = {};
-    window.sms_currentEditingPhone = null;
-    window.sms_sendHistory = {};
-
-    function sms_normalizeOrderNumber(raw){
-      const s = String(raw || '').trim();
-      if(!s) return '';
-      return s.startsWith('#') ? s : ('#' + s);
-    }
-    function sms_normalizePhone(raw){ return String(raw || '').trim().replace(/\s+/g,''); }
-
-    function sms_storeTypeFromPlatform(platform){
-      const p = String(platform || '').trim();
-      if (p === '賣貨便') return '7-11';
-      if (p === '好賣+') return '全家';
-      return '全家';
-    }
-    function sms_stripStorePrefix(storeName){
-      let s = String(storeName || '').trim();
-      if (!s) return '';
-      s = s.replace(/^(7-11|全家|萊爾富|OK超商|OK便利商店|OK)\s*/,'');
-      return s.trim();
-    }
-
-    function sms_formatDateTime(isoString) {
-      const date = new Date(isoString);
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      return `${month}/${day} ${hours}:${minutes}`;
-    }
-    function sms_formatDateToMMDD(dateString) {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${month}/${day}`;
-    }
-
-    let sms_isOnline = navigator.onLine;
-    function sms_updateSyncStatus() {
-      const indicator = document.getElementById('smsSyncIndicator');
-      const status = document.getElementById('smsSyncStatus');
-      if (!indicator || !status) return;
-      if (sms_isOnline) { indicator.classList.remove('offline'); status.textContent = '已連線 - 即時同步'; }
-      else { indicator.classList.add('offline'); status.textContent = '離線模式'; }
-    }
-    sms_updateSyncStatus();
-    window.addEventListener('online', () => { sms_isOnline = true; sms_updateSyncStatus(); sms_syncToCloud(); });
-    window.addEventListener('offline', () => { sms_isOnline = false; sms_updateSyncStatus(); });
-
-    async function sms_syncToCloud() {
-      if (!sms_isOnline) return;
-      await set(ref(database, 'orders'), window.sms_orders);
-      await set(ref(database, 'templates'), window.sms_templates);
-    }
-    window.sms_syncToCloud = sms_syncToCloud;
-
-    async function sms_recordSendHistory(phone, content) {
-      const order = window.sms_orders.find(o => o.phone === phone);
-      if (!order) return;
-      const sendRef = doc(db, 'sendHistory', phone);
-      const now = new Date().toISOString();
-      const docSnap = await getDoc(sendRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        await setDoc(sendRef, {
-          orderNumber: order.orderNumber,
-          customerName: order.customerName,
-          sendCount: (data.sendCount || 0) + 1,
-          lastSentAt: now,
-          history: [{ sentAt: now, content }, ...(data.history || [])].slice(0, 10)
-        });
-      } else {
-        await setDoc(sendRef, {
-          orderNumber: order.orderNumber,
-          customerName: order.customerName,
-          sendCount: 1,
-          lastSentAt: now,
-          history: [{ sentAt: now, content }]
-        });
-      }
-      window.sms_sendHistory[phone] = (await getDoc(sendRef)).data();
-    }
-
-    async function sms_loadSendHistory() {
-      window.sms_sendHistory = {};
-      for (const order of window.sms_orders) {
-        const d = await getDoc(doc(db, 'sendHistory', order.phone));
-        if (d.exists()) window.sms_sendHistory[order.phone] = d.data();
-      }
-    }
-
-    // items: [{orderNumber, customerName, phone, platform, storeName, pickupDeadline}]
-    window.sms_upsertOrdersFromPay = async function(items) {
-      if (!Array.isArray(items) || items.length === 0) return;
-
-      const normalized = items.map(x => ({
-        orderNumber: sms_normalizeOrderNumber(x.orderNumber),
-        customerName: String(x.customerName || '').trim(),
-        phone: sms_normalizePhone(x.phone),
-        platform: String(x.platform || '').trim(),
-        storeName: sms_stripStorePrefix(x.storeName),
-        pickupDeadline: String(x.pickupDeadline || '').trim()
-      })).filter(x => x.orderNumber && x.customerName && x.phone && x.platform);
-
-      const byOrder = new Map();
-      window.sms_orders.forEach(o => {
-        const key = sms_normalizeOrderNumber(o.orderNumber);
-        if (key) byOrder.set(key, o);
-      });
-
-      normalized.forEach(x => {
-        const exist = byOrder.get(x.orderNumber);
-        const storeType = sms_storeTypeFromPlatform(x.platform);
-
-        if (exist) {
-          exist.phone = x.phone || exist.phone;
-          exist.customerName = x.customerName || exist.customerName;
-          exist.orderNumber = x.orderNumber || exist.orderNumber;
-          exist.storeType = storeType;
-          exist.storeName = x.storeName || exist.storeName;
-          exist.pickupDeadline = x.pickupDeadline || exist.pickupDeadline;
-        } else {
-          window.sms_orders.push({
-            phone: x.phone,
-            customerName: x.customerName,
-            orderNumber: x.orderNumber,
-            storeType,
-            storeName: x.storeName || '',
-            pickupDeadline: x.pickupDeadline || ''
-          });
-        }
-      });
-
-      await sms_syncToCloud();
-      sms_renderOrders();
-      await sms_loadSendHistory();
-      sms_renderSendOrders();
-    };
-
-    window.sms_removeOrdersByOrderNumbers = async function(orderNumbers) {
-      if (!Array.isArray(orderNumbers) || orderNumbers.length === 0) return;
-      const setNums = new Set(orderNumbers.map(sms_normalizeOrderNumber).filter(Boolean));
-      const before = window.sms_orders.length;
-      window.sms_orders = window.sms_orders.filter(o => !setNums.has(sms_normalizeOrderNumber(o.orderNumber)));
-
-      window.sms_selectedOrders.forEach(phone => {
-        const still = window.sms_orders.some(o => o.phone === phone);
-        if (!still) window.sms_selectedOrders.delete(phone);
-      });
-      Object.keys(window.sms_smsContent || {}).forEach(phone => {
-        const still = window.sms_orders.some(o => o.phone === phone);
-        if (!still) delete window.sms_smsContent[phone];
-      });
-
-      if (window.sms_orders.length !== before) {
-        await sms_syncToCloud();
-        sms_renderOrders();
-        await sms_loadSendHistory();
-        sms_renderSendOrders();
-      }
-    };
-
-    window.sms_resetTemplates = async function() {
-      if (confirm('確定要重置為預設範本嗎？這會覆蓋現有的所有範本！')) {
-        window.sms_templates = defaultTemplates;
-        await sms_syncToCloud();
-        sms_renderTemplates();
-        sms_updateTemplateSelect();
-        alert('✅ 範本已重置！');
-      }
-    };
-
-    async function sms_loadFromCloud() {
-      const ordersRef = ref(database, 'orders');
-      const templatesRef = ref(database, 'templates');
-
-      onValue(ordersRef, async (snapshot) => {
-        const data = snapshot.val();
-        window.sms_orders = (data && Array.isArray(data)) ? data : [];
-        window.sms_orders.forEach(o => {
-          o.orderNumber = sms_normalizeOrderNumber(o.orderNumber);
-          o.phone = sms_normalizePhone(o.phone);
-        });
-        sms_renderOrders();
-        await sms_loadSendHistory();
-        sms_renderSendOrders();
-      });
-
-      const templatesSnapshot = await get(templatesRef);
-      if (!templatesSnapshot.exists() || !templatesSnapshot.val() || templatesSnapshot.val().length === 0) {
-        window.sms_templates = defaultTemplates;
-        await sms_syncToCloud();
-      }
-
-      onValue(templatesRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data && Array.isArray(data) && data.length > 0) window.sms_templates = data;
-        sms_renderTemplates();
-        sms_updateTemplateSelect();
-      });
-    }
-    sms_loadFromCloud();
-
-    window.sms_switchTab = async function(evt, tabName) {
-      document.querySelectorAll('.sms-tab').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.sms-tab-content').forEach(content => content.classList.remove('active'));
-      evt.target.classList.add('active');
-      document.getElementById('sms' + tabName.charAt(0).toUpperCase() + tabName.slice(1) + 'Tab').classList.add('active');
-      if (tabName === 'send') {
-        await sms_loadSendHistory();
-        sms_renderSendOrders();
-      }
-    };
-
-    window.sms_showAddOrderModal = function(){ document.getElementById('smsAddOrderModal').classList.add('active'); };
-    window.sms_showBulkImportModal = function(){ document.getElementById('smsBulkImportModal').classList.add('active'); };
-    window.sms_showAddTemplateModal = function(){ document.getElementById('smsAddTemplateModal').classList.add('active'); };
-    window.sms_closeModal = function(id){ document.getElementById(id).classList.remove('active'); };
-
-    window.sms_addOrder = function() {
-      const phone = sms_normalizePhone(document.getElementById('smsOrderPhone').value);
-      const name = String(document.getElementById('smsOrderName').value || '').trim();
-      const orderNumber = sms_normalizeOrderNumber(document.getElementById('smsOrderNumber').value);
-      if (!phone || !name) return alert('請填寫手機號碼和姓名');
-
-      window.sms_orders.push({
-        phone,
-        customerName: name,
-        orderNumber,
-        storeType: document.getElementById('smsOrderStoreType').value,
-        storeName: String(document.getElementById('smsOrderStoreName').value || '').trim(),
-        pickupDeadline: document.getElementById('smsOrderDeadline').value
-      });
-
-      sms_syncToCloud();
-      sms_renderOrders();
-      sms_renderSendOrders();
-      sms_closeModal('smsAddOrderModal');
-
-      document.getElementById('smsOrderPhone').value = '';
-      document.getElementById('smsOrderName').value = '';
-      document.getElementById('smsOrderNumber').value = '';
-      document.getElementById('smsOrderStoreName').value = '';
-      document.getElementById('smsOrderDeadline').value = '';
-    };
-
-    window.sms_bulkImport = function() {
-      const data = String(document.getElementById('smsBulkImportData').value || '').trim();
-      if (!data) return alert('請貼上資料');
-      const lines = data.split('\n');
-      let imported = 0;
-
-      lines.forEach(line => {
-        const parts = line.split(/[\t,]/).map(p => p.trim());
-        if (parts.length >= 2) {
-          window.sms_orders.push({
-            phone: sms_normalizePhone(parts[0]),
-            customerName: parts[1] || '',
-            orderNumber: sms_normalizeOrderNumber(parts[2] || ''),
-            storeType: parts[3] || '全家',
-            storeName: parts[4] || '',
-            pickupDeadline: parts[5] || ''
-          });
-          imported++;
-        }
-      });
-
-      sms_syncToCloud();
-      sms_renderOrders();
-      sms_renderSendOrders();
-      sms_closeModal('smsBulkImportModal');
-      document.getElementById('smsBulkImportData').value = '';
-      alert(`成功匯入 ${imported} 筆訂單`);
-    };
-
-    window.sms_deleteOrder = function(index) {
-      if (confirm('確定要刪除這筆訂單嗎？')) {
-        window.sms_orders.splice(index, 1);
-        sms_syncToCloud();
-        sms_renderOrders();
-        sms_renderSendOrders();
-      }
-    };
-
-    window.sms_clearAllOrders = function() {
-      if (confirm('確定要清空所有訂單嗎？此操作無法復原！')) {
-        window.sms_orders = [];
-        window.sms_selectedOrders.clear();
-        window.sms_smsContent = {};
-        sms_syncToCloud();
-        sms_renderOrders();
-        sms_renderSendOrders();
-      }
-    };
-
-    window.sms_exportOrders = function() {
-      const dataStr = JSON.stringify(window.sms_orders, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `訂單資料_${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-    };
-
-    function sms_renderOrders() {
-      const container = document.getElementById('smsOrdersList');
-      if (!container) return;
-
-      if (window.sms_orders.length === 0) {
-        container.innerHTML = `
-          <div class="sms-empty-state">
-            <div class="sms-empty-state-icon">📦</div>
-            <p>尚無訂單資料</p>
-            <p style="font-size: 14px; margin-top: 10px;">點擊上方按鈕新增訂單</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = window.sms_orders.map((order, index) => `
-        <div class="sms-order-card">
-          <div class="sms-order-header">
-            <div style="font-size: 18px; font-weight: 900;">
-              ${order.customerName}
-              ${window.sms_smsContent[order.phone] ? '<span class="sms-badge sms-badge-draft">草稿</span>' : ''}
-            </div>
-            <button class="sms-btn sms-btn-danger sms-btn-small" onclick="sms_deleteOrder(${index})">刪除</button>
-          </div>
-          <div class="sms-order-info">
-            <div><strong>手機號碼：</strong>${order.phone}</div>
-            <div><strong>訂單號碼：</strong>${sms_normalizeOrderNumber(order.orderNumber) || '-'}</div>
-            <div><strong>取貨門市：</strong>${order.storeType} ${order.storeName || ''}</div>
-            <div><strong>取貨期限：</strong>${sms_formatDateToMMDD(order.pickupDeadline) || '-'}</div>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    window.sms_addTemplate = function() {
-      const name = String(document.getElementById('smsTemplateName').value || '').trim();
-      const content = String(document.getElementById('smsTemplateContent').value || '').trim();
-      if (!name || !content) return alert('請填寫範本名稱和內容');
-      window.sms_templates.push({ name, content });
-      sms_syncToCloud();
-      sms_renderTemplates();
-      sms_updateTemplateSelect();
-      sms_closeModal('smsAddTemplateModal');
-      document.getElementById('smsTemplateName').value = '';
-      document.getElementById('smsTemplateContent').value = '';
-    };
-
-    window.sms_deleteTemplate = function(index) {
-      if (confirm('確定要刪除這個範本嗎？')) {
-        window.sms_templates.splice(index, 1);
-        sms_syncToCloud();
-        sms_renderTemplates();
-        sms_updateTemplateSelect();
-      }
-    };
-
-    window.sms_exportTemplates = function() {
-      const dataStr = JSON.stringify(window.sms_templates, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `簡訊範本_${new Date().toISOString().split('T')[0]}.json`;
-      link.click();
-    };
-
-    window.sms_importTemplates = function() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const imported = JSON.parse(event.target.result);
-            window.sms_templates = imported;
-            sms_syncToCloud();
-            sms_renderTemplates();
-            sms_updateTemplateSelect();
-            alert('範本匯入成功！');
-          } catch {
-            alert('檔案格式錯誤');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    };
-
-    function sms_renderTemplates() {
-      const container = document.getElementById('smsTemplatesList');
-      if (!container) return;
-
-      if (window.sms_templates.length === 0) {
-        container.innerHTML = `
-          <div class="sms-empty-state">
-            <div class="sms-empty-state-icon">💬</div>
-            <p>尚無簡訊範本</p>
-            <p style="font-size: 14px; margin-top: 10px;">點擊右下角「🔄 重置範本」載入預設範本</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = window.sms_templates.map((template, index) => `
-        <div class="sms-template-card">
-          <div class="sms-template-header">
-            <div class="sms-template-name">${template.name}</div>
-            <button class="sms-btn sms-btn-danger sms-btn-small" onclick="sms_deleteTemplate(${index})">刪除</button>
-          </div>
-          <div class="sms-template-content">${template.content}</div>
-        </div>
-      `).join('');
-    }
-
-    function sms_updateTemplateSelect() {
-      const select = document.getElementById('smsTemplateSelect');
-      if (!select) return;
-      select.innerHTML = '<option value="">-- 請選擇範本 --</option>' +
-        window.sms_templates.map((t, i) => `<option value="${i}">${t.name}</option>`).join('');
-    }
-
-    window.sms_previewTemplate = function() {
-      const select = document.getElementById('smsTemplateSelect');
-      const preview = document.getElementById('smsTemplatePreview');
-      if (!select || !preview) return;
-      if (select.value === '') { preview.value = ''; return; }
-      preview.value = window.sms_templates[select.value].content;
-    };
-
-    function sms_replacePlaceholders(template, order) {
-      return template
-        .replace(/{customerName}/g, order.customerName)
-        .replace(/{orderNumber}/g, sms_normalizeOrderNumber(order.orderNumber) || '')
-        .replace(/{storeType}/g, order.storeType)
-        .replace(/{storeName}/g, order.storeName || '')
-        .replace(/{pickupDeadline}/g, sms_formatDateToMMDD(order.pickupDeadline) || '');
-    }
-
-    window.sms_toggleSelectAll = function() {
-      const checked = document.getElementById('smsSelectAllOrders').checked;
-      if (checked) window.sms_orders.forEach(order => window.sms_selectedOrders.add(order.phone));
-      else window.sms_selectedOrders.clear();
-      sms_renderSendOrders();
-    };
-
-    window.sms_toggleOrderSelection = function(phone) {
-      if (window.sms_selectedOrders.has(phone)) window.sms_selectedOrders.delete(phone);
-      else window.sms_selectedOrders.add(phone);
-      sms_renderSendOrders();
-    };
-
-    window.sms_applyTemplateToSelected = function() {
-      const content = String(document.getElementById('smsTemplatePreview').value || '').trim();
-      if (!content) return alert('請選擇範本或輸入內容');
-      if (window.sms_selectedOrders.size === 0) return alert('請先勾選要發送的客戶');
-
-      window.sms_selectedOrders.forEach(phone => {
-        const order = window.sms_orders.find(o => o.phone === phone);
-        if (order) window.sms_smsContent[phone] = sms_replacePlaceholders(content, order);
-      });
-
-      sms_renderSendOrders();
-      sms_renderOrders();
-      alert(`已套用範本到 ${window.sms_selectedOrders.size} 位客戶`);
-    };
-
-    window.sms_editSms = function(phone) {
-      window.sms_currentEditingPhone = phone;
-      const order = window.sms_orders.find(o => o.phone === phone);
-      document.getElementById('smsEditSmsCustomer').textContent = order ? order.customerName : '';
-      document.getElementById('smsEditSmsContent').value = window.sms_smsContent[phone] || '';
-      document.getElementById('smsEditSmsModal').classList.add('active');
-    };
-
-    window.sms_saveEditedSms = function() {
-      const content = String(document.getElementById('smsEditSmsContent').value || '').trim();
-      if (content) {
-        window.sms_smsContent[window.sms_currentEditingPhone] = content;
-        sms_renderSendOrders();
-        sms_renderOrders();
-      }
-      sms_closeModal('smsEditSmsModal');
-    };
-
-    window.sms_saveDrafts = function() {
-      if (Object.keys(window.sms_smsContent).length === 0) return alert('沒有要儲存的草稿');
-      localStorage.setItem('smsDrafts', JSON.stringify(window.sms_smsContent));
-      sms_renderOrders();
-      alert('草稿已儲存');
-    };
-
-    window.sms_startSending = async function() {
-      const toSend = window.sms_orders.filter(o => window.sms_smsContent[o.phone]);
-      if (toSend.length === 0) return alert('請先套用範本到客戶');
-
-      if (!confirm(`確定要發送 ${toSend.length} 則簡訊嗎？`)) return;
-
-      for (let i = 0; i < toSend.length; i++) {
-        const order = toSend[i];
-        const message = window.sms_smsContent[order.phone];
-        const smsUrl = `sms:${order.phone}?body=${encodeURIComponent(message)}`;
-        window.open(smsUrl, '_blank');
-
-        await sms_recordSendHistory(order.phone, message);
-        sms_renderSendOrders();
-
-        if (i < toSend.length - 1) {
-          const shouldContinue = confirm(`已開啟第 ${i + 1} 則簡訊\n\n繼續發送下一則？`);
-          if (!shouldContinue) break;
-        }
-      }
-
-      alert('發送流程完成！');
-    };
-
-    window.sms_sendSingleMessage = async function(phone) {
-      const message = window.sms_smsContent[phone];
-      if (!message) return alert('請先套用範本');
-
-      const smsUrl = `sms:${phone}?body=${encodeURIComponent(message)}`;
-      window.open(smsUrl, '_blank');
-
-      await sms_recordSendHistory(phone, message);
-      sms_renderSendOrders();
-    };
-
-    function sms_renderSendOrders() {
-      const container = document.getElementById('smsSendOrdersList');
-      if (!container) return;
-
-      if (window.sms_orders.length === 0) {
-        container.innerHTML = `
-          <div class="sms-empty-state">
-            <div class="sms-empty-state-icon">📦</div>
-            <p>尚無訂單資料</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = window.sms_orders.map(order => {
-        const isSelected = window.sms_selectedOrders.has(order.phone);
-        const hasSms = window.sms_smsContent[order.phone];
-        const hist = window.sms_sendHistory[order.phone];
-
-        return `
-          <div class="sms-order-card ${isSelected ? 'selected' : ''}">
-            <div class="sms-order-header">
-              <label class="sms-checkbox-label">
-                <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="sms_toggleOrderSelection('${order.phone}')">
-                <span style="font-size: 18px; font-weight: 900;">${order.customerName} (${order.phone})</span>
-              </label>
-              <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-                ${hasSms ? `<button class="sms-btn sms-btn-warning sms-btn-small" onclick="sms_editSms('${order.phone}')">編輯</button>` : ''}
-                ${hasSms ? `<button class="sms-btn sms-btn-success sms-btn-small" onclick="sms_sendSingleMessage('${order.phone}')">📤 發送訊息</button>` : ''}
-              </div>
-            </div>
-
-            <div class="sms-order-info" style="grid-template-columns: 1fr 1fr 1fr;">
-              <div><strong>訂單編號：</strong>${sms_normalizeOrderNumber(order.orderNumber) || '-'}</div>
-              <div><strong>取件期限：</strong>${sms_formatDateToMMDD(order.pickupDeadline) || '-'}</div>
-              <div><strong>門市：</strong>${order.storeType} ${order.storeName || ''}</div>
-            </div>
-
-            ${hasSms ? `
-              <div class="sms-preview">
-                <div class="sms-preview-label">📱 簡訊預覽</div>
-                <div class="sms-preview-content">${window.sms_smsContent[order.phone]}</div>
-              </div>
-            ` : ''}
-
-            ${hist ? `
-              <div class="sms-send-history">
-                <div class="sms-send-history-header">📤 發送記錄</div>
-                <div class="sms-send-history-summary">
-                  <span>已發送 <strong>${hist.sendCount || 0}</strong> 次</span>
-                  <span>最後發送：<strong>${hist.lastSentAt ? sms_formatDateTime(hist.lastSentAt) : '-'}</strong></span>
-                </div>
-                ${hist.history && hist.history.length > 0 ? `
-                  <div class="sms-send-history-list">
-                    <div style="font-size: 12px; color: #999; margin-bottom: 4px;">發送時間：</div>
-                    ${hist.history.slice(0, 5).map(h => `
-                      <div class="sms-history-item">✅ ${sms_formatDateTime(h.sentAt)}</div>
-                    `).join('')}
-                  </div>
-                ` : ''}
-              </div>
-            ` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-
-    // 初始
-    sms_renderOrders();
-    sms_renderTemplates();
-    sms_updateTemplateSelect();
-    sms_renderSendOrders();
-    sms_updateSyncStatus();
   </script>
 </body>
 </html>
