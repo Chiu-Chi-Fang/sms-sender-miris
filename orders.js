@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (修復批量匯入)
+// orders.js - 雲端同步版 (修正匯入格式：支援門市欄位)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -13,7 +13,6 @@ const firebaseConfig = {
   appId: "1:340097404227:web:554901219608cbed42f3f6"
 };
 
-// 初始化
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const payOrdersRef = ref(db, 'pay_orders'); 
@@ -27,7 +26,6 @@ onValue(payOrdersRef, (snapshot) => {
     renderPayTable();
 });
 
-// 儲存到雲端
 function savePayOrders() {
     set(payOrdersRef, payOrders)
         .then(() => console.log('同步成功'))
@@ -65,7 +63,7 @@ function calculatePaymentDate(platform, pickupDateStr) {
             paymentDate = addDays(settlementDate, 2);
         }
     } else {
-        // 好賣+ (預設)
+        // 好賣+
         if (dow >= 1 && dow <= 3) {
             settlementDate = getNextWeekday(pickupDate, 5);
             paymentDate = addDays(settlementDate, 4);
@@ -122,7 +120,7 @@ function renderPayTable() {
             <td>${order.name}</td>
             <td>${order.phone}</td>
             <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
-            <td>${order.shipDate}</td>
+            <td>${order.shipDate || '-'}</td>
             <td>${order.deadline || '-'}</td>
             <td>${statusHtml}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
@@ -132,7 +130,7 @@ function renderPayTable() {
 }
 
 // ==========================================
-// ★★★ 重點修改：增強版匯入功能 ★★★
+// ★★★ 重點：支援 7 欄位匯入 (含門市) ★★★
 // ==========================================
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
@@ -144,19 +142,26 @@ window.importFromText = function() {
     lines.forEach(line => {
         if(!line.trim()) return;
 
-        // 修改點：這裡加入了 \s+，這代表「空白鍵」也會被當作分隔符號
-        // 這樣您的資料 "#1489 謝毓潔" 就能被正確切開了
-        const cols = line.split(/[|\t,\s]+/).filter(c => c.trim() !== '');
+        // 自動切割：支援 Tab、逗號、直線、或是「連續空白」
+        const cols = line.split(/[|\t,]+|\s{2,}/).map(c => c.trim()).filter(c => c !== '');
 
-        // 確保至少有 3 個欄位 (訂單號、姓名、電話)
-        if(cols.length >= 3) {
+        // 簡單判斷：如果切出來只有1欄(可能是用單一空白隔開)，就試著用單一空白切
+        let finalCols = cols;
+        if(cols.length < 3 && line.includes(' ')) {
+             finalCols = line.trim().split(/\s+/);
+        }
+
+        // 格式對應：
+        // [0]訂單號, [1]姓名, [2]電話, [3]平台, [4]門市(可能省略), [5]出貨日, [6]期限
+        if(finalCols.length >= 3) {
             payOrders.push({
-                no: cols[0],
-                name: cols[1],
-                phone: cols[2],
-                platform: cols[3] || '賣貨便',
-                shipDate: cols[4] || '', // 出貨日
-                deadline: cols[5] || '', // 期限
+                no: finalCols[0],
+                name: finalCols[1],
+                phone: finalCols[2],
+                platform: finalCols[3] || '賣貨便',
+                store: finalCols[4] || '',     // ★ 新增：把門市存起來
+                shipDate: finalCols[5] || '',  // ★ 修正：出貨日往後移
+                deadline: finalCols[6] || '',  // ★ 修正：期限往後移
                 pickupDate: null
             });
             count++;
@@ -168,11 +173,10 @@ window.importFromText = function() {
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
     } else {
-        alert('匯入失敗：格式不符。\n請確認每行有「訂單號 姓名 電話」');
+        alert('匯入失敗，請確認格式：\n訂單號 姓名 電話 平台 門市 出貨日 期限');
     }
 };
 
-// 綁定其他全域功能
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
@@ -183,6 +187,7 @@ window.addNewOrder = function() {
         no: no.startsWith('#') ? no : '#'+no,
         name, phone,
         platform: document.getElementById('addPlatform').value,
+        store: '', // 手動新增暫時留空
         shipDate: document.getElementById('addShipDate').value,
         deadline: document.getElementById('addDeadline').value,
         pickupDate: null
