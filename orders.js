@@ -1,9 +1,8 @@
-// orders.js - 雲端同步版 (分流批次 V2：防呆 + 完美翻譯)
+// orders.js - 雲端同步版 (Batch V3: 批次匯入 + 批次查詢，解決流量被擋問題)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-// 版本標記：請在 Console 確認看到這行
-console.log(`🚀 orders.js (Batch V2 - Auto Split) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js (Batch V3) Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -98,13 +97,13 @@ function importFromTextImpl() {
 }
 
 // ==========================================
-// ★★★ 智慧批次追蹤 (V2: 自動分批 + 中文翻譯) ★★★
+// ★★★ 智慧批次追蹤 (Batch V3) ★★★
 // ==========================================
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(若查詢失敗，請再次點擊 Proxy 開通)`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
 
     // 1. 初始化狀態
     indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
@@ -141,7 +140,7 @@ async function checkAllTrackingImpl() {
 
         // 3. 批次匯入 (Batch Import - 每 40 筆一次)
         for (const [cId, numbers] of Object.entries(groups)) {
-            const chunks = chunkArray(numbers, 40); // 自動切分成小批
+            const chunks = chunkArray(numbers, 40);
             
             for (const chunk of chunks) {
                 console.log(`匯入物流商 ${cId} 的 ${chunk.length} 筆訂單...`);
@@ -156,7 +155,6 @@ async function checkAllTrackingImpl() {
                         })
                     });
                     
-                    // 針對 Proxy 錯誤特別處理
                     if (!res.ok) {
                         const text = await res.text();
                         if (text.includes("The origin")) throw new Error("Proxy需開通");
@@ -166,7 +164,7 @@ async function checkAllTrackingImpl() {
                     console.error("匯入請求失敗:", importErr);
                     if(importErr.message.includes("Proxy")) throw importErr;
                 }
-                await new Promise(r => setTimeout(r, 1500)); // 休息 1.5 秒
+                await new Promise(r => setTimeout(r, 1000)); // 休息 1 秒
             }
         }
 
@@ -177,7 +175,7 @@ async function checkAllTrackingImpl() {
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
 
-        // 處理非 JSON 回應 (例如 Proxy 錯誤頁面)
+        // 處理非 JSON 回應
         const contentType = inboxRes.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
             const text = await inboxRes.text();
@@ -196,14 +194,13 @@ async function checkAllTrackingImpl() {
                 if(!rawStatus && item.package.package_history && item.package.package_history.length > 0) {
                      rawStatus = item.package.package_history[0].status || item.package.package_history[0].checkpoint_status;
                 }
-                // 如果 API 回傳空的，試試看 state
                 if(!rawStatus && item.state) rawStatus = item.state;
                 
                 if(rawStatus) statusMap[item.package.tracking_number] = rawStatus;
             }
         });
 
-        // 5. 更新介面 + 翻譯 (超級翻譯機 V2)
+        // 5. 更新介面 + 翻譯 (超級翻譯機)
         let updatedCount = 0;
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -214,7 +211,7 @@ async function checkAllTrackingImpl() {
                 let showStatus = rawStatus;
                 let s = rawStatus.toLowerCase(); 
 
-                // ★★★ 翻譯邏輯 (包含中文關鍵字) ★★★
+                // 翻譯字典
                 if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) {
                     showStatus = "✅ 已配達";
                 } else if (s.includes('picked') || s.includes('collected')) {
@@ -248,14 +245,15 @@ async function checkAllTrackingImpl() {
         console.error("Batch Error:", e);
         let msg = "連線錯誤";
         if(e.message.includes("Proxy") || e.message.includes("開通")) {
-            msg = "請點擊開通 Proxy";
+            msg = "請開通 Proxy";
             window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
         } else if (e.message.includes("流量")) {
             msg = "流量超標(請稍候)";
         }
         
         indices.forEach(i => { 
-            if(payOrders[i].trackingStatus === "⏳ 查詢中...") payOrders[i].trackingStatus = "❌ " + msg; 
+            if(payOrders[i].trackingStatus === "⏳ 查詢中...") 
+                payOrders[i].trackingStatus = "❌ " + msg; 
         });
         savePayOrders();
     }
@@ -295,7 +293,6 @@ function renderPayTable() {
             else if (order.trackingStatus.includes('配送')) trackColor = '#007bff'; 
             else if (order.trackingStatus.includes('查無') || order.trackingStatus.includes('❌')) trackColor = '#dc3545'; 
             
-            // 點擊前往官網的連結
             if (order.trackingStatus.includes('❌') || order.trackingStatus === "查無資料") {
                  let linkUrl = "#";
                  if (order.platform && order.platform.includes("7-11")) linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
@@ -322,6 +319,7 @@ function renderPayTable() {
     });
 }
 
+// 綁定 Window
 window.importFromText = importFromTextImpl;
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTrackingImpl;
