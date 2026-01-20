@@ -1,9 +1,9 @@
-// orders.js - 雲端同步版 (省油批次版：解決流量限制問題)
+// orders.js - 雲端同步版（做法1：前端不直連 Track，只讀 data/inbox.json 更新狀態）
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log(`🚀 orders.js (Batch Mode) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -53,7 +53,12 @@ function calculatePaymentDate(platform, pickupDateStr) {
   const dow = pickupDate.getDay();
   let settlementDate, paymentDate;
 
-  const addDays = (d, n) => { const date = new Date(d); date.setDate(date.getDate() + n); return date; };
+  const addDays = (d, n) => {
+    const date = new Date(d);
+    date.setDate(date.getDate() + n);
+    return date;
+  };
+
   const getNextWeekday = (d, t) => {
     const date = new Date(d);
     const cur = date.getDay();
@@ -127,84 +132,25 @@ function importFromTextImpl() {
 }
 
 // ==========================================
-// ★★★ 智慧批次追蹤 (Batch Mode) ★★★
+// ★★★ 查詢貨況（做法1：讀 data/inbox.json）★★★
 // ==========================================
 async function checkAllTrackingImpl() {
-  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+  const indices = Array.from(document.querySelectorAll('.pay-chk:checked'))
+    .map(c => parseInt(c.dataset.idx));
+
   if (indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-  if (!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
+  // 做法1：不需要 proxy 開通提示了
+  if (!confirm(`準備更新 ${indices.length} 筆訂單貨況...\n(系統將讀取 ./data/inbox.json)`)) return;
 
   // 標記為查詢中
   indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
   renderPayTable();
 
-  const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
-  const proxyUrl = "https://cors-anywhere.herokuapp.com/";
-  const targetUrl = "https://track.tw/api/v1";
-
-  // ✅ 關鍵：加入 X-Requested-With（track.tw / proxy 會要求）
-  const proxyHeaders = {
-    'Authorization': `Bearer ${apiToken}`,
-    'X-Requested-With': 'XMLHttpRequest',
-  };
-
   try {
-    // 1. 分組：依物流商分類訂單 (減少請求次數)
-    const groups = {};
-    indices.forEach(idx => {
-      const order = payOrders[idx];
-      const trackNo = order.trackingNum || order.no;
-
-      // 找 Carrier ID
-      let carrierId = "";
-      if (order.platform) {
-        for (let key of Object.keys(carrierMap)) {
-          if (order.platform.includes(key)) { carrierId = carrierMap[key]; break; }
-        }
-      }
-
-      if (carrierId && trackNo) {
-        if (!groups[carrierId]) groups[carrierId] = [];
-        groups[carrierId].push(trackNo);
-      }
-    });
-
-    // 2. 批次匯入 (Batch Import)
-    // 每個物流商只發送一次請求，一次帶入多個單號
-    for (const [cId, numbers] of Object.entries(groups)) {
-      console.log(`正在匯入物流商 ${cId} 的 ${numbers.length} 筆訂單...`);
-
-      const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
-        method: 'POST',
-        headers: {
-          ...proxyHeaders,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          carrier_id: cId,
-          tracking_number: numbers, // 陣列!
-          notify_state: "inactive"
-        })
-      });
-
-      // 檢查是否被 Proxy 擋住
-      if (res.status === 403) throw new Error("請重新開通Proxy");
-      if (!res.ok && res.status !== 422) console.warn("匯入可能有問題", res.status);
-
-      // 休息一下，避免太快
-      await new Promise(r => setTimeout(r, 1000));
-    }
-
-    // 3. 批次查詢 (Batch Fetch) - 直接抓收件匣前100筆
-    console.log("正在下載最新貨況...");
-
-    const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
-      method: 'GET',
-      headers: proxyHeaders,
-    });
-
-    if (!inboxRes.ok) throw new Error(`查詢失敗: ${inboxRes.status}`);
+    // ✅ 讀同源靜態檔，避免快取加 ts
+    const inboxRes = await fetch(`./data/inbox.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!inboxRes.ok) throw new Error(`讀取 inbox.json 失敗: ${inboxRes.status}`);
 
     const inboxData = await inboxRes.json();
     const packageList = inboxData.data || [];
@@ -212,20 +158,22 @@ async function checkAllTrackingImpl() {
     // 建立快查表: 單號 -> 狀態
     const statusMap = {};
     packageList.forEach(item => {
-      if (item.package && item.package.tracking_number) {
-        // 優先使用 latest_package_history，如果沒有則用 checkpoint_status
-        let status = item.package.latest_package_history;
+      const tn = item?.package?.tracking_number;
+      if (!tn) return;
 
-        // 由於 API 可能直接回傳中文或英文，我們統一處理
-        if (!status && item.package.package_history && item.package.package_history.length > 0) {
-          status = item.package.package_history[0].status; // 或 checkpoint_status
-        }
+      // 優先使用 latest_package_history
+      let status = item?.package?.latest_package_history;
 
-        if (status) statusMap[item.package.tracking_number] = status;
+      // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
+      const ph = item?.package?.package_history;
+      if (!status && Array.isArray(ph) && ph.length > 0) {
+        status = ph[0]?.status || ph[0]?.checkpoint_status;
       }
+
+      if (status) statusMap[tn] = status;
     });
 
-    // 4. 更新本地訂單
+    // 更新本地訂單
     let updatedCount = 0;
 
     indices.forEach(idx => {
@@ -234,9 +182,9 @@ async function checkAllTrackingImpl() {
       const status = statusMap[trackNo];
 
       if (status) {
-        let showStatus = status;
+        let showStatus = String(status);
 
-        // 翻譯
+        // 翻譯（沿用你原本規則）
         if (showStatus.includes("delivered") || showStatus.includes("arrived")) showStatus = "已配達";
         if (showStatus.includes("transit")) showStatus = "配送中";
         if (showStatus.includes("pending")) showStatus = "待出貨";
@@ -246,7 +194,7 @@ async function checkAllTrackingImpl() {
         order.trackingStatus = showStatus;
         updatedCount++;
 
-        // 自動填入日期
+        // 自動填入日期（維持你原本邏輯）
         if (showStatus.includes("已配達") || showStatus.includes("已取")) {
           if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
         }
@@ -256,26 +204,25 @@ async function checkAllTrackingImpl() {
     });
 
     savePayOrders();
-    alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。`);
+    alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。\n（提醒：Track 那邊沒匯入單號就會顯示查無）`);
 
   } catch (e) {
-    console.error("Batch Error:", e);
-
-    let msg = "連線發生錯誤";
-    if (e.message.includes("開通")) {
-      msg = "請重新開通 Proxy";
-      window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
-    } else if (e.message.includes("Unexpected token")) {
-      msg = "流量超標(請稍候再試)";
-    }
+    console.error("Tracking Error:", e);
 
     indices.forEach(i => {
-      if (payOrders[i].trackingStatus === "⏳ 查詢中...")
-        payOrders[i].trackingStatus = "❌ " + msg;
+      if (payOrders[i].trackingStatus === "⏳ 查詢中...") {
+        payOrders[i].trackingStatus = "❌ 讀取失敗";
+      }
     });
 
     savePayOrders();
-    alert(`執行失敗：${msg}`);
+
+    alert(
+      "執行失敗：無法讀取 data/inbox.json\n\n" +
+      "請檢查：\n" +
+      "1) GitHub Actions 是否已產生 data/inbox.json\n" +
+      "2) GitHub Pages 是否有部署 data/inbox.json（網址能直接打開）"
+    );
   }
 }
 
@@ -327,13 +274,28 @@ function renderPayTable() {
 
     if (order.pickupDate) {
       const calc = calculatePaymentDate(order.platform, order.pickupDate);
-      statusHtml = `<div style="text-align:right"><button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">✅ 已取 (${order.pickupDate.slice(5)})</button><div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">💰 撥款: ${calc.payment}</div></div>`;
+      statusHtml = `<div style="text-align:right">
+        <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">✅ 已取 (${order.pickupDate.slice(5)})</button>
+        <div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">💰 撥款: ${calc.payment}</div>
+      </div>`;
     } else {
-      statusHtml = `<div class="action-wrapper"><button class="btn btn-danger btn-sm" style="pointer-events: none;">📦 未取貨</button><input type="date" class="hidden-date-input" onchange="updateOrderPickup(${index}, this.value)"></div>`;
+      statusHtml = `<div class="action-wrapper">
+        <button class="btn btn-danger btn-sm" style="pointer-events: none;">📦 未取貨</button>
+        <input type="date" class="hidden-date-input" onchange="updateOrderPickup(${index}, this.value)">
+      </div>`;
     }
 
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><input type="checkbox" class="pay-chk" data-idx="${index}"></td><td>${order.no}</td><td>${order.name}</td><td>${order.phone}</td><td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td><td>${order.shipDate || '-'}</td><td>${order.deadline || '-'}</td><td>${trackHtml} ${subNoHtml}</td><td>${statusHtml}</td><td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>`;
+    tr.innerHTML = `<td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
+      <td>${order.no}</td>
+      <td>${order.name}</td>
+      <td>${order.phone}</td>
+      <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
+      <td>${order.shipDate || '-'}</td>
+      <td>${order.deadline || '-'}</td>
+      <td>${trackHtml} ${subNoHtml}</td>
+      <td>${statusHtml}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>`;
     tbody.appendChild(tr);
   });
 }
