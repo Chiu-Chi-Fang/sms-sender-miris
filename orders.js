@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (戰鬥版 V8: 強制綁定按鈕 + 自動偵測連線)
+// orders.js - 雲端同步版 (省油批次版：解決流量限制問題)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log(`🚀 orders.js (Batch V8) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js (Batch Mode) Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -21,7 +21,6 @@ const payOrdersRef = ref(db, 'pay_orders');
 
 let payOrders = [];
 
-// 物流商 ID 對照表
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -37,209 +36,16 @@ const carrierMap = {
     '郵局': '9a9812d2-c275-4726-9bdc-2ae5b4c42c73'
 };
 
-// 監聽雲端資料
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    if(window.renderPayTable) window.renderPayTable();
+    renderPayTable();
 });
 
 function savePayOrders() {
     set(payOrdersRef, payOrders).catch((err) => console.error('同步失敗', err));
 }
 
-// ==========================================
-// ★★★ 1. 批量匯入 (直接掛載到 window，防止失效) ★★★
-// ==========================================
-window.importFromText = function() {
-    console.log("執行匯入...");
-    const el = document.getElementById('importText');
-    if (!el) return alert('找不到輸入框 (ID: importText)');
-    
-    const txt = el.value;
-    if(!txt) return alert('請先貼上資料喔！');
-
-    const lines = txt.split('\n');
-    let count = 0;
-
-    lines.forEach(line => {
-        if(!line.trim()) return;
-        // 兼容 Tab 或逗號分隔
-        const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
-
-        if(cols.length >= 3) {
-            let rawPlatform = cols[3] || '';
-            let finalPlatform = rawPlatform;
-            if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
-            else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
-
-            let trackNo = cols[7] || ''; // 第8欄物流單號
-
-            payOrders.push({
-                no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
-                store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
-                trackingNum: trackNo, pickupDate: null, trackingStatus: ''
-            });
-            count++;
-        }
-    });
-
-    if(count > 0) {
-        savePayOrders();
-        alert(`成功匯入 ${count} 筆資料！`);
-        el.value = '';
-        if(window.switchPaySubTab) window.switchPaySubTab('orders');
-    } else {
-        alert('匯入失敗：格式不符');
-    }
-};
-
-// ==========================================
-// ★★★ 2. 追蹤貨況 (智慧偵錯版) ★★★
-// ==========================================
-window.checkAllTracking = async function() {
-    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
-    if(indices.length === 0) return alert('請先勾選要查詢的訂單');
-
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n若跳出視窗，請點擊 "Request temporary access" 按鈕開通連線。`)) return;
-
-    // 初始化狀態
-    indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
-    window.renderPayTable();
-
-    const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
-    const proxyUrl = "https://cors-anywhere.herokuapp.com/";
-    const targetUrl = "https://track.tw/api/v1";
-
-    const chunkArray = (arr, size) => {
-        const result = [];
-        for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
-        return result;
-    };
-
-    try {
-        // 分組
-        const groups = {};
-        indices.forEach(idx => {
-            const order = payOrders[idx];
-            const trackNo = order.trackingNum || order.no;
-            let carrierId = "";
-            if (order.platform) {
-                for(let key of Object.keys(carrierMap)) {
-                    if(order.platform.includes(key)) { carrierId = carrierMap[key]; break; }
-                }
-            }
-            if(carrierId && trackNo) {
-                if(!groups[carrierId]) groups[carrierId] = [];
-                groups[carrierId].push(trackNo);
-            }
-        });
-
-        // 1. 批次匯入
-        for (const [cId, numbers] of Object.entries(groups)) {
-            const chunks = chunkArray(numbers, 40);
-            for (const chunk of chunks) {
-                console.log(`匯入 ${chunk.length} 筆...`);
-                try {
-                    const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiToken}` },
-                        body: JSON.stringify({
-                            "carrier_id": cId,
-                            "tracking_number": chunk,
-                            "notify_state": "inactive"
-                        })
-                    });
-                    
-                    if (res.status === 403 || res.status === 429) {
-                        const text = await res.text();
-                        if (text.includes("See /corsdemo")) throw new Error("PROXY_NEED_AUTH");
-                    }
-                } catch(importErr) {
-                    if(importErr.message === "PROXY_NEED_AUTH") throw importErr;
-                    console.warn("匯入警告:", importErr);
-                }
-                await new Promise(r => setTimeout(r, 1000));
-            }
-        }
-
-        // 2. 下載狀態
-        console.log("下載貨況...");
-        const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${apiToken}` }
-        });
-
-        if (inboxRes.status === 403) throw new Error("PROXY_NEED_AUTH");
-        if (!inboxRes.ok) throw new Error(`API錯誤 ${inboxRes.status}`);
-        
-        const inboxData = await inboxRes.json();
-        const packageList = inboxData.data || [];
-        const statusMap = {};
-        
-        packageList.forEach(item => {
-            if(item.package && item.package.tracking_number) {
-                let rawStatus = item.package.latest_package_history; 
-                if(!rawStatus && item.package.package_history && item.package.package_history.length > 0) {
-                     rawStatus = item.package.package_history[0].status || item.package.package_history[0].checkpoint_status;
-                }
-                if(!rawStatus && item.state) rawStatus = item.state;
-                if(rawStatus) statusMap[item.package.tracking_number] = rawStatus;
-            }
-        });
-
-        // 3. 更新
-        let updatedCount = 0;
-        indices.forEach(idx => {
-            const order = payOrders[idx];
-            const trackNo = order.trackingNum || order.no;
-            const rawStatus = statusMap[trackNo];
-
-            if(rawStatus) {
-                let showStatus = rawStatus;
-                let s = String(rawStatus).toLowerCase(); 
-
-                if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) showStatus = "✅ 已配達";
-                else if (s.includes('picked') || s.includes('collected')) showStatus = "✅ 已取件";
-                else if (s.includes('store') || s.includes('arrival') || s.includes('arrived') || s.includes('ready') || s.includes('門市') || s.includes('已達')) showStatus = "🏪 已達門市";
-                else if (s.includes('transit') || s.includes('shipping') || s.includes('transport') || s.includes('way') || s.includes('配送')) showStatus = "🚚 配送中";
-                else if (s.includes('pending') || s.includes('created') || s.includes('order_placed')) showStatus = "📄 待出貨";
-                else if (s.includes('return')) showStatus = "🔙 退貨中";
-
-                order.trackingStatus = showStatus;
-                updatedCount++;
-
-                if (showStatus.includes("已配達") || showStatus.includes("已取") || showStatus.includes("已達")) {
-                    if(!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
-                }
-            } else {
-                order.trackingStatus = "查無資料(可能單號錯誤)";
-            }
-        });
-
-        savePayOrders();
-        alert(`查詢完成！更新了 ${updatedCount} 筆訂單。`);
-
-    } catch (e) {
-        console.error("Tracking Error:", e);
-        let msg = "連線失敗";
-        if (e.message === "PROXY_NEED_AUTH" || e.message.includes("403")) {
-            msg = "請點擊新視窗按鈕開通連線！";
-            window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
-        }
-        
-        indices.forEach(i => { 
-            if(payOrders[i].trackingStatus === "⏳ 查詢中...") 
-                payOrders[i].trackingStatus = "❌ " + msg; 
-        });
-        savePayOrders();
-        alert(msg);
-    }
-};
-
-// ==========================================
-// ★★★ 3. 渲染與工具 (全部直接掛載) ★★★
-// ==========================================
 function calculatePaymentDate(platform, pickupDateStr) {
     if (!pickupDateStr) return { settlement: '-', payment: '-' };
     const pickupDate = new Date(pickupDateStr);
@@ -258,7 +64,173 @@ function calculatePaymentDate(platform, pickupDateStr) {
     return { settlement: settlementDate.toISOString().split('T')[0], payment: paymentDate.toISOString().split('T')[0] };
 }
 
-window.renderPayTable = function() {
+function importFromTextImpl() {
+    const el = document.getElementById('importText');
+    if (!el) return;
+    const txt = el.value;
+    if(!txt) return alert('請先貼上資料喔！');
+    const lines = txt.split('\n');
+    let count = 0;
+    lines.forEach(line => {
+        if(!line.trim()) return;
+        const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
+        if(cols.length >= 3) {
+            let rawPlatform = cols[3] || '';
+            let finalPlatform = rawPlatform;
+            if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
+            else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
+            let trackNo = cols[7] || '';
+            payOrders.push({
+                no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
+                store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
+                trackingNum: trackNo, pickupDate: null, trackingStatus: ''
+            });
+            count++;
+        }
+    });
+    if(count > 0) {
+        savePayOrders();
+        alert(`成功匯入 ${count} 筆資料！`);
+        el.value = '';
+        if(window.switchPaySubTab) window.switchPaySubTab('orders');
+    }
+}
+
+// ==========================================
+// ★★★ 智慧批次追蹤 (Batch Mode) ★★★
+// ==========================================
+async function checkAllTrackingImpl() {
+    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+    if(indices.length === 0) return alert('請先勾選要查詢的訂單');
+
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
+
+    // 標記為查詢中
+    indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
+    renderPayTable();
+
+    const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
+    const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+    const targetUrl = "https://track.tw/api/v1";
+
+    try {
+        // 1. 分組：依物流商分類訂單 (減少請求次數)
+        const groups = {};
+        indices.forEach(idx => {
+            const order = payOrders[idx];
+            const trackNo = order.trackingNum || order.no;
+            // 找 Carrier ID
+            let carrierId = "";
+            if (order.platform) {
+                for(let key of Object.keys(carrierMap)) {
+                    if(order.platform.includes(key)) { carrierId = carrierMap[key]; break; }
+                }
+            }
+            if(carrierId && trackNo) {
+                if(!groups[carrierId]) groups[carrierId] = [];
+                groups[carrierId].push(trackNo);
+            }
+        });
+
+        // 2. 批次匯入 (Batch Import)
+        // 每個物流商只發送一次請求，一次帶入多個單號
+        for (const [cId, numbers] of Object.entries(groups)) {
+            console.log(`正在匯入物流商 ${cId} 的 ${numbers.length} 筆訂單...`);
+            const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiToken}` },
+                body: JSON.stringify({
+                    "carrier_id": cId,
+                    "tracking_number": numbers, // 陣列!
+                    "notify_state": "inactive"
+                })
+            });
+            
+            // 檢查是否被 Proxy 擋住
+            if(res.status === 403) throw new Error("請重新開通Proxy");
+            if(!res.ok && res.status !== 422) console.warn("匯入可能有問題", res.status); 
+            
+            // 休息一下，避免太快
+            await new Promise(r => setTimeout(r, 1000));
+        }
+
+        // 3. 批次查詢 (Batch Fetch) - 直接抓收件匣前100筆
+        console.log("正在下載最新貨況...");
+        const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiToken}` }
+        });
+
+        if(!inboxRes.ok) throw new Error(`查詢失敗: ${inboxRes.status}`);
+        
+        const inboxData = await inboxRes.json();
+        const packageList = inboxData.data || [];
+        
+        // 建立快查表: 單號 -> 狀態
+        const statusMap = {};
+        packageList.forEach(item => {
+            if(item.package && item.package.tracking_number) {
+                // 優先使用 latest_package_history，如果沒有則用 checkpoint_status
+                let status = item.package.latest_package_history; 
+                // 由於 API 可能直接回傳中文或英文，我們統一處理
+                if(!status && item.package.package_history && item.package.package_history.length > 0) {
+                     status = item.package.package_history[0].status; // 或 checkpoint_status
+                }
+                if(status) statusMap[item.package.tracking_number] = status;
+            }
+        });
+
+        // 4. 更新本地訂單
+        let updatedCount = 0;
+        indices.forEach(idx => {
+            const order = payOrders[idx];
+            const trackNo = order.trackingNum || order.no;
+            const status = statusMap[trackNo];
+
+            if(status) {
+                let showStatus = status;
+                // 翻譯
+                if (showStatus.includes("delivered") || showStatus.includes("arrived")) showStatus = "已配達";
+                if (showStatus.includes("transit")) showStatus = "配送中";
+                if (showStatus.includes("pending")) showStatus = "待出貨";
+                if (showStatus.includes("picked_up")) showStatus = "已取件";
+                if (showStatus.includes("shipping")) showStatus = "運送中";
+                
+                order.trackingStatus = showStatus;
+                updatedCount++;
+
+                // 自動填入日期
+                if (showStatus.includes("已配達") || showStatus.includes("已取")) {
+                    if(!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
+                }
+            } else {
+                order.trackingStatus = "查無(或未入庫)";
+            }
+        });
+
+        savePayOrders();
+        alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。`);
+
+    } catch (e) {
+        console.error("Batch Error:", e);
+        let msg = "連線發生錯誤";
+        if(e.message.includes("開通")) {
+            msg = "請重新開通 Proxy";
+            window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
+        } else if (e.message.includes("Unexpected token")) {
+            msg = "流量超標(請稍候再試)";
+        }
+        
+        indices.forEach(i => { 
+            if(payOrders[i].trackingStatus === "⏳ 查詢中...") 
+                payOrders[i].trackingStatus = "❌ " + msg; 
+        });
+        savePayOrders();
+        alert(`執行失敗：${msg}`);
+    }
+}
+
+function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
@@ -285,22 +257,17 @@ window.renderPayTable = function() {
         const queryNo = order.trackingNum || order.no;
         let trackHtml = '<span style="color:#ccc;">-</span>';
         
-        let trackColor = '#6c757d'; 
-        if (order.trackingStatus) {
-            if (order.trackingStatus.includes('配達') || order.trackingStatus.includes('已取')) trackColor = '#28a745'; 
-            else if (order.trackingStatus.includes('門市')) trackColor = '#17a2b8'; 
-            else if (order.trackingStatus.includes('配送')) trackColor = '#007bff'; 
-            else if (order.trackingStatus.includes('查無') || order.trackingStatus.includes('❌')) trackColor = '#dc3545'; 
-            
-            if (order.trackingStatus.includes('❌') || order.trackingStatus.includes('查無') || order.trackingStatus.includes('LINK') || order.trackingStatus.includes('連線')) {
-                 let linkUrl = "#";
-                 if (order.platform && order.platform.includes("7-11")) linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
-                 else if (order.platform && order.platform.includes("全家")) linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
-                 
-                 trackHtml = `<a href="${linkUrl}" target="_blank" style="color:${trackColor}; font-weight:bold; text-decoration:underline;">${order.trackingStatus}</a>`;
-            } else {
-                 trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
-            }
+        if (order.trackingStatus && order.trackingStatus.includes('❌')) {
+             let linkUrl = "#";
+             if (order.platform && order.platform.includes("7-11")) linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
+             else if (order.platform && order.platform.includes("全家")) linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
+             
+             trackHtml = `<a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:#dc3545; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${order.trackingStatus}</a>`;
+        } 
+        else if (order.trackingStatus) {
+            let trackColor = '#007bff'; 
+            if(order.trackingStatus.includes('已配達') || order.trackingStatus.includes('已取')) trackColor = '#28a745'; 
+            trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
         }
         
         const subNoHtml = order.trackingNum ? `<br><span style="font-size:10px; color:#999;">🚚 ${order.trackingNum}</span>` : '';
@@ -316,8 +283,12 @@ window.renderPayTable = function() {
         tr.innerHTML = `<td><input type="checkbox" class="pay-chk" data-idx="${index}"></td><td>${order.no}</td><td>${order.name}</td><td>${order.phone}</td><td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td><td>${order.shipDate || '-'}</td><td>${order.deadline || '-'}</td><td>${trackHtml} ${subNoHtml}</td><td>${statusHtml}</td><td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>`;
         tbody.appendChild(tr);
     });
-};
+}
 
+// 綁定 Window
+window.importFromText = importFromTextImpl;
+window.renderPayTable = renderPayTable;
+window.checkAllTracking = checkAllTrackingImpl;
 window.addNewOrder = function() { const no = document.getElementById('addOrderNo').value; const name = document.getElementById('addName').value; if(!no || !name) return alert('請填寫完整資訊'); let p = document.getElementById('addPlatform').value; if(p.includes('賣貨便')) p = '7-11'; if(p.includes('好賣')) p = '全家'; payOrders.push({ no: no.startsWith('#') ? no : '#'+no, name: name, phone: document.getElementById('addPhone').value, platform: p, store: '', shipDate: document.getElementById('addShipDate').value, deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: '', trackingNum: '' }); savePayOrders(); alert('新增成功！'); };
 window.updateOrderPickup = function(index, dateStr) { if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); } };
 window.resetOrderStatus = function(index) { if(confirm('重設為未取貨？')) { payOrders[index].pickupDate = null; savePayOrders(); } };
@@ -330,16 +301,3 @@ window.doCalc = function() { const p = document.getElementById('calcPlatform').v
 window.exportOrdersExcel = function() { if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出'); if(typeof XLSX !== 'undefined') { const ws = XLSX.utils.json_to_sheet(payOrders); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Orders"); XLSX.writeFile(wb, "orders_backup.xlsx"); } else { alert('匯出元件未載入'); } };
 
 console.log("✅ orders.js 載入成功！");
-```
-
----
-
-### ⚠️ 操作關鍵 (如果看到「連線失敗」)
-
-如果您更新後，按下追蹤卻看到 **「❌ 請點擊新視窗按鈕開通連線！」** 或是跳出一個新視窗：
-
-1.  這代表您的 Proxy 權限過期了（正常現象，因為它是免費的）。
-2.  請在新跳出的視窗（cors-anywhere 頁面）中，點擊那個 **"Request temporary access to the demo server"** 按鈕。
-3.  看到綠字後，關掉該視窗，回到訂單系統，**再按一次「🔍 追蹤貨況」**。
-
-這次一定會成功！ (因為按鈕已經修好，且會自動偵測連線狀態) 🚀
