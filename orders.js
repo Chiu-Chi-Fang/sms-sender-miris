@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (修復 SyntaxError 括號問題 + 智慧追蹤)
+// orders.js - 雲端同步版 (修復截斷問題 + 完整功能)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -289,5 +289,44 @@ function renderPayTable() {
     const pickedCount = payOrders.filter(o => o.pickupDate).length;
     const unpickedCount = totalCount - pickedCount;
 
+    // 更新計數器 (修復這段之前斷掉的程式碼)
     if(document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = `(${totalCount})`;
-    if(
+    if(document.getElementById('cnt-picked')) document.getElementById('cnt-picked').innerText = `(${pickedCount})`;
+    if(document.getElementById('cnt-unpicked')) document.getElementById('cnt-unpicked').innerText = `(${unpickedCount})`;
+
+    if (payOrders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:20px;">☁️ 目前無訂單，請從 Excel 複製貼上</td></tr>`;
+        return;
+    }
+
+    const filterEl = document.querySelector('input[name="statusFilter"]:checked');
+    const filterVal = filterEl ? filterEl.value : 'all'; 
+
+    payOrders.forEach((order, index) => {
+        const isPicked = !!order.pickupDate; 
+        if (filterVal === 'picked' && !isPicked) return;
+        if (filterVal === 'unpicked' && isPicked) return;
+
+        const queryNo = order.trackingNum || order.no;
+
+        // 物流狀態顯示
+        let trackHtml = '<span style="color:#ccc;">-</span>';
+        
+        if (order.trackingStatus === "LINK_FALLBACK") {
+            let linkUrl = "#";
+            let linkText = "🔍 查官網";
+            let btnColor = "#6c757d"; 
+
+            if (order.platform && (order.platform.includes("7-11") || order.platform.includes("賣貨便"))) {
+                linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
+                linkText = "查 7-11";
+                btnColor = "#27ae60"; 
+            } else if (order.platform && (order.platform.includes("全家") || order.platform.includes("好賣"))) {
+                linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`; 
+                linkText = "查 全家";
+                btnColor = "#2980b9"; 
+            }
+
+            trackHtml = `
+                <a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:${btnColor}; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${linkText}</a>
+                ${order.debugMsg ? `<div style="font-size:9px; color:red; margin-top:2px;">${order.debugMsg}</div>` : ''}
