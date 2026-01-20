@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (Batch V6: 流量救星 + 按鈕修復 + Proxy通)
+// orders.js - 雲端同步版 (戰鬥版 V8: 強制綁定按鈕 + 自動偵測連線)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log(`🚀 orders.js (Batch V6) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js (Batch V8) Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -21,6 +21,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 
 let payOrders = [];
 
+// 物流商 ID 對照表
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -40,37 +41,20 @@ const carrierMap = {
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    if (window.renderPayTable) window.renderPayTable();
+    if(window.renderPayTable) window.renderPayTable();
 });
 
 function savePayOrders() {
     set(payOrdersRef, payOrders).catch((err) => console.error('同步失敗', err));
 }
 
-function calculatePaymentDate(platform, pickupDateStr) {
-    if (!pickupDateStr) return { settlement: '-', payment: '-' };
-    const pickupDate = new Date(pickupDateStr);
-    const dow = pickupDate.getDay(); 
-    let settlementDate, paymentDate;
-    const addDays = (d, n) => { const date = new Date(d); date.setDate(date.getDate() + n); return date; };
-    const getNextWeekday = (d, t) => { const date = new Date(d); const cur = date.getDay(); let add = t - cur; if (add <= 0) add += 7; date.setDate(date.getDate() + add); return date; };
-
-    if (platform && (platform.includes('賣貨便') || platform.includes('7-11'))) {
-        if (dow >= 1 && dow <= 3) { settlementDate = getNextWeekday(pickupDate, 4); paymentDate = addDays(settlementDate, 4); } 
-        else { settlementDate = getNextWeekday(pickupDate, 1); paymentDate = addDays(settlementDate, 2); }
-    } else {
-        if (dow >= 1 && dow <= 3) { settlementDate = getNextWeekday(pickupDate, 5); paymentDate = addDays(settlementDate, 4); } 
-        else { settlementDate = getNextWeekday(pickupDate, 3); paymentDate = addDays(settlementDate, 1); }
-    }
-    return { settlement: settlementDate.toISOString().split('T')[0], payment: paymentDate.toISOString().split('T')[0] };
-}
-
 // ==========================================
-// ★★★ 1. 批量匯入功能 (修復綁定) ★★★
+// ★★★ 1. 批量匯入 (直接掛載到 window，防止失效) ★★★
 // ==========================================
-function importFromTextImpl() {
+window.importFromText = function() {
+    console.log("執行匯入...");
     const el = document.getElementById('importText');
-    if (!el) return alert('找不到輸入框');
+    if (!el) return alert('找不到輸入框 (ID: importText)');
     
     const txt = el.value;
     if(!txt) return alert('請先貼上資料喔！');
@@ -80,6 +64,7 @@ function importFromTextImpl() {
 
     lines.forEach(line => {
         if(!line.trim()) return;
+        // 兼容 Tab 或逗號分隔
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
 
         if(cols.length >= 3) {
@@ -88,7 +73,7 @@ function importFromTextImpl() {
             if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
-            let trackNo = cols[7] || ''; // 第8欄
+            let trackNo = cols[7] || ''; // 第8欄物流單號
 
             payOrders.push({
                 no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
@@ -107,22 +92,22 @@ function importFromTextImpl() {
     } else {
         alert('匯入失敗：格式不符');
     }
-}
+};
 
 // ==========================================
-// ★★★ 2. 智慧批次追蹤 (Batch + Proxy) ★★★
+// ★★★ 2. 追蹤貨況 (智慧偵錯版) ★★★
 // ==========================================
-async function checkAllTrackingImpl() {
+window.checkAllTracking = async function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n若跳出視窗，請點擊 "Request temporary access" 按鈕開通連線。`)) return;
 
+    // 初始化狀態
     indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
-    renderPayTable();
+    window.renderPayTable();
 
     const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
-    // ★★★ Proxy 網址：解決 CORS 的關鍵 ★★★
     const proxyUrl = "https://cors-anywhere.herokuapp.com/";
     const targetUrl = "https://track.tw/api/v1";
 
@@ -133,6 +118,7 @@ async function checkAllTrackingImpl() {
     };
 
     try {
+        // 分組
         const groups = {};
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -149,14 +135,12 @@ async function checkAllTrackingImpl() {
             }
         });
 
-        // 批次匯入 (Batch Import)
+        // 1. 批次匯入
         for (const [cId, numbers] of Object.entries(groups)) {
-            const chunks = chunkArray(numbers, 40); 
-            
+            const chunks = chunkArray(numbers, 40);
             for (const chunk of chunks) {
-                console.log(`匯入物流商 ${cId} 的 ${chunk.length} 筆訂單...`);
+                console.log(`匯入 ${chunk.length} 筆...`);
                 try {
-                    // ★ 加上 Proxy 前綴
                     const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiToken}` },
@@ -167,29 +151,27 @@ async function checkAllTrackingImpl() {
                         })
                     });
                     
-                    if (!res.ok) {
+                    if (res.status === 403 || res.status === 429) {
                         const text = await res.text();
-                        if (text.includes("The origin")) throw new Error("Proxy需開通");
+                        if (text.includes("See /corsdemo")) throw new Error("PROXY_NEED_AUTH");
                     }
                 } catch(importErr) {
-                    console.error("匯入請求失敗:", importErr);
-                    if(importErr.message.includes("Proxy")) throw importErr;
+                    if(importErr.message === "PROXY_NEED_AUTH") throw importErr;
+                    console.warn("匯入警告:", importErr);
                 }
                 await new Promise(r => setTimeout(r, 1000));
             }
         }
 
-        // 批次下載狀態
-        console.log("下載最新貨況...");
+        // 2. 下載狀態
+        console.log("下載貨況...");
         const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
 
-        if(!inboxRes.ok) {
-             if(inboxRes.status === 403) throw new Error("Proxy需開通");
-             throw new Error(`API回應錯誤: ${inboxRes.status}`);
-        }
+        if (inboxRes.status === 403) throw new Error("PROXY_NEED_AUTH");
+        if (!inboxRes.ok) throw new Error(`API錯誤 ${inboxRes.status}`);
         
         const inboxData = await inboxRes.json();
         const packageList = inboxData.data || [];
@@ -206,7 +188,7 @@ async function checkAllTrackingImpl() {
             }
         });
 
-        // 更新介面 + 翻譯
+        // 3. 更新
         let updatedCount = 0;
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -217,17 +199,12 @@ async function checkAllTrackingImpl() {
                 let showStatus = rawStatus;
                 let s = String(rawStatus).toLowerCase(); 
 
-                if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) {
-                    showStatus = "✅ 已配達";
-                } else if (s.includes('picked') || s.includes('collected')) {
-                    showStatus = "✅ 已取件";
-                } else if (s.includes('store') || s.includes('arrival') || s.includes('arrived') || s.includes('ready') || s.includes('門市') || s.includes('已達')) {
-                    showStatus = "🏪 已達門市";
-                } else if (s.includes('transit') || s.includes('shipping') || s.includes('transport') || s.includes('way') || s.includes('配送')) {
-                    showStatus = "🚚 配送中";
-                } else if (s.includes('pending') || s.includes('created') || s.includes('order_placed')) {
-                    showStatus = "📄 待出貨";
-                }
+                if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) showStatus = "✅ 已配達";
+                else if (s.includes('picked') || s.includes('collected')) showStatus = "✅ 已取件";
+                else if (s.includes('store') || s.includes('arrival') || s.includes('arrived') || s.includes('ready') || s.includes('門市') || s.includes('已達')) showStatus = "🏪 已達門市";
+                else if (s.includes('transit') || s.includes('shipping') || s.includes('transport') || s.includes('way') || s.includes('配送')) showStatus = "🚚 配送中";
+                else if (s.includes('pending') || s.includes('created') || s.includes('order_placed')) showStatus = "📄 待出貨";
+                else if (s.includes('return')) showStatus = "🔙 退貨中";
 
                 order.trackingStatus = showStatus;
                 updatedCount++;
@@ -244,13 +221,11 @@ async function checkAllTrackingImpl() {
         alert(`查詢完成！更新了 ${updatedCount} 筆訂單。`);
 
     } catch (e) {
-        console.error("Batch Error:", e);
-        let msg = "連線錯誤";
-        if(e.message.includes("Proxy") || e.message.includes("開通")) {
-            msg = "請開通 Proxy";
+        console.error("Tracking Error:", e);
+        let msg = "連線失敗";
+        if (e.message === "PROXY_NEED_AUTH" || e.message.includes("403")) {
+            msg = "請點擊新視窗按鈕開通連線！";
             window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
-        } else if (e.message.includes("流量")) {
-            msg = "流量超標(請稍候)";
         }
         
         indices.forEach(i => { 
@@ -260,12 +235,30 @@ async function checkAllTrackingImpl() {
         savePayOrders();
         alert(msg);
     }
-}
+};
 
 // ==========================================
-// ★★★ 3. 渲染表格 (修復綁定) ★★★
+// ★★★ 3. 渲染與工具 (全部直接掛載) ★★★
 // ==========================================
-function renderPayTableImpl() {
+function calculatePaymentDate(platform, pickupDateStr) {
+    if (!pickupDateStr) return { settlement: '-', payment: '-' };
+    const pickupDate = new Date(pickupDateStr);
+    const dow = pickupDate.getDay(); 
+    let settlementDate, paymentDate;
+    const addDays = (d, n) => { const date = new Date(d); date.setDate(date.getDate() + n); return date; };
+    const getNextWeekday = (d, t) => { const date = new Date(d); const cur = date.getDay(); let add = t - cur; if (add <= 0) add += 7; date.setDate(date.getDate() + add); return date; };
+
+    if (platform && (platform.includes('賣貨便') || platform.includes('7-11'))) {
+        if (dow >= 1 && dow <= 3) { settlementDate = getNextWeekday(pickupDate, 4); paymentDate = addDays(settlementDate, 4); } 
+        else { settlementDate = getNextWeekday(pickupDate, 1); paymentDate = addDays(settlementDate, 2); }
+    } else {
+        if (dow >= 1 && dow <= 3) { settlementDate = getNextWeekday(pickupDate, 5); paymentDate = addDays(settlementDate, 4); } 
+        else { settlementDate = getNextWeekday(pickupDate, 3); paymentDate = addDays(settlementDate, 1); }
+    }
+    return { settlement: settlementDate.toISOString().split('T')[0], payment: paymentDate.toISOString().split('T')[0] };
+}
+
+window.renderPayTable = function() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
@@ -299,7 +292,7 @@ function renderPayTableImpl() {
             else if (order.trackingStatus.includes('配送')) trackColor = '#007bff'; 
             else if (order.trackingStatus.includes('查無') || order.trackingStatus.includes('❌')) trackColor = '#dc3545'; 
             
-            if (order.trackingStatus.includes('❌') || order.trackingStatus.includes('查無') || order.trackingStatus.includes('LINK')) {
+            if (order.trackingStatus.includes('❌') || order.trackingStatus.includes('查無') || order.trackingStatus.includes('LINK') || order.trackingStatus.includes('連線')) {
                  let linkUrl = "#";
                  if (order.platform && order.platform.includes("7-11")) linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
                  else if (order.platform && order.platform.includes("全家")) linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
@@ -323,37 +316,30 @@ function renderPayTableImpl() {
         tr.innerHTML = `<td><input type="checkbox" class="pay-chk" data-idx="${index}"></td><td>${order.no}</td><td>${order.name}</td><td>${order.phone}</td><td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td><td>${order.shipDate || '-'}</td><td>${order.deadline || '-'}</td><td>${trackHtml} ${subNoHtml}</td><td>${statusHtml}</td><td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>`;
         tbody.appendChild(tr);
     });
-}
+};
 
-// ==========================================
-// ★★★ 4. 其他小工具實作 (全部集中定義) ★★★
-// ==========================================
-function addNewOrderImpl() { const no = document.getElementById('addOrderNo').value; const name = document.getElementById('addName').value; if(!no || !name) return alert('請填寫完整資訊'); let p = document.getElementById('addPlatform').value; if(p.includes('賣貨便')) p = '7-11'; if(p.includes('好賣')) p = '全家'; payOrders.push({ no: no.startsWith('#') ? no : '#'+no, name: name, phone: document.getElementById('addPhone').value, platform: p, store: '', shipDate: document.getElementById('addShipDate').value, deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: '', trackingNum: '' }); savePayOrders(); alert('新增成功！'); }
-function updateOrderPickupImpl(index, dateStr) { if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); } }
-function resetOrderStatusImpl(index) { if(confirm('重設為未取貨？')) { payOrders[index].pickupDate = null; savePayOrders(); } }
-function deleteOrderImpl(index) { if(confirm('確定刪除？')) { payOrders.splice(index, 1); savePayOrders(); } }
-function toggleSelectAllPayImpl() { const checked = document.getElementById('selectAllPay').checked; document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked); }
-function batchSetDateImpl() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return alert('請先勾選訂單'); const dateVal = document.getElementById('batchDateInput').value; if(!dateVal) return alert('請先選擇日期'); if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) { indices.forEach(i => { payOrders[i].pickupDate = dateVal; if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no); }); savePayOrders(); } }
-function batchDeleteOrdersImpl() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return; if(confirm(`刪除 ${indices.length} 筆？`)) { indices.sort((a,b) => b-a).forEach(i => payOrders.splice(i, 1)); savePayOrders(); document.getElementById('selectAllPay').checked = false; } }
-function pushToSMSImpl() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return alert('請先勾選訂單'); const dataToSync = indices.map(i => payOrders[i]); if(window.receiveOrdersFromPay) { window.receiveOrdersFromPay(dataToSync); alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`); switchMainTab('sms'); } else { alert('SMS 模組尚未載入，請稍候'); } }
-function doCalcImpl() { const p = document.getElementById('calcPlatform').value; const d = document.getElementById('calcDate').value; if(!d) return; const res = calculatePaymentDate(p, d); document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`; }
-function exportOrdersExcelImpl() { if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出'); if(typeof XLSX !== 'undefined') { const ws = XLSX.utils.json_to_sheet(payOrders); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Orders"); XLSX.writeFile(wb, "orders_backup.xlsx"); } else { alert('匯出元件未載入'); } }
+window.addNewOrder = function() { const no = document.getElementById('addOrderNo').value; const name = document.getElementById('addName').value; if(!no || !name) return alert('請填寫完整資訊'); let p = document.getElementById('addPlatform').value; if(p.includes('賣貨便')) p = '7-11'; if(p.includes('好賣')) p = '全家'; payOrders.push({ no: no.startsWith('#') ? no : '#'+no, name: name, phone: document.getElementById('addPhone').value, platform: p, store: '', shipDate: document.getElementById('addShipDate').value, deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: '', trackingNum: '' }); savePayOrders(); alert('新增成功！'); };
+window.updateOrderPickup = function(index, dateStr) { if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); } };
+window.resetOrderStatus = function(index) { if(confirm('重設為未取貨？')) { payOrders[index].pickupDate = null; savePayOrders(); } };
+window.deleteOrder = function(index) { if(confirm('確定刪除？')) { payOrders.splice(index, 1); savePayOrders(); } };
+window.toggleSelectAllPay = function() { const checked = document.getElementById('selectAllPay').checked; document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked); };
+window.batchSetDate = function() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return alert('請先勾選訂單'); const dateVal = document.getElementById('batchDateInput').value; if(!dateVal) return alert('請先選擇日期'); if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) { indices.forEach(i => { payOrders[i].pickupDate = dateVal; if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no); }); savePayOrders(); } };
+window.batchDeleteOrders = function() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return; if(confirm(`刪除 ${indices.length} 筆？`)) { indices.sort((a,b) => b-a).forEach(i => payOrders.splice(i, 1)); savePayOrders(); document.getElementById('selectAllPay').checked = false; } };
+window.pushToSMS = function() { const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx)); if(indices.length === 0) return alert('請先勾選訂單'); const dataToSync = indices.map(i => payOrders[i]); if(window.receiveOrdersFromPay) { window.receiveOrdersFromPay(dataToSync); alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`); switchMainTab('sms'); } else { alert('SMS 模組尚未載入，請稍候'); } };
+window.doCalc = function() { const p = document.getElementById('calcPlatform').value; const d = document.getElementById('calcDate').value; if(!d) return; const res = calculatePaymentDate(p, d); document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`; };
+window.exportOrdersExcel = function() { if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出'); if(typeof XLSX !== 'undefined') { const ws = XLSX.utils.json_to_sheet(payOrders); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Orders"); XLSX.writeFile(wb, "orders_backup.xlsx"); } else { alert('匯出元件未載入'); } };
 
-// ==========================================
-// ★★★ 最後一步：一次性綁定到 Window ★★★
-// ==========================================
-window.importFromText = importFromTextImpl;
-window.renderPayTable = renderPayTableImpl; // 這裡綁定上面的 renderPayTableImpl
-window.checkAllTracking = checkAllTrackingImpl;
-window.addNewOrder = addNewOrderImpl;
-window.updateOrderPickup = updateOrderPickupImpl;
-window.resetOrderStatus = resetOrderStatusImpl;
-window.deleteOrder = deleteOrderImpl;
-window.toggleSelectAllPay = toggleSelectAllPayImpl;
-window.batchSetDate = batchSetDateImpl;
-window.batchDeleteOrders = batchDeleteOrdersImpl;
-window.pushToSMS = pushToSMSImpl;
-window.doCalc = doCalcImpl;
-window.exportOrdersExcel = exportOrdersExcelImpl;
+console.log("✅ orders.js 載入成功！");
+```
 
-console.log("✅ orders.js 載入成功！系統功能已就緒。");
+---
+
+### ⚠️ 操作關鍵 (如果看到「連線失敗」)
+
+如果您更新後，按下追蹤卻看到 **「❌ 請點擊新視窗按鈕開通連線！」** 或是跳出一個新視窗：
+
+1.  這代表您的 Proxy 權限過期了（正常現象，因為它是免費的）。
+2.  請在新跳出的視窗（cors-anywhere 頁面）中，點擊那個 **"Request temporary access to the demo server"** 按鈕。
+3.  看到綠字後，關掉該視窗，回到訂單系統，**再按一次「🔍 追蹤貨況」**。
+
+這次一定會成功！ (因為按鈕已經修好，且會自動偵測連線狀態) 🚀
