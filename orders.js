@@ -155,20 +155,33 @@ async function checkAllTrackingImpl() {
     const inboxData = await inboxRes.json();
     const packageList = inboxData.data || [];
 
-    // 建立快查表: 單號 -> 狀態
-    const statusMap = {};
-    packageList.forEach(item => {
-      const tn = item?.package?.tracking_number;
-      if (!tn) return;
+// 建立快查表: 單號 -> { text, code }
+const statusMap = {};
+packageList.forEach(item => {
+  const tn = item?.package?.tracking_number;
+  if (!tn) return;
 
-      // 優先使用 latest_package_history
-      let status = item?.package?.latest_package_history;
+  const hist = item?.package?.latest_package_history;
 
-      // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
-      const ph = item?.package?.package_history;
-      if (!status && Array.isArray(ph) && ph.length > 0) {
-        status = ph[0]?.status || ph[0]?.checkpoint_status;
-      }
+  // text: 主要顯示用（中文狀態句）
+  // code: checkpoint_status（delivered/transit/...）用來做判斷
+  const text = hist?.status || "";                  // ✅ 字串
+  const code = hist?.checkpoint_status || "";       // ✅ 字串
+
+  // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
+  if (!text && !code) {
+    const ph = item?.package?.package_history;
+    if (Array.isArray(ph) && ph.length > 0) {
+      const t = ph[0]?.status || "";
+      const c = ph[0]?.checkpoint_status || "";
+      if (t || c) statusMap[tn] = { text: t, code: c };
+    }
+    return;
+  }
+
+  statusMap[tn] = { text, code };
+});
+
 
       if (status) statusMap[tn] = status;
     });
@@ -178,30 +191,36 @@ async function checkAllTrackingImpl() {
 
     indices.forEach(idx => {
       const order = payOrders[idx];
-      const trackNo = order.trackingNum || order.no;
-      const status = statusMap[trackNo];
+      const trackNo = String(order.trackingNum || "").trim();
 
-      if (status) {
-        let showStatus = String(status);
+const s = statusMap[trackNo];
 
-        // 翻譯（沿用你原本規則）
-        if (showStatus.includes("delivered") || showStatus.includes("arrived")) showStatus = "已配達";
-        if (showStatus.includes("transit")) showStatus = "配送中";
-        if (showStatus.includes("pending")) showStatus = "待出貨";
-        if (showStatus.includes("picked_up")) showStatus = "已取件";
-        if (showStatus.includes("shipping")) showStatus = "運送中";
+if (s) {
+  // 優先用 Track 回來的中文狀態文字
+  let showStatus = s.text || "";
 
-        order.trackingStatus = showStatus;
-        updatedCount++;
+  // 如果沒有 text（少見），才用 code 做翻譯
+  if (!showStatus) {
+    const code = String(s.code || "");
+    if (code.includes("delivered") || code.includes("arrived")) showStatus = "已配達";
+    else if (code.includes("transit")) showStatus = "配送中";
+    else if (code.includes("pending")) showStatus = "待出貨";
+    else if (code.includes("picked_up")) showStatus = "已取件";
+    else if (code.includes("shipping")) showStatus = "運送中";
+    else showStatus = "更新中";
+  }
 
-        // 自動填入日期（維持你原本邏輯）
-        if (showStatus.includes("已配達") || showStatus.includes("已取")) {
-          if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
-        }
-      } else {
-        order.trackingStatus = "查無(或未入庫)";
-      }
-    });
+  order.trackingStatus = showStatus;
+  updatedCount++;
+
+  // 自動填入日期（維持你原本邏輯）
+  if (showStatus.includes("已配達") || showStatus.includes("已取") || (s.code || "").includes("delivered")) {
+    if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
+  }
+} else {
+  order.trackingStatus = "查無(或未入庫)";
+}
+
 
     savePayOrders();
     alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。\n（提醒：Track 那邊沒匯入單號就會顯示查無）`);
