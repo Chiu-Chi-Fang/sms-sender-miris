@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (完整修復：自動匯入 -> 搜尋 UUID -> 取得貨況)
+// orders.js - 雲端同步版 (最終代理版：解決 Preflight 錯誤)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log("🚀 開始載入 orders.js...");
+console.log("🚀 開始載入 orders.js (Proxy版)...");
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -23,7 +23,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 // 2. 全域變數
 let payOrders = [];
 
-// 3. 物流商 ID 對照表 (根據您提供的 JSON 更新)
+// 3. 物流商 ID 對照表
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -151,16 +151,16 @@ function importFromTextImpl() {
     }
 }
 
-// --- 智慧追蹤功能 (三步驟：匯入 -> 搜尋 -> 查狀態) ---
+// --- 智慧追蹤功能 (透過 CORS Proxy) ---
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n系統將自動註冊並獲取最新狀態。`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
 
     for (let i of indices) {
         await checkTrackingSingle(i);
-        // 稍微暫停一下，避免太快被擋
+        // 暫停 1 秒，禮貌性查詢
         await new Promise(r => setTimeout(r, 1000)); 
     }
     
@@ -177,7 +177,6 @@ async function checkTrackingSingle(index) {
     order.trackingStatus = "⏳ 查詢中...";
     renderPayTable();
 
-    // 1. 取得 Carrier ID
     let carrierId = "";
     if (order.platform) {
         const keys = Object.keys(carrierMap);
@@ -196,14 +195,17 @@ async function checkTrackingSingle(index) {
     }
 
     const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
+    // ★★★ 魔法關鍵：使用 cors-anywhere 代理伺服器 ★★★
+    const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+    const targetUrl = "https://track.tw/api/v1"; 
+    
     let finalStatus = null;
     let errorMsg = "";
 
     try {
-        // ★ 步驟 1: 強制匯入 (POST) - 確保單號在系統中
-        // 就算已經匯入過，這步也沒關係，API 會處理
+        // Step 1: 強制匯入 (透過 Proxy)
         console.log(`[${queryNo}] Step 1: 匯入中...`);
-        await fetch('https://track.tw/api/v1/package/import', {
+        await fetch(`${proxyUrl}${targetUrl}/package/import`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
@@ -214,22 +216,23 @@ async function checkTrackingSingle(index) {
                 "tracking_number": [queryNo],
                 "notify_state": "inactive"
             })
-        }); // 這裡不檢查回傳，只要確保送出即可
+        });
 
-        // ★ 步驟 2: 搜尋該單號取得 UUID (GET /package/all/inbox?q=...)
-        // 因為直接 Import 回傳的不一定是狀態，我們用搜尋來拿 UUID 最穩
+        // Step 2: 搜尋 UUID (透過 Proxy)
         console.log(`[${queryNo}] Step 2: 搜尋 UUID...`);
-        const searchRes = await fetch(`https://track.tw/api/v1/package/all/inbox?q=${encodeURIComponent(queryNo)}&size=1`, {
+        const searchRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?q=${encodeURIComponent(queryNo)}&size=1`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
         
+        if (searchRes.status === 403) {
+            throw new Error("請先開通CORS代理");
+        }
+
         const searchData = await searchRes.json();
         let targetUuid = null;
 
-        // 從搜尋結果中找 UUID
         if (searchData.data && searchData.data.length > 0) {
-            // data[0].package.id 才是真正的包裹 UUID
             if (searchData.data[0].package && searchData.data[0].package.id) {
                 targetUuid = searchData.data[0].package.id;
             }
@@ -237,9 +240,9 @@ async function checkTrackingSingle(index) {
 
         if (!targetUuid) throw new Error("查無此單(無UUID)");
 
-        // ★ 步驟 3: 用 UUID 查詳細狀態 (GET /package/tracking/{uuid})
-        console.log(`[${queryNo}] Step 3: 取得狀態 (UUID: ${targetUuid})...`);
-        const trackRes = await fetch(`https://track.tw/api/v1/package/tracking/${targetUuid}`, {
+        // Step 3: 取得狀態 (透過 Proxy)
+        console.log(`[${queryNo}] Step 3: 取得狀態...`);
+        const trackRes = await fetch(`${proxyUrl}${targetUrl}/package/tracking/${targetUuid}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
@@ -248,7 +251,6 @@ async function checkTrackingSingle(index) {
         
         // 解析狀態
         let statusText = "未知";
-        // 優先看歷史紀錄的第一筆 (最新)
         if (trackData.package_history && trackData.package_history.length > 0) {
             const latest = trackData.package_history[0];
             statusText = latest.status || latest.checkpoint_status || "未知";
@@ -274,7 +276,13 @@ async function checkTrackingSingle(index) {
 
     } catch (error) {
         console.error(`單號 ${queryNo} 處理失敗:`, error);
-        errorMsg = error.message === "Failed to fetch" ? "被擋(CORS)" : "查無資料";
+        if (error.message.includes("請先開通")) {
+            errorMsg = "請點擊開通Proxy";
+            // 自動開啟開通頁面
+            window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
+        } else {
+            errorMsg = error.message === "Failed to fetch" ? "Proxy連線失敗" : "查無資料";
+        }
     }
 
     if (finalStatus) {
@@ -316,7 +324,6 @@ function renderPayTable() {
 
         const queryNo = order.trackingNum || order.no;
 
-        // 物流狀態顯示
         let trackHtml = '<span style="color:#ccc;">-</span>';
         
         if (order.trackingStatus === "LINK_FALLBACK") {
