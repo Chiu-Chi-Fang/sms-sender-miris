@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (最終版：顯示詳細錯誤原因)
+// orders.js - 雲端同步版 (完整修復：自動匯入 -> 搜尋 UUID -> 取得貨況)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -23,7 +23,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 // 2. 全域變數
 let payOrders = [];
 
-// 3. 物流商 ID 對照表
+// 3. 物流商 ID 對照表 (根據您提供的 JSON 更新)
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -48,7 +48,7 @@ onValue(payOrdersRef, (snapshot) => {
 });
 
 // ==========================================
-// 核心功能函式定義
+// 核心功能函式
 // ==========================================
 
 function savePayOrders() {
@@ -106,10 +106,7 @@ function calculatePaymentDate(platform, pickupDateStr) {
 function importFromTextImpl() {
     console.log("執行匯入功能...");
     const el = document.getElementById('importText');
-    if (!el) {
-        alert('找不到輸入框，請確認您在「新增/匯入」分頁');
-        return;
-    }
+    if (!el) return alert('找不到輸入框');
     const txt = el.value;
     if(!txt) return alert('請先貼上資料喔！');
 
@@ -126,7 +123,7 @@ function importFromTextImpl() {
             if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
-            let trackNo = cols[7] || '';
+            let trackNo = cols[7] || ''; // 第8欄是物流單號
 
             payOrders.push({
                 no: cols[0], 
@@ -154,16 +151,17 @@ function importFromTextImpl() {
     }
 }
 
-// --- 智慧追蹤功能 ---
+// --- 智慧追蹤功能 (三步驟：匯入 -> 搜尋 -> 查狀態) ---
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n系統將透過匯入 API 自動取得最新貨況。`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n系統將自動註冊並獲取最新狀態。`)) return;
 
     for (let i of indices) {
         await checkTrackingSingle(i);
-        await new Promise(r => setTimeout(r, 800)); 
+        // 稍微暫停一下，避免太快被擋
+        await new Promise(r => setTimeout(r, 1000)); 
     }
     
     savePayOrders();
@@ -179,6 +177,7 @@ async function checkTrackingSingle(index) {
     order.trackingStatus = "⏳ 查詢中...";
     renderPayTable();
 
+    // 1. 取得 Carrier ID
     let carrierId = "";
     if (order.platform) {
         const keys = Object.keys(carrierMap);
@@ -201,70 +200,81 @@ async function checkTrackingSingle(index) {
     let errorMsg = "";
 
     try {
-        console.log(`[${queryNo}] 呼叫 API...`);
-        
-        const response = await fetch('https://track.tw/api/v1/package/import', {
+        // ★ 步驟 1: 強制匯入 (POST) - 確保單號在系統中
+        // 就算已經匯入過，這步也沒關係，API 會處理
+        console.log(`[${queryNo}] Step 1: 匯入中...`);
+        await fetch('https://track.tw/api/v1/package/import', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${apiToken}`,
-                'accept': 'application/json'
+                'Authorization': `Bearer ${apiToken}`
             },
             body: JSON.stringify({
                 "carrier_id": carrierId,
-                "tracking_number": [queryNo], 
+                "tracking_number": [queryNo],
                 "notify_state": "inactive"
             })
+        }); // 這裡不檢查回傳，只要確保送出即可
+
+        // ★ 步驟 2: 搜尋該單號取得 UUID (GET /package/all/inbox?q=...)
+        // 因為直接 Import 回傳的不一定是狀態，我們用搜尋來拿 UUID 最穩
+        console.log(`[${queryNo}] Step 2: 搜尋 UUID...`);
+        const searchRes = await fetch(`https://track.tw/api/v1/package/all/inbox?q=${encodeURIComponent(queryNo)}&size=1`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiToken}` }
+        });
+        
+        const searchData = await searchRes.json();
+        let targetUuid = null;
+
+        // 從搜尋結果中找 UUID
+        if (searchData.data && searchData.data.length > 0) {
+            // data[0].package.id 才是真正的包裹 UUID
+            if (searchData.data[0].package && searchData.data[0].package.id) {
+                targetUuid = searchData.data[0].package.id;
+            }
+        }
+
+        if (!targetUuid) throw new Error("查無此單(無UUID)");
+
+        // ★ 步驟 3: 用 UUID 查詳細狀態 (GET /package/tracking/{uuid})
+        console.log(`[${queryNo}] Step 3: 取得狀態 (UUID: ${targetUuid})...`);
+        const trackRes = await fetch(`https://track.tw/api/v1/package/tracking/${targetUuid}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${apiToken}` }
         });
 
-        if (!response.ok) {
-            throw new Error(`API 錯誤: ${response.status}`);
-        }
-
-        const resData = await response.json();
+        const trackData = await trackRes.json();
         
-        let packageData = null;
-        if (Array.isArray(resData)) {
-            packageData = resData[0];
-        } else if (resData.data && Array.isArray(resData.data)) {
-            packageData = resData.data[0];
-        } else if (resData.id) {
-            packageData = resData; 
+        // 解析狀態
+        let statusText = "未知";
+        // 優先看歷史紀錄的第一筆 (最新)
+        if (trackData.package_history && trackData.package_history.length > 0) {
+            const latest = trackData.package_history[0];
+            statusText = latest.status || latest.checkpoint_status || "未知";
         }
 
-        if (packageData) {
-            let statusText = "未知";
-            if (packageData.package_history && packageData.package_history.length > 0) {
-                const latest = packageData.package_history[0];
-                statusText = latest.status || latest.checkpoint_status || "未知";
-            } else if (packageData.status) {
-                statusText = packageData.status;
+        // 狀態翻譯
+        if (statusText === "delivered") statusText = "已配達";
+        if (statusText === "transit") statusText = "配送中";
+        if (statusText === "pending") statusText = "待出貨";
+        if (statusText === "picked_up") statusText = "已取件";
+        if (statusText === "shipping") statusText = "運送中";
+        if (statusText === "arrived") statusText = "已配達";
+
+        finalStatus = statusText;
+
+        // 自動勾選已取 + 填入日期
+        if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
+            if(!order.pickupDate) {
+                const today = new Date().toISOString().split('T')[0];
+                order.pickupDate = today;
             }
-
-            if (statusText === "delivered") statusText = "已配達";
-            if (statusText === "transit") statusText = "配送中";
-            if (statusText === "pending") statusText = "待出貨";
-            if (statusText === "picked_up") statusText = "已取件";
-            if (statusText === "shipping") statusText = "運送中";
-            if (statusText === "arrived") statusText = "已配達";
-
-            finalStatus = statusText;
-
-            if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
-                if(!order.pickupDate) {
-                    const today = new Date().toISOString().split('T')[0];
-                    order.pickupDate = today;
-                }
-            }
-        } else {
-            errorMsg = `API格式異常`;
-            console.warn("API回傳:", resData);
         }
 
     } catch (error) {
         console.error(`單號 ${queryNo} 處理失敗:`, error);
-        // ★★★ 這裡會顯示真正的錯誤原因 ★★★
-        errorMsg = error.message === "Failed to fetch" ? "被瀏覽器擋住 (請開CORS)" : error.message; 
+        errorMsg = error.message === "Failed to fetch" ? "被擋(CORS)" : "查無資料";
     }
 
     if (finalStatus) {
@@ -306,6 +316,7 @@ function renderPayTable() {
 
         const queryNo = order.trackingNum || order.no;
 
+        // 物流狀態顯示
         let trackHtml = '<span style="color:#ccc;">-</span>';
         
         if (order.trackingStatus === "LINK_FALLBACK") {
@@ -388,7 +399,7 @@ window.importFromText = importFromTextImpl;
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTrackingImpl;
 window.addNewOrder = addNewOrderImpl;
-window.updateOrderPickup = updateOrderPickupImpl; // 補回這幾個功能
+window.updateOrderPickup = updateOrderPickupImpl;
 window.resetOrderStatus = resetOrderStatusImpl;
 window.deleteOrder = deleteOrderImpl;
 window.toggleSelectAllPay = toggleSelectAllPayImpl;
@@ -398,7 +409,7 @@ window.pushToSMS = pushToSMSImpl;
 window.doCalc = doCalcImpl;
 window.exportOrdersExcel = exportOrdersExcelImpl;
 
-// 補上小工具實作
+// 補上小工具實作 (避免 ReferenceError)
 function addNewOrderImpl() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
@@ -474,4 +485,5 @@ function exportOrdersExcelImpl() {
     }
 }
 
-console.log("✅ orders.js 載入成功！按鈕功能已就緒。");
+console.log("✅ orders.js 載入成功！系統功能已就緒。");
+// END OF FILE
