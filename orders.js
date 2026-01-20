@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (支援 Excel 匯入物流單號)
+// orders.js - 雲端同步版 (整合 Track.TW 物流商 ID 對照)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -19,7 +19,33 @@ const payOrdersRef = ref(db, 'pay_orders');
 
 let payOrders = [];
 
-// 1. 監聽雲端資料
+// ==========================================
+// ★★★ 1. 物流商 ID 對照表 (根據您提供的 JSON) ★★★
+// ==========================================
+const carrierMap = {
+    // 超商類
+    '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
+    '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19', // 賣貨便 = 7-11
+    '全家': '9a980968-0ecf-4ee5-8765-fbeaed8a524e',
+    '好賣+': '9a980968-0ecf-4ee5-8765-fbeaed8a524e', // 好賣+ = 全家
+    '萊爾富': '9a980b3f-450f-4564-b73e-2ebd867666b0',
+    'OK': '9a980d97-1101-4adb-87eb-78266878b384',
+    'OK mart': '9a980d97-1101-4adb-87eb-78266878b384',
+    '蝦皮': '9a98100c-c984-463d-82a6-ae86ec4e0b8a',
+    '蝦皮店到店': '9a98100c-c984-463d-82a6-ae86ec4e0b8a',
+
+    // 宅配類
+    '郵局': '9a9812d2-c275-4726-9bdc-2ae5b4c42c73',
+    '中華郵政': '9a9812d2-c275-4726-9bdc-2ae5b4c42c73',
+    '黑貓': '9a98160d-27e3-40ab-9357-9d81466614e0',
+    '黑貓宅急便': '9a98160d-27e3-40ab-9357-9d81466614e0',
+    '宅配通': '9a984351-dc4f-405b-971c-671220c75f21',
+    '新竹物流': '9a9840bc-a5d9-4c4a-8cd2-a79031b4ad53',
+    '嘉里大榮': '9a98424a-935f-4b23-9a94-a08e1db52944',
+    '順豐': '9b39c083-c77d-45a9-b403-2112bcddb1ae'
+};
+
+// 監聽雲端資料
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
@@ -30,7 +56,7 @@ function savePayOrders() {
     set(payOrdersRef, payOrders).catch((err) => console.error('同步失敗', err));
 }
 
-// 2. 日期計算工具
+// 日期計算工具
 function getNextWeekday(date, targetDay) {
     const d = new Date(date);
     const cur = d.getDay(); 
@@ -76,14 +102,13 @@ function calculatePaymentDate(platform, pickupDateStr) {
 }
 
 // ==========================================
-// ★★★ 物流追蹤功能 (使用匯入的物流單號) ★★★
+// ★★★ 2. 升級版物流追蹤 (自動帶入 Carrier ID) ★★★
 // ==========================================
 window.checkAllTracking = async function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    const confirmMsg = `準備查詢 ${indices.length} 筆訂單...\n將優先使用匯入的「物流單號」進行查詢。`;
-    if(!confirm(confirmMsg)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n將使用對照表自動匹配物流商 ID。`)) return;
 
     for (let i of indices) {
         await checkTrackingSingle(i);
@@ -95,8 +120,6 @@ window.checkAllTracking = async function() {
 
 async function checkTrackingSingle(index) {
     const order = payOrders[index];
-    
-    // ★ 關鍵修改：優先抓取 trackingNum (匯入的物流號)，如果沒有才抓 no (訂單號)
     const queryNo = order.trackingNum || order.no; 
 
     if(!queryNo) return;
@@ -105,11 +128,28 @@ async function checkTrackingSingle(index) {
     renderPayTable();
 
     try {
-        // ★★★ API 設定區 ★★★
         const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
         
-        // 使用正確的號碼去查
-        const apiUrl = `https://track.tw/api/v1/package/tracking-number/${encodeURIComponent(queryNo)}`; 
+        // ★ 核心邏輯：根據平台名稱，找出對應的 Carrier ID
+        let carrierId = "";
+        if (order.platform) {
+            // 嘗試模糊比對，例如 "7-11深澳坑" 也能抓到 "7-11"
+            const keys = Object.keys(carrierMap);
+            for(let key of keys) {
+                if(order.platform.includes(key)) {
+                    carrierId = carrierMap[key];
+                    break;
+                }
+            }
+        }
+
+        // ★ 組裝網址：如果找到了 ID，就加在後面
+        let apiUrl = `https://track.tw/api/v1/package/tracking-number/${encodeURIComponent(queryNo)}`;
+        if (carrierId) {
+            apiUrl += `?carrier_id=${carrierId}`;
+        }
+
+        console.log(`查詢: ${queryNo}, 平台: ${order.platform}, CarrierID: ${carrierId || '無'}`);
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -141,7 +181,7 @@ async function checkTrackingSingle(index) {
 
     } catch (error) {
         console.error(`單號 ${queryNo} 查詢失敗:`, error);
-        order.trackingStatus = "❌ 失敗"; 
+        order.trackingStatus = "LINK_FALLBACK"; // 失敗就轉為官方連結按鈕
     }
     
     renderPayTable();
@@ -175,16 +215,40 @@ function renderPayTable() {
         if (filterVal === 'picked' && !isPicked) return;
         if (filterVal === 'unpicked' && isPicked) return;
 
-        let trackColor = '#007bff'; 
-        if(order.trackingStatus && (order.trackingStatus.includes('已') || order.trackingStatus.includes('完成'))) trackColor = '#28a745'; 
-        if(order.trackingStatus && order.trackingStatus.includes('失敗')) trackColor = '#dc3545'; 
+        const queryNo = order.trackingNum || order.no;
 
-        // 這裡可以選擇要不要把「物流單號」顯示出來，目前先顯示狀態就好，比較簡潔
-        const trackHtml = order.trackingStatus 
-            ? `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>` 
-            : '<span style="color:#ccc;">-</span>';
+        // ★★★ 物流狀態顯示邏輯 ★★★
+        let trackHtml = '<span style="color:#ccc;">-</span>';
+        
+        if (order.trackingStatus === "LINK_FALLBACK") {
+            let linkUrl = "#";
+            let linkText = "🔍 查官網";
+            let btnColor = "#6c757d"; 
 
-        // 如果有物流單號，可以在訂單號下方顯示一個小小的圖示或文字 (選用)
+            if (order.platform && (order.platform.includes("7-11") || order.platform.includes("賣貨便"))) {
+                linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
+                linkText = "查 7-11";
+                btnColor = "#27ae60"; 
+            } else if (order.platform && (order.platform.includes("全家") || order.platform.includes("好賣"))) {
+                linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`; 
+                linkText = "查 全家";
+                btnColor = "#2980b9"; 
+            } else if (order.platform && (order.platform.includes("萊爾富"))) {
+                linkUrl = `https://www.hilife.com.tw/serviceInfo_search.aspx`;
+                linkText = "查 萊爾富";
+                btnColor = "#e74c3c";
+            }
+
+            trackHtml = `<a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:${btnColor}; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${linkText}</a>`;
+            
+        } else if (order.trackingStatus) {
+            let trackColor = '#007bff'; 
+            if(order.trackingStatus.includes('已') || order.trackingStatus.includes('完成')) trackColor = '#28a745'; 
+            if(order.trackingStatus.includes('失敗')) trackColor = '#dc3545';
+            
+            trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
+        }
+
         const subNoHtml = order.trackingNum 
             ? `<br><span style="font-size:10px; color:#999;">🚚 ${order.trackingNum}</span>` 
             : '';
@@ -221,29 +285,23 @@ function renderPayTable() {
             <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
             <td>${order.shipDate || '-'}</td>
             <td>${order.deadline || '-'}</td>
-            <td>${trackHtml} ${subNoHtml}</td> <td>${statusHtml}</td>
+            <td>${trackHtml} ${subNoHtml}</td> 
+            <td>${statusHtml}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// ==========================================
-// ★★★ 4. 匯入功能 (修改版：讀取第 8 欄物流單號) ★★★
-// ==========================================
+// 4. 匯入功能
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
-
     const lines = txt.split('\n');
     let count = 0;
-
     lines.forEach(line => {
         if(!line.trim()) return;
-
-        // 使用 Tab 或逗號切割
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
-
         if(cols.length >= 3) {
             let rawPlatform = cols[3] || '';
             let finalPlatform = rawPlatform;
@@ -251,35 +309,22 @@ window.importFromText = function() {
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
             payOrders.push({
-                no: cols[0], 
-                name: cols[1], 
-                phone: cols[2], 
-                platform: finalPlatform,
-                store: cols[4] || '', 
-                shipDate: cols[5] || '', 
-                deadline: cols[6] || '',
-                
-                // ★★★ 讀取第 8 欄 (索引 7) 作為物流單號 ★★★
-                trackingNum: cols[7] || '', 
-
-                pickupDate: null, 
-                trackingStatus: ''
+                no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
+                store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
+                trackingNum: cols[7] || '', pickupDate: null, trackingStatus: ''
             });
             count++;
         }
     });
-
     if(count > 0) {
         savePayOrders();
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
         if(window.switchPaySubTab) window.switchPaySubTab('orders');
-    } else {
-        alert('匯入失敗：格式不符');
-    }
+    } else { alert('匯入失敗：格式不符'); }
 };
 
-// ... (後面的 addNewOrder 等功能維持不變) ...
+// ... 其他功能保持不變 ...
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
