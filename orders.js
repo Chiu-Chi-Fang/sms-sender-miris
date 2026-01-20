@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (平台名稱自動轉換：賣貨便->7-11, 好賣+->全家)
+// orders.js - 雲端同步版 (含篩選功能 + 7-11/全家名稱轉換)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -24,7 +24,7 @@ let payOrders = [];
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    renderPayTable();
+    renderPayTable(); // 資料變動時重畫
 });
 
 function savePayOrders() {
@@ -49,7 +49,7 @@ function addDays(date, days) {
     return d;
 }
 
-// ★★★ 修正計算邏輯：讓系統看得懂 7-11 和 全家 ★★★
+// 撥款日計算邏輯 (含 7-11/全家)
 function calculatePaymentDate(platform, pickupDateStr) {
     if (!pickupDateStr) return { settlement: '-', payment: '-' };
     const pickupDate = new Date(pickupDateStr);
@@ -81,7 +81,9 @@ function calculatePaymentDate(platform, pickupDateStr) {
     };
 }
 
-// 3. 渲染列表 (含篩選功能)
+// ==========================================
+// ★★★ 3. 渲染列表 (修復版：支援篩選) ★★★
+// ==========================================
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -92,22 +94,22 @@ function renderPayTable() {
         return;
     }
 
-    // ★★★ 1. 取得目前篩選狀態 ★★★
-    // 找出網頁上哪個 radio 被勾選了 (all, picked, 或 unpicked)
+    // ★★★ 取得篩選狀態 ★★★
+    // 找出目前選中的是哪一個 radio 按鈕
     const filterEl = document.querySelector('input[name="statusFilter"]:checked');
-    const filterVal = filterEl ? filterEl.value : 'all';
+    const filterVal = filterEl ? filterEl.value : 'all'; // 預設為 all
 
     payOrders.forEach((order, index) => {
-        // ★★★ 2. 篩選邏輯判斷 ★★★
-        const isPicked = !!order.pickupDate; // 有日期就是已取(true)，沒日期就是未取(false)
+        // ★★★ 篩選過濾邏輯 ★★★
+        const isPicked = !!order.pickupDate; // 有日期=已取，沒日期=未取
 
-        // 如果選「已取」，但這筆訂單「沒取」，就跳過不顯示 (return)
+        // 如果選「已取」，但這筆是「未取」，就跳過 (return)
         if (filterVal === 'picked' && !isPicked) return;
         
-        // 如果選「未取」，但這筆訂單「已取」，就跳過不顯示 (return)
+        // 如果選「未取」，但這筆是「已取」，就跳過 (return)
         if (filterVal === 'unpicked' && isPicked) return;
 
-        // --- 以下維持原本的渲染邏輯 ---
+        // --- 以下顯示邏輯不變 ---
         let statusHtml = '';
         if (order.pickupDate) {
             const calc = calculatePaymentDate(order.platform, order.pickupDate);
@@ -147,11 +149,8 @@ function renderPayTable() {
     });
 }
 
-// ==========================================
-// ★★★ 匯入功能：自動轉換名稱 (賣貨便->7-11, 好賣+->全家) ★★★
-// ==========================================
+// 4. 匯入功能 (支援名稱轉換)
 window.importFromText = function() {
-    // 這裡維持 importText 對應您的 HTML
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
 
@@ -160,29 +159,18 @@ window.importFromText = function() {
 
     lines.forEach(line => {
         if(!line.trim()) return;
-
-        // 切割資料
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
 
         if(cols.length >= 3) {
-            // ★ 名稱轉換邏輯 ★
             let rawPlatform = cols[3] || '';
             let finalPlatform = rawPlatform;
-            
-            if(rawPlatform.includes('賣貨便')) {
-                finalPlatform = '7-11';
-            } else if(rawPlatform.includes('好賣')) {
-                finalPlatform = '全家';
-            }
+            if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
+            else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
             payOrders.push({
-                no: cols[0],
-                name: cols[1],
-                phone: cols[2],
-                platform: finalPlatform, // 使用轉換後的名稱
-                store: cols[4] || '',     
-                shipDate: cols[5] || '',  
-                deadline: cols[6] || '',  
+                no: cols[0], name: cols[1], phone: cols[2],
+                platform: finalPlatform,
+                store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
                 pickupDate: null
             });
             count++;
@@ -195,30 +183,25 @@ window.importFromText = function() {
         document.getElementById('importText').value = '';
         if(window.switchPaySubTab) window.switchPaySubTab('orders');
     } else {
-        alert('匯入失敗：格式不符。\n請確認資料是用空白或Tab隔開，且包含：訂單號 姓名 電話');
+        alert('匯入失敗：格式不符');
     }
 };
 
-// 綁定其他功能
+// 綁定全域功能
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
     const phone = document.getElementById('addPhone').value;
     if(!no || !name) return alert('請填寫完整資訊');
     
-    // 手動新增時，也順便做轉換 (看下拉選單選什麼)
     let p = document.getElementById('addPlatform').value;
     if(p.includes('賣貨便')) p = '7-11';
     if(p.includes('好賣')) p = '全家';
 
     payOrders.push({
-        no: no.startsWith('#') ? no : '#'+no,
-        name, phone,
-        platform: p,
-        store: '', 
-        shipDate: document.getElementById('addShipDate').value,
-        deadline: document.getElementById('addDeadline').value,
-        pickupDate: null
+        no: no.startsWith('#') ? no : '#'+no, name, phone, platform: p,
+        store: '', shipDate: document.getElementById('addShipDate').value,
+        deadline: document.getElementById('addDeadline').value, pickupDate: null
     });
     savePayOrders();
     alert('新增成功！');
@@ -254,7 +237,6 @@ window.toggleSelectAllPay = function() {
 window.batchSetDate = function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選訂單');
-    
     const dateVal = document.getElementById('batchDateInput').value;
     if(!dateVal) return alert('請先選擇日期');
     
@@ -281,7 +263,6 @@ window.pushToSMS = function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選訂單');
     const dataToSync = indices.map(i => payOrders[i]);
-    
     if(window.receiveOrdersFromPay) {
         window.receiveOrdersFromPay(dataToSync);
         alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`);
@@ -298,3 +279,6 @@ window.doCalc = function() {
     const res = calculatePaymentDate(p, d);
     document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`;
 };
+
+// ★★★ 關鍵修正：把這個功能暴露給 index.html 使用 ★★★
+window.renderPayTable = renderPayTable;
