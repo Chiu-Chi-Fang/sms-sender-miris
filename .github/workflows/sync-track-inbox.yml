@@ -1,0 +1,35 @@
+name: Sync Track Inbox
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/30 * * * *"  # 每 30 分鐘更新一次（可改）
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch inbox JSON
+        env:
+          TRACK_TOKEN: ${{ secrets.TRACK_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          curl -sS "https://track.tw/api/v1/package/all/inbox?page=1&size=100" \
+            -H "Authorization: Bearer ${TRACK_TOKEN}" \
+            -H "Accept: application/json" \
+            -o data/inbox.json
+          test -s data/inbox.json
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/inbox.json
+          git diff --cached --quiet || git commit -m "chore: sync inbox.json"
+          git push
