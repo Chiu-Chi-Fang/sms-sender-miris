@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (Batch V3: 批次匯入 + 批次查詢，解決流量被擋問題)
+// orders.js - 雲端同步版 (Batch V4 流量救星：真正實現批次打包)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log(`🚀 orders.js (Batch V3) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js (Batch V4 - Traffic Saver) Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -97,13 +97,13 @@ function importFromTextImpl() {
 }
 
 // ==========================================
-// ★★★ 智慧批次追蹤 (Batch V3) ★★★
+// ★★★ 真正的批次追蹤 (省流量版) ★★★
 // ==========================================
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(請確認已點擊 cors-anywhere 開通按鈕)`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(本次將使用批次模式，大幅減少連線次數)`)) return;
 
     // 1. 初始化狀態
     indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
@@ -113,7 +113,7 @@ async function checkAllTrackingImpl() {
     const proxyUrl = "https://cors-anywhere.herokuapp.com/";
     const targetUrl = "https://track.tw/api/v1";
 
-    // 小工具：陣列切塊 (符合 API 每次 40 筆限制)
+    // 陣列切塊工具 (API 限制每次 40 筆)
     const chunkArray = (arr, size) => {
         const result = [];
         for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
@@ -138,51 +138,47 @@ async function checkAllTrackingImpl() {
             }
         });
 
-        // 3. 批次匯入 (Batch Import - 每 40 筆一次)
+        // 3. 批次匯入 (Batch Import) - 這是關鍵！
         for (const [cId, numbers] of Object.entries(groups)) {
-            const chunks = chunkArray(numbers, 40);
+            const chunks = chunkArray(numbers, 40); // 遵守 API 限制
             
             for (const chunk of chunks) {
-                console.log(`匯入物流商 ${cId} 的 ${chunk.length} 筆訂單...`);
+                console.log(`正在打包匯入 ${chunk.length} 筆...`);
                 try {
                     const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiToken}` },
                         body: JSON.stringify({
                             "carrier_id": cId,
-                            "tracking_number": chunk,
+                            "tracking_number": chunk, // 一次送出一整包單號！
                             "notify_state": "inactive"
                         })
                     });
                     
-                    if (!res.ok) {
-                        const text = await res.text();
-                        if (text.includes("The origin")) throw new Error("Proxy需開通");
-                        console.warn("匯入警告:", text);
-                    }
+                    // 檢查是否被 Proxy 擋住
+                    if (res.status === 403) throw new Error("請點擊開通 Proxy");
+                    
                 } catch(importErr) {
                     console.error("匯入請求失敗:", importErr);
                     if(importErr.message.includes("Proxy")) throw importErr;
                 }
-                await new Promise(r => setTimeout(r, 1000)); // 休息 1 秒
+                // 休息 2 秒，確保 API 消化完畢
+                await new Promise(r => setTimeout(r, 2000));
             }
         }
 
-        // 4. 批次下載狀態 (Fetch Inbox)
-        console.log("下載最新貨況...");
+        // 4. 批次下載狀態 (一次抓 100 筆) - 這也是關鍵！
+        console.log("正在一次下載所有貨況...");
         const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
 
-        // 處理非 JSON 回應
-        const contentType = inboxRes.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            const text = await inboxRes.text();
-            if(text.includes("The origin")) throw new Error("Proxy需開通");
-            throw new Error("API回應格式錯誤(可能是流量超標)");
+        if(!inboxRes.ok) {
+             if(inboxRes.status === 403) throw new Error("Proxy需開通");
+             throw new Error(`API連線錯誤: ${inboxRes.status}`);
         }
-
+        
         const inboxData = await inboxRes.json();
         const packageList = inboxData.data || [];
         const statusMap = {};
@@ -191,16 +187,18 @@ async function checkAllTrackingImpl() {
         packageList.forEach(item => {
             if(item.package && item.package.tracking_number) {
                 let rawStatus = item.package.latest_package_history; 
+                // 嘗試從 history 找
                 if(!rawStatus && item.package.package_history && item.package.package_history.length > 0) {
                      rawStatus = item.package.package_history[0].status || item.package.package_history[0].checkpoint_status;
                 }
+                // 嘗試從外層 state 找
                 if(!rawStatus && item.state) rawStatus = item.state;
                 
                 if(rawStatus) statusMap[item.package.tracking_number] = rawStatus;
             }
         });
 
-        // 5. 更新介面 + 翻譯 (超級翻譯機)
+        // 5. 更新本地資料 (超級翻譯機)
         let updatedCount = 0;
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -209,9 +207,9 @@ async function checkAllTrackingImpl() {
 
             if(rawStatus) {
                 let showStatus = rawStatus;
-                let s = rawStatus.toLowerCase(); 
+                let s = String(rawStatus).toLowerCase(); 
 
-                // 翻譯字典
+                // 翻譯
                 if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) {
                     showStatus = "✅ 已配達";
                 } else if (s.includes('picked') || s.includes('collected')) {
@@ -234,7 +232,7 @@ async function checkAllTrackingImpl() {
                     if(!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
                 }
             } else {
-                order.trackingStatus = "查無資料";
+                order.trackingStatus = "查無資料(可能單號錯誤)";
             }
         });
 
@@ -256,9 +254,11 @@ async function checkAllTrackingImpl() {
                 payOrders[i].trackingStatus = "❌ " + msg; 
         });
         savePayOrders();
+        alert("查詢中斷：" + msg);
     }
 }
 
+// 綁定渲染函式
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -334,4 +334,4 @@ window.pushToSMS = function() { const indices = Array.from(document.querySelecto
 window.doCalc = function() { const p = document.getElementById('calcPlatform').value; const d = document.getElementById('calcDate').value; if(!d) return; const res = calculatePaymentDate(p, d); document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`; };
 window.exportOrdersExcel = function() { if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出'); if(typeof XLSX !== 'undefined') { const ws = XLSX.utils.json_to_sheet(payOrders); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Orders"); XLSX.writeFile(wb, "orders_backup.xlsx"); } else { alert('匯出元件未載入'); } };
 
-console.log("✅ orders.js 載入成功！");
+console.log("✅ orders.js Ready!");
