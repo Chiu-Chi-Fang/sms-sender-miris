@@ -92,25 +92,20 @@ function importFromTextImpl() {
   const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
   if (lines.length === 0) return;
 
-  // 允許 tab / 多空白 / | 分隔
+  // 允許 tab / | 分隔（Excel 複製通常是 tab）
   const splitCols = (line) => line.split(/[|\t]+/).map(s => s.trim()).filter(Boolean);
 
   const header = splitCols(lines[0]);
 
-  // 判斷第一列是不是標題列（有「訂單號/姓名/平台/物流單號」任一就算）
+  // 判斷第一列是不是標題列
   const headerKeywords = new Set(['訂單號', '姓名', '電話', '平台', '門市', '出貨日', '取貨期限', '物流單號']);
   const isHeader = header.some(h => headerKeywords.has(h));
 
-  // 建立欄位索引
-  let idx = {
-    no: 0, name: 1, phone: 2, platform: 3, store: 4, shipDate: 5, deadline: 6, trackingNum: 7
-  };
+  let idx = { no: 0, name: 1, phone: 2, platform: 3, store: 4, shipDate: 5, deadline: 6, trackingNum: 7 };
 
   if (isHeader) {
     const map = {};
     header.forEach((h, i) => { map[h] = i; });
-
-    // 用標題名稱對應（缺的就用預設）
     idx = {
       no: map['訂單號'] ?? idx.no,
       name: map['姓名'] ?? idx.name,
@@ -133,15 +128,11 @@ function importFromTextImpl() {
     let rawPlatform = cols[idx.platform] || '';
     let finalPlatform = rawPlatform;
 
-    // 平台正規化（沿用你原本規則）
     if (rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
     else if (rawPlatform.includes('好賣')) finalPlatform = '全家';
 
     const trackingNum = (cols[idx.trackingNum] || '').trim();
-
-    // ✅ 你要「只靠物流單號 + 平台」也能運作：
-    // trackingNum 沒填就先略過（避免塞一堆查不到的）
-    if (!trackingNum) continue;
+    if (!trackingNum) continue; // 只匯入有物流單號的
 
     payOrders.push({
       no: (cols[idx.no] || '').trim(),
@@ -169,97 +160,89 @@ function importFromTextImpl() {
   }
 }
 
-
 // ==========================================
 // ★★★ 查詢貨況（做法1：讀 data/inbox.json）★★★
 // ==========================================
 async function checkAllTrackingImpl() {
   const indices = Array.from(document.querySelectorAll('.pay-chk:checked'))
-    .map(c => parseInt(c.dataset.idx));
+    .map(c => parseInt(c.dataset.idx, 10));
 
   if (indices.length === 0) return alert('請先勾選要查詢的訂單');
-
-  // 做法1：不需要 proxy 開通提示了
   if (!confirm(`準備更新 ${indices.length} 筆訂單貨況...\n(系統將讀取 ./data/inbox.json)`)) return;
 
   // 標記為查詢中
-  indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
+  indices.forEach(i => { if (payOrders[i]) payOrders[i].trackingStatus = "⏳ 查詢中..."; });
   renderPayTable();
 
   try {
-    // ✅ 讀同源靜態檔，避免快取加 ts
     const inboxRes = await fetch(`./data/inbox.json?ts=${Date.now()}`, { cache: "no-store" });
     if (!inboxRes.ok) throw new Error(`讀取 inbox.json 失敗: ${inboxRes.status}`);
 
     const inboxData = await inboxRes.json();
     const packageList = inboxData.data || [];
 
-// 建立快查表: 單號 -> { text, code }
-const statusMap = {};
-packageList.forEach(item => {
-  const tn = item?.package?.tracking_number;
-  if (!tn) return;
+    // 建立快查表: 單號 -> { text, code }
+    const statusMap = {};
+    packageList.forEach(item => {
+      const tn = item?.package?.tracking_number;
+      if (!tn) return;
 
-  const hist = item?.package?.latest_package_history;
+      const hist = item?.package?.latest_package_history;
+      const text = hist?.status || "";
+      const code = hist?.checkpoint_status || "";
 
-  // text: 主要顯示用（中文狀態句）
-  // code: checkpoint_status（delivered/transit/...）用來做判斷
-  const text = hist?.status || "";                  // ✅ 字串
-  const code = hist?.checkpoint_status || "";       // ✅ 字串
+      // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
+      if (!text && !code) {
+        const ph = item?.package?.package_history;
+        if (Array.isArray(ph) && ph.length > 0) {
+          const t = ph[0]?.status || "";
+          const c = ph[0]?.checkpoint_status || "";
+          if (t || c) statusMap[String(tn).trim()] = { text: t, code: c };
+        }
+        return;
+      }
 
-  // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
-  if (!text && !code) {
-    const ph = item?.package?.package_history;
-    if (Array.isArray(ph) && ph.length > 0) {
-      const t = ph[0]?.status || "";
-      const c = ph[0]?.checkpoint_status || "";
-      if (t || c) statusMap[tn] = { text: t, code: c };
-    }
-    return;
-  }
-
-  statusMap[tn] = { text, code };
-});
-
-
-      if (status) statusMap[tn] = status;
+      statusMap[String(tn).trim()] = { text, code };
     });
 
-    // 更新本地訂單
     let updatedCount = 0;
 
     indices.forEach(idx => {
       const order = payOrders[idx];
+      if (!order) return;
+
       const trackNo = String(order.trackingNum || "").trim();
+      if (!trackNo) {
+        order.trackingStatus = "查無(未填單號)";
+        return;
+      }
 
-const s = statusMap[trackNo];
+      const s = statusMap[trackNo];
 
-if (s) {
-  // 優先用 Track 回來的中文狀態文字
-  let showStatus = s.text || "";
+      if (s) {
+        let showStatus = s.text || "";
 
-  // 如果沒有 text（少見），才用 code 做翻譯
-  if (!showStatus) {
-    const code = String(s.code || "");
-    if (code.includes("delivered") || code.includes("arrived")) showStatus = "已配達";
-    else if (code.includes("transit")) showStatus = "配送中";
-    else if (code.includes("pending")) showStatus = "待出貨";
-    else if (code.includes("picked_up")) showStatus = "已取件";
-    else if (code.includes("shipping")) showStatus = "運送中";
-    else showStatus = "更新中";
-  }
+        if (!showStatus) {
+          const code = String(s.code || "");
+          if (code.includes("delivered") || code.includes("arrived")) showStatus = "已配達";
+          else if (code.includes("transit")) showStatus = "配送中";
+          else if (code.includes("pending")) showStatus = "待出貨";
+          else if (code.includes("picked_up")) showStatus = "已取件";
+          else if (code.includes("shipping")) showStatus = "運送中";
+          else showStatus = "更新中";
+        }
 
-  order.trackingStatus = showStatus;
-  updatedCount++;
+        order.trackingStatus = showStatus;
+        updatedCount++;
 
-  // 自動填入日期（維持你原本邏輯）
-  if (showStatus.includes("已配達") || showStatus.includes("已取") || (s.code || "").includes("delivered")) {
-    if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
-  }
-} else {
-  order.trackingStatus = "查無(或未入庫)";
-}
-
+        const code2 = String(s.code || "");
+        if (showStatus.includes("已配達") || showStatus.includes("已取") || code2.includes("delivered")) {
+          if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
+        }
+      } else {
+        order.trackingStatus = "查無(或未入庫)";
+      }
+    });
 
     savePayOrders();
     alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。\n（提醒：Track 那邊沒匯入單號就會顯示查無）`);
@@ -268,7 +251,7 @@ if (s) {
     console.error("Tracking Error:", e);
 
     indices.forEach(i => {
-      if (payOrders[i].trackingStatus === "⏳ 查詢中...") {
+      if (payOrders[i] && payOrders[i].trackingStatus === "⏳ 查詢中...") {
         payOrders[i].trackingStatus = "❌ 讀取失敗";
       }
     });
@@ -320,8 +303,7 @@ function renderPayTable() {
       else if (order.platform && order.platform.includes("全家")) linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
 
       trackHtml = `<a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:#dc3545; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${order.trackingStatus}</a>`;
-    }
-    else if (order.trackingStatus) {
+    } else if (order.trackingStatus) {
       let trackColor = '#007bff';
       if (order.trackingStatus.includes('已配達') || order.trackingStatus.includes('已取')) trackColor = '#28a745';
       trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
@@ -358,8 +340,9 @@ function renderPayTable() {
   });
 }
 
-// 綁定 Window
+// 綁定 Window（module 下必須顯式掛到 window）
 window.importFromText = importFromTextImpl;
+window.ImportFromText = importFromTextImpl; // 兼容舊 onclick 寫法
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTrackingImpl;
 
@@ -417,7 +400,7 @@ window.toggleSelectAllPay = function () {
 };
 
 window.batchSetDate = function () {
-  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx, 10));
   if (indices.length === 0) return alert('請先勾選訂單');
 
   const dateVal = document.getElementById('batchDateInput').value;
@@ -433,7 +416,7 @@ window.batchSetDate = function () {
 };
 
 window.batchDeleteOrders = function () {
-  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx, 10));
   if (indices.length === 0) return;
 
   if (confirm(`刪除 ${indices.length} 筆？`)) {
@@ -444,7 +427,7 @@ window.batchDeleteOrders = function () {
 };
 
 window.pushToSMS = function () {
-  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+  const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx, 10));
   if (indices.length === 0) return alert('請先勾選訂單');
 
   const dataToSync = indices.map(i => payOrders[i]);
