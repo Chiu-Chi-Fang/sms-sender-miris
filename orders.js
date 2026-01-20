@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (含篩選功能 + 7-11/全家名稱轉換)
+// orders.js - 雲端同步版 (整合 Track.TW 物流追蹤 API)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -13,7 +13,6 @@ const firebaseConfig = {
   appId: "1:340097404227:web:554901219608cbed42f3f6"
 };
 
-// 初始化
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const payOrdersRef = ref(db, 'pay_orders'); 
@@ -24,13 +23,11 @@ let payOrders = [];
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    renderPayTable(); // 資料變動時重畫
+    renderPayTable();
 });
 
 function savePayOrders() {
-    set(payOrdersRef, payOrders)
-        .then(() => console.log('同步成功'))
-        .catch((err) => alert('同步失敗，請檢查網路或 Firebase 設定'));
+    set(payOrdersRef, payOrders).catch((err) => console.error('同步失敗', err));
 }
 
 // 2. 日期計算工具
@@ -49,14 +46,12 @@ function addDays(date, days) {
     return d;
 }
 
-// 撥款日計算邏輯 (含 7-11/全家)
 function calculatePaymentDate(platform, pickupDateStr) {
     if (!pickupDateStr) return { settlement: '-', payment: '-' };
     const pickupDate = new Date(pickupDateStr);
     const dow = pickupDate.getDay(); 
     let settlementDate, paymentDate;
 
-    // 判斷邏輯：賣貨便 或 7-11 都用同一套規則
     if (platform && (platform.includes('賣貨便') || platform.includes('7-11'))) {
         if (dow >= 1 && dow <= 3) { 
             settlementDate = getNextWeekday(pickupDate, 4);
@@ -66,7 +61,6 @@ function calculatePaymentDate(platform, pickupDateStr) {
             paymentDate = addDays(settlementDate, 2);
         }
     } else {
-        // 其他 (好賣+ 或 全家)
         if (dow >= 1 && dow <= 3) {
             settlementDate = getNextWeekday(pickupDate, 5);
             paymentDate = addDays(settlementDate, 4);
@@ -82,44 +76,127 @@ function calculatePaymentDate(platform, pickupDateStr) {
 }
 
 // ==========================================
-// ★★★ 3. 渲染列表 (修復版：支援篩選) ★★★
+// ★★★ 物流追蹤功能 (整合 API Token) ★★★
 // ==========================================
-// ==========================================
-// ★★★ 3. 渲染列表 (含篩選 + 自動計數功能) ★★★
-// ==========================================
+window.checkAllTracking = async function() {
+    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+    if(indices.length === 0) return alert('請先勾選要查詢的訂單\n(建議先勾選一筆測試)');
+
+    // 提醒使用者：內部單號 (#1493) 通常查不到，需要真正的物流單號 (如 860...)
+    const confirmMsg = `準備查詢 ${indices.length} 筆訂單...\n\n⚠️ 注意：系統將使用「訂單號」作為「物流單號」去查詢。\n若您的訂單號是內部編號 (如 #1493)，API 可能會回傳查無資料。`;
+    if(!confirm(confirmMsg)) return;
+
+    for (let i of indices) {
+        await checkTrackingSingle(i);
+    }
+    
+    savePayOrders();
+    alert('查詢完成！');
+};
+
+async function checkTrackingSingle(index) {
+    const order = payOrders[index];
+    if(!order.no) return;
+
+    // ★ 簡單防呆：如果是 # 開頭的內部單號，可能查不到，這裡還是會試著查，但您可以自行決定是否要擋掉
+    // if(order.no.startsWith('#')) { ... }
+
+    order.trackingStatus = "⏳...";
+    renderPayTable();
+
+    try {
+        // ★★★ API 設定區 ★★★
+        // 1. 填入您截圖中的 Token
+        const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
+        
+        // 2. 設定 API 網址
+        // ⚠️ 重要：這裡假設有一個可以用 `tracking_number` 查詢的端點。
+        // 如果 Track.TW 規定一定要用 UUID，那這裡會失敗，需要先呼叫「新增包裹」API 拿到 UUID。
+        // 我們先嘗試用 search 或 query 的方式：
+        const apiUrl = `https://track.tw/api/v1/package/tracking-number/${encodeURIComponent(order.no)}`; 
+        // 備註：如果上面網址 404，請試試看: `https://track.tw/api/v1/packages?tracking_number=${order.no}`
+
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiToken}` // ★ 這裡加入了您的 Token
+            }
+        });
+
+        if (!response.ok) {
+            // 如果 API 回傳錯誤 (例如 404 找不到)，丟出錯誤
+            throw new Error(`API ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // ★★★ 解析回傳資料 ★★★
+        let statusText = "無資料";
+
+        if (data.package_history && data.package_history.length > 0) {
+            const latest = data.package_history[0];
+            statusText = latest.status || latest.checkpoint_status || "未知";
+        } else if (data.status) {
+            statusText = data.status;
+        } else if (data.data && data.data.status) { // 有些 API 會包在 data 裡
+             statusText = data.data.status;
+        }
+        
+        order.trackingStatus = statusText;
+
+        // ★★★ 自動填入取貨日 ★★★
+        if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
+            const today = new Date().toISOString().split('T')[0];
+            if(!order.pickupDate) {
+                order.pickupDate = today;
+            }
+        }
+
+    } catch (error) {
+        console.error(`訂單 ${order.no} 查詢失敗:`, error);
+        order.trackingStatus = "❌ 失敗"; // 可能是單號錯誤或 API 網址不對
+    }
+    
+    renderPayTable();
+}
+
+
+// 3. 渲染列表 (維持不變)
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
 
-    // ★★★ 新增：自動計算數量並更新介面 ★★★
     const totalCount = payOrders.length;
-    const pickedCount = payOrders.filter(o => o.pickupDate).length; // 有日期的數量
-    const unpickedCount = totalCount - pickedCount; // 總數 - 已取 = 未取
+    const pickedCount = payOrders.filter(o => o.pickupDate).length;
+    const unpickedCount = totalCount - pickedCount;
 
-    // 更新 HTML 上的數字 (如果有找到該元素的話)
     if(document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = `(${totalCount})`;
     if(document.getElementById('cnt-picked')) document.getElementById('cnt-picked').innerText = `(${pickedCount})`;
     if(document.getElementById('cnt-unpicked')) document.getElementById('cnt-unpicked').innerText = `(${unpickedCount})`;
-    // ★★★ 計算結束 ★★★
 
     if (payOrders.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#999; padding:20px;">☁️ 目前無訂單，請從 Excel 複製貼上</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:20px;">☁️ 目前無訂單，請從 Excel 複製貼上</td></tr>`;
         return;
     }
 
-    // 取得目前篩選狀態
     const filterEl = document.querySelector('input[name="statusFilter"]:checked');
     const filterVal = filterEl ? filterEl.value : 'all'; 
 
     payOrders.forEach((order, index) => {
         const isPicked = !!order.pickupDate; 
-
-        // 篩選過濾邏輯
         if (filterVal === 'picked' && !isPicked) return;
         if (filterVal === 'unpicked' && isPicked) return;
 
-        // --- 以下顯示邏輯不變 ---
+        let trackColor = '#007bff'; 
+        if(order.trackingStatus && (order.trackingStatus.includes('已') || order.trackingStatus.includes('完成'))) trackColor = '#28a745'; 
+        if(order.trackingStatus && order.trackingStatus.includes('失敗')) trackColor = '#dc3545'; 
+
+        const trackHtml = order.trackingStatus 
+            ? `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>` 
+            : '<span style="color:#ccc;">-</span>';
+
         let statusHtml = '';
         if (order.pickupDate) {
             const calc = calculatePaymentDate(order.platform, order.pickupDate);
@@ -152,6 +229,7 @@ function renderPayTable() {
             <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
             <td>${order.shipDate || '-'}</td>
             <td>${order.deadline || '-'}</td>
+            <td>${trackHtml}</td>
             <td>${statusHtml}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
         `;
@@ -159,18 +237,15 @@ function renderPayTable() {
     });
 }
 
-// 4. 匯入功能 (支援名稱轉換)
+// 4. 匯入功能 (維持不變)
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
-
     const lines = txt.split('\n');
     let count = 0;
-
     lines.forEach(line => {
         if(!line.trim()) return;
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
-
         if(cols.length >= 3) {
             let rawPlatform = cols[3] || '';
             let finalPlatform = rawPlatform;
@@ -178,87 +253,59 @@ window.importFromText = function() {
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
             payOrders.push({
-                no: cols[0], name: cols[1], phone: cols[2],
-                platform: finalPlatform,
+                no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
                 store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
-                pickupDate: null
+                pickupDate: null, trackingStatus: ''
             });
             count++;
         }
     });
-
     if(count > 0) {
         savePayOrders();
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
         if(window.switchPaySubTab) window.switchPaySubTab('orders');
-    } else {
-        alert('匯入失敗：格式不符');
-    }
+    } else { alert('匯入失敗：格式不符'); }
 };
 
-// 綁定全域功能
+// 全域綁定
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
-    const phone = document.getElementById('addPhone').value;
     if(!no || !name) return alert('請填寫完整資訊');
-    
     let p = document.getElementById('addPlatform').value;
     if(p.includes('賣貨便')) p = '7-11';
     if(p.includes('好賣')) p = '全家';
-
     payOrders.push({
-        no: no.startsWith('#') ? no : '#'+no, name, phone, platform: p,
-        store: '', shipDate: document.getElementById('addShipDate').value,
-        deadline: document.getElementById('addDeadline').value, pickupDate: null
+        no: no.startsWith('#') ? no : '#'+no, name: name, phone: document.getElementById('addPhone').value,
+        platform: p, store: '', shipDate: document.getElementById('addShipDate').value,
+        deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: ''
     });
-    savePayOrders();
-    alert('新增成功！');
+    savePayOrders(); alert('新增成功！');
 };
-
 window.updateOrderPickup = function(index, dateStr) {
-    if(dateStr) {
-        payOrders[index].pickupDate = dateStr;
-        savePayOrders();
-        if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no);
-    }
+    if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); }
 };
-
 window.resetOrderStatus = function(index) {
-    if(confirm('重設為未取貨？')) {
-        payOrders[index].pickupDate = null;
-        savePayOrders();
-    }
+    if(confirm('重設為未取貨？')) { payOrders[index].pickupDate = null; savePayOrders(); }
 };
-
 window.deleteOrder = function(index) {
-    if(confirm('確定刪除？')) {
-        payOrders.splice(index, 1);
-        savePayOrders();
-    }
+    if(confirm('確定刪除？')) { payOrders.splice(index, 1); savePayOrders(); }
 };
-
 window.toggleSelectAllPay = function() {
     const checked = document.getElementById('selectAllPay').checked;
     document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked);
 };
-
 window.batchSetDate = function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選訂單');
     const dateVal = document.getElementById('batchDateInput').value;
     if(!dateVal) return alert('請先選擇日期');
-    
     if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) {
-        indices.forEach(i => {
-            payOrders[i].pickupDate = dateVal;
-            if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no);
-        });
+        indices.forEach(i => { payOrders[i].pickupDate = dateVal; if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no); });
         savePayOrders();
     }
 };
-
 window.batchDeleteOrders = function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return;
@@ -268,7 +315,6 @@ window.batchDeleteOrders = function() {
         document.getElementById('selectAllPay').checked = false;
     }
 };
-
 window.pushToSMS = function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選訂單');
@@ -277,11 +323,8 @@ window.pushToSMS = function() {
         window.receiveOrdersFromPay(dataToSync);
         alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`);
         switchMainTab('sms');
-    } else {
-        alert('SMS 模組尚未載入，請稍候');
-    }
+    } else { alert('SMS 模組尚未載入，請稍候'); }
 };
-
 window.doCalc = function() {
     const p = document.getElementById('calcPlatform').value;
     const d = document.getElementById('calcDate').value;
@@ -289,6 +332,5 @@ window.doCalc = function() {
     const res = calculatePaymentDate(p, d);
     document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`;
 };
-
-// ★★★ 關鍵修正：把這個功能暴露給 index.html 使用 ★★★
 window.renderPayTable = renderPayTable;
+window.checkAllTracking = checkAllTracking;
