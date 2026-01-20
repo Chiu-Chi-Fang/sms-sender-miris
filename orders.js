@@ -21,6 +21,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 
 let payOrders = [];
 
+// 物流商 ID 對照表 (API 官方 UUID)
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -97,7 +98,7 @@ function importFromTextImpl() {
 }
 
 // ==========================================
-// ★★★ 智慧批次追蹤 (V5: 極致省流版) ★★★
+// ★★★ 智慧批次追蹤 (Batch V5: 極致省流版) ★★★
 // ==========================================
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
@@ -185,19 +186,22 @@ async function checkAllTrackingImpl() {
         const packageList = inboxData.data || [];
         const statusMap = {};
         
+        // 建立狀態對照表
         packageList.forEach(item => {
             if(item.package && item.package.tracking_number) {
                 let rawStatus = item.package.latest_package_history; 
+                // 嘗試從 history 找
                 if(!rawStatus && item.package.package_history && item.package.package_history.length > 0) {
                      rawStatus = item.package.package_history[0].status || item.package.package_history[0].checkpoint_status;
                 }
+                // 嘗試從外層 state 找
                 if(!rawStatus && item.state) rawStatus = item.state;
                 
                 if(rawStatus) statusMap[item.package.tracking_number] = rawStatus;
             }
         });
 
-        // 5. 更新介面
+        // 5. 更新介面 + 中文翻譯
         let updatedCount = 0;
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -208,6 +212,7 @@ async function checkAllTrackingImpl() {
                 let showStatus = rawStatus;
                 let s = String(rawStatus).toLowerCase(); 
 
+                // 翻譯
                 if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) {
                     showStatus = "✅ 已配達";
                 } else if (s.includes('picked') || s.includes('collected')) {
@@ -223,6 +228,7 @@ async function checkAllTrackingImpl() {
                 order.trackingStatus = showStatus;
                 updatedCount++;
 
+                // 自動填入日期
                 if (showStatus.includes("已配達") || showStatus.includes("已取") || showStatus.includes("已達")) {
                     if(!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
                 }
@@ -313,6 +319,7 @@ function renderPayTable() {
     });
 }
 
+// 綁定 Window
 window.importFromText = importFromTextImpl;
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTrackingImpl;
