@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (整合 Track.TW 物流追蹤 API)
+// orders.js - 雲端同步版 (支援 Excel 匯入物流單號)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -76,14 +76,13 @@ function calculatePaymentDate(platform, pickupDateStr) {
 }
 
 // ==========================================
-// ★★★ 物流追蹤功能 (整合 API Token) ★★★
+// ★★★ 物流追蹤功能 (使用匯入的物流單號) ★★★
 // ==========================================
 window.checkAllTracking = async function() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
-    if(indices.length === 0) return alert('請先勾選要查詢的訂單\n(建議先勾選一筆測試)');
+    if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    // 提醒使用者：內部單號 (#1493) 通常查不到，需要真正的物流單號 (如 860...)
-    const confirmMsg = `準備查詢 ${indices.length} 筆訂單...\n\n⚠️ 注意：系統將使用「訂單號」作為「物流單號」去查詢。\n若您的訂單號是內部編號 (如 #1493)，API 可能會回傳查無資料。`;
+    const confirmMsg = `準備查詢 ${indices.length} 筆訂單...\n將優先使用匯入的「物流單號」進行查詢。`;
     if(!confirm(confirmMsg)) return;
 
     for (let i of indices) {
@@ -96,73 +95,60 @@ window.checkAllTracking = async function() {
 
 async function checkTrackingSingle(index) {
     const order = payOrders[index];
-    if(!order.no) return;
+    
+    // ★ 關鍵修改：優先抓取 trackingNum (匯入的物流號)，如果沒有才抓 no (訂單號)
+    const queryNo = order.trackingNum || order.no; 
 
-    // ★ 簡單防呆：如果是 # 開頭的內部單號，可能查不到，這裡還是會試著查，但您可以自行決定是否要擋掉
-    // if(order.no.startsWith('#')) { ... }
+    if(!queryNo) return;
 
     order.trackingStatus = "⏳...";
     renderPayTable();
 
     try {
         // ★★★ API 設定區 ★★★
-        // 1. 填入您截圖中的 Token
         const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
         
-        // 2. 設定 API 網址
-        // ⚠️ 重要：這裡假設有一個可以用 `tracking_number` 查詢的端點。
-        // 如果 Track.TW 規定一定要用 UUID，那這裡會失敗，需要先呼叫「新增包裹」API 拿到 UUID。
-        // 我們先嘗試用 search 或 query 的方式：
-        const apiUrl = `https://track.tw/api/v1/package/tracking-number/${encodeURIComponent(order.no)}`; 
-        // 備註：如果上面網址 404，請試試看: `https://track.tw/api/v1/packages?tracking_number=${order.no}`
+        // 使用正確的號碼去查
+        const apiUrl = `https://track.tw/api/v1/package/tracking-number/${encodeURIComponent(queryNo)}`; 
 
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: { 
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiToken}` // ★ 這裡加入了您的 Token
+                'Authorization': `Bearer ${apiToken}`
             }
         });
 
-        if (!response.ok) {
-            // 如果 API 回傳錯誤 (例如 404 找不到)，丟出錯誤
-            throw new Error(`API ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`API ${response.status}`);
 
         const data = await response.json();
         
-        // ★★★ 解析回傳資料 ★★★
         let statusText = "無資料";
-
         if (data.package_history && data.package_history.length > 0) {
             const latest = data.package_history[0];
             statusText = latest.status || latest.checkpoint_status || "未知";
-        } else if (data.status) {
-            statusText = data.status;
-        } else if (data.data && data.data.status) { // 有些 API 會包在 data 裡
+        } else if (data.data && data.data.status) {
              statusText = data.data.status;
         }
         
         order.trackingStatus = statusText;
 
-        // ★★★ 自動填入取貨日 ★★★
+        // 自動填入取貨日
         if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
             const today = new Date().toISOString().split('T')[0];
-            if(!order.pickupDate) {
-                order.pickupDate = today;
-            }
+            if(!order.pickupDate) order.pickupDate = today;
         }
 
     } catch (error) {
-        console.error(`訂單 ${order.no} 查詢失敗:`, error);
-        order.trackingStatus = "❌ 失敗"; // 可能是單號錯誤或 API 網址不對
+        console.error(`單號 ${queryNo} 查詢失敗:`, error);
+        order.trackingStatus = "❌ 失敗"; 
     }
     
     renderPayTable();
 }
 
 
-// 3. 渲染列表 (維持不變)
+// 3. 渲染列表
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -193,9 +179,15 @@ function renderPayTable() {
         if(order.trackingStatus && (order.trackingStatus.includes('已') || order.trackingStatus.includes('完成'))) trackColor = '#28a745'; 
         if(order.trackingStatus && order.trackingStatus.includes('失敗')) trackColor = '#dc3545'; 
 
+        // 這裡可以選擇要不要把「物流單號」顯示出來，目前先顯示狀態就好，比較簡潔
         const trackHtml = order.trackingStatus 
             ? `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>` 
             : '<span style="color:#ccc;">-</span>';
+
+        // 如果有物流單號，可以在訂單號下方顯示一個小小的圖示或文字 (選用)
+        const subNoHtml = order.trackingNum 
+            ? `<br><span style="font-size:10px; color:#999;">🚚 ${order.trackingNum}</span>` 
+            : '';
 
         let statusHtml = '';
         if (order.pickupDate) {
@@ -229,23 +221,29 @@ function renderPayTable() {
             <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
             <td>${order.shipDate || '-'}</td>
             <td>${order.deadline || '-'}</td>
-            <td>${trackHtml}</td>
-            <td>${statusHtml}</td>
+            <td>${trackHtml} ${subNoHtml}</td> <td>${statusHtml}</td>
             <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
         `;
         tbody.appendChild(tr);
     });
 }
 
-// 4. 匯入功能 (維持不變)
+// ==========================================
+// ★★★ 4. 匯入功能 (修改版：讀取第 8 欄物流單號) ★★★
+// ==========================================
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
+
     const lines = txt.split('\n');
     let count = 0;
+
     lines.forEach(line => {
         if(!line.trim()) return;
+
+        // 使用 Tab 或逗號切割
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
+
         if(cols.length >= 3) {
             let rawPlatform = cols[3] || '';
             let finalPlatform = rawPlatform;
@@ -253,22 +251,35 @@ window.importFromText = function() {
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
             payOrders.push({
-                no: cols[0], name: cols[1], phone: cols[2], platform: finalPlatform,
-                store: cols[4] || '', shipDate: cols[5] || '', deadline: cols[6] || '',
-                pickupDate: null, trackingStatus: ''
+                no: cols[0], 
+                name: cols[1], 
+                phone: cols[2], 
+                platform: finalPlatform,
+                store: cols[4] || '', 
+                shipDate: cols[5] || '', 
+                deadline: cols[6] || '',
+                
+                // ★★★ 讀取第 8 欄 (索引 7) 作為物流單號 ★★★
+                trackingNum: cols[7] || '', 
+
+                pickupDate: null, 
+                trackingStatus: ''
             });
             count++;
         }
     });
+
     if(count > 0) {
         savePayOrders();
         alert(`成功匯入 ${count} 筆資料！`);
         document.getElementById('importText').value = '';
         if(window.switchPaySubTab) window.switchPaySubTab('orders');
-    } else { alert('匯入失敗：格式不符'); }
+    } else {
+        alert('匯入失敗：格式不符');
+    }
 };
 
-// 全域綁定
+// ... (後面的 addNewOrder 等功能維持不變) ...
 window.addNewOrder = function() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
@@ -279,7 +290,7 @@ window.addNewOrder = function() {
     payOrders.push({
         no: no.startsWith('#') ? no : '#'+no, name: name, phone: document.getElementById('addPhone').value,
         platform: p, store: '', shipDate: document.getElementById('addShipDate').value,
-        deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: ''
+        deadline: document.getElementById('addDeadline').value, pickupDate: null, trackingStatus: '', trackingNum: ''
     });
     savePayOrders(); alert('新增成功！');
 };
@@ -334,3 +345,4 @@ window.doCalc = function() {
 };
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTracking;
+window.importFromText = importFromText;
