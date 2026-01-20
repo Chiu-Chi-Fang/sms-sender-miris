@@ -86,50 +86,89 @@ function importFromTextImpl() {
   const el = document.getElementById('importText');
   if (!el) return;
 
-  const txt = el.value;
+  const txt = el.value?.trim();
   if (!txt) return alert('請先貼上資料喔！');
 
-  const lines = txt.split('\n');
+  const lines = txt.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length === 0) return;
+
+  // 允許 tab / 多空白 / | 分隔
+  const splitCols = (line) => line.split(/[|\t]+/).map(s => s.trim()).filter(Boolean);
+
+  const header = splitCols(lines[0]);
+
+  // 判斷第一列是不是標題列（有「訂單號/姓名/平台/物流單號」任一就算）
+  const headerKeywords = new Set(['訂單號', '姓名', '電話', '平台', '門市', '出貨日', '取貨期限', '物流單號']);
+  const isHeader = header.some(h => headerKeywords.has(h));
+
+  // 建立欄位索引
+  let idx = {
+    no: 0, name: 1, phone: 2, platform: 3, store: 4, shipDate: 5, deadline: 6, trackingNum: 7
+  };
+
+  if (isHeader) {
+    const map = {};
+    header.forEach((h, i) => { map[h] = i; });
+
+    // 用標題名稱對應（缺的就用預設）
+    idx = {
+      no: map['訂單號'] ?? idx.no,
+      name: map['姓名'] ?? idx.name,
+      phone: map['電話'] ?? idx.phone,
+      platform: map['平台'] ?? idx.platform,
+      store: map['門市'] ?? idx.store,
+      shipDate: map['出貨日'] ?? idx.shipDate,
+      deadline: map['取貨期限'] ?? idx.deadline,
+      trackingNum: map['物流單號'] ?? idx.trackingNum,
+    };
+  }
+
+  const start = isHeader ? 1 : 0;
   let count = 0;
 
-  lines.forEach(line => {
-    if (!line.trim()) return;
+  for (let i = start; i < lines.length; i++) {
+    const cols = splitCols(lines[i]);
+    if (cols.length < 2) continue;
 
-    const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
+    let rawPlatform = cols[idx.platform] || '';
+    let finalPlatform = rawPlatform;
 
-    if (cols.length >= 3) {
-      let rawPlatform = cols[3] || '';
-      let finalPlatform = rawPlatform;
+    // 平台正規化（沿用你原本規則）
+    if (rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
+    else if (rawPlatform.includes('好賣')) finalPlatform = '全家';
 
-      if (rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
-      else if (rawPlatform.includes('好賣')) finalPlatform = '全家';
+    const trackingNum = (cols[idx.trackingNum] || '').trim();
 
-      let trackNo = cols[7] || '';
+    // ✅ 你要「只靠物流單號 + 平台」也能運作：
+    // trackingNum 沒填就先略過（避免塞一堆查不到的）
+    if (!trackingNum) continue;
 
-      payOrders.push({
-        no: cols[0],
-        name: cols[1],
-        phone: cols[2],
-        platform: finalPlatform,
-        store: cols[4] || '',
-        shipDate: cols[5] || '',
-        deadline: cols[6] || '',
-        trackingNum: trackNo,
-        pickupDate: null,
-        trackingStatus: ''
-      });
+    payOrders.push({
+      no: (cols[idx.no] || '').trim(),
+      name: (cols[idx.name] || '').trim(),
+      phone: (cols[idx.phone] || '').trim(),
+      platform: finalPlatform,
+      store: (cols[idx.store] || '').trim(),
+      shipDate: (cols[idx.shipDate] || '').trim(),
+      deadline: (cols[idx.deadline] || '').trim(),
+      trackingNum,
+      pickupDate: null,
+      trackingStatus: ''
+    });
 
-      count++;
-    }
-  });
+    count++;
+  }
 
   if (count > 0) {
     savePayOrders();
     alert(`成功匯入 ${count} 筆資料！`);
     el.value = '';
     if (window.switchPaySubTab) window.switchPaySubTab('orders');
+  } else {
+    alert('沒有匯入任何資料：請確認「物流單號」欄有值，且資料是 Tab 分隔或貼上格式正確。');
   }
 }
+
 
 // ==========================================
 // ★★★ 查詢貨況（做法1：讀 data/inbox.json）★★★
