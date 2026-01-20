@@ -81,7 +81,7 @@ function calculatePaymentDate(platform, pickupDateStr) {
     };
 }
 
-// 3. 渲染列表
+// 3. 渲染列表 (含篩選功能)
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -92,7 +92,22 @@ function renderPayTable() {
         return;
     }
 
+    // ★★★ 1. 取得目前篩選狀態 ★★★
+    // 找出網頁上哪個 radio 被勾選了 (all, picked, 或 unpicked)
+    const filterEl = document.querySelector('input[name="statusFilter"]:checked');
+    const filterVal = filterEl ? filterEl.value : 'all';
+
     payOrders.forEach((order, index) => {
+        // ★★★ 2. 篩選邏輯判斷 ★★★
+        const isPicked = !!order.pickupDate; // 有日期就是已取(true)，沒日期就是未取(false)
+
+        // 如果選「已取」，但這筆訂單「沒取」，就跳過不顯示 (return)
+        if (filterVal === 'picked' && !isPicked) return;
+        
+        // 如果選「未取」，但這筆訂單「已取」，就跳過不顯示 (return)
+        if (filterVal === 'unpicked' && isPicked) return;
+
+        // --- 以下維持原本的渲染邏輯 ---
         let statusHtml = '';
         if (order.pickupDate) {
             const calc = calculatePaymentDate(order.platform, order.pickupDate);
