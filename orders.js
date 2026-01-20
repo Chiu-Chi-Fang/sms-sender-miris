@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (修復按鈕失效 + 自動狀態更新)
+// orders.js - 雲端同步版 (結構重整穩定版 + 自動追蹤)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -13,15 +13,15 @@ const firebaseConfig = {
   appId: "1:340097404227:web:554901219608cbed42f3f6"
 };
 
+// 1. 初始化 Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const payOrdersRef = ref(db, 'pay_orders'); 
 
+// 2. 全域變數
 let payOrders = [];
 
-// ==========================================
-// ★★★ 1. 物流商 ID 對照表 ★★★
-// ==========================================
+// 3. 物流商 ID 對照表 (API 認證版)
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -37,16 +37,25 @@ const carrierMap = {
     '郵局': '9a9812d2-c275-4726-9bdc-2ae5b4c42c73'
 };
 
+// 4. 監聽雲端資料
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    renderPayTable();
+    renderPayTable(); // 資料載入後重新繪製表格
+    console.log("資料同步完成，目前訂單數:", payOrders.length);
 });
 
+// ==========================================
+// 核心功能函式定義 (先定義，最後再綁定)
+// ==========================================
+
 function savePayOrders() {
-    set(payOrdersRef, payOrders).catch((err) => console.error('同步失敗', err));
+    set(payOrdersRef, payOrders)
+        .then(() => console.log('同步成功'))
+        .catch((err) => console.error('同步失敗', err));
 }
 
+// --- 日期工具 ---
 function getNextWeekday(date, targetDay) {
     const d = new Date(date);
     const cur = d.getDay(); 
@@ -91,24 +100,74 @@ function calculatePaymentDate(platform, pickupDateStr) {
     };
 }
 
-// ==========================================
-// ★★★ 2. 核心追蹤邏輯 (直接使用 Import 回傳結果) ★★★
-// ==========================================
-window.checkAllTracking = async function() {
+// --- 批量匯入功能 ---
+function importFromTextImpl() {
+    const el = document.getElementById('importText');
+    if (!el) {
+        alert('找不到輸入框，請確認您在「新增/匯入」分頁');
+        return;
+    }
+    const txt = el.value;
+    if(!txt) return alert('請先貼上資料喔！');
+
+    const lines = txt.split('\n');
+    let count = 0;
+
+    lines.forEach(line => {
+        if(!line.trim()) return;
+        const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
+
+        if(cols.length >= 3) {
+            let rawPlatform = cols[3] || '';
+            let finalPlatform = rawPlatform;
+            if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
+            else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
+
+            // 支援讀取第 8 欄 (物流單號)
+            let trackNo = cols[7] || '';
+
+            payOrders.push({
+                no: cols[0], 
+                name: cols[1], 
+                phone: cols[2], 
+                platform: finalPlatform,
+                store: cols[4] || '', 
+                shipDate: cols[5] || '', 
+                deadline: cols[6] || '',
+                trackingNum: trackNo, // 存入物流單號
+                pickupDate: null, 
+                trackingStatus: ''
+            });
+            count++;
+        }
+    });
+
+    if(count > 0) {
+        savePayOrders();
+        alert(`成功匯入 ${count} 筆資料！`);
+        el.value = '';
+        if(window.switchPaySubTab) window.switchPaySubTab('orders');
+    } else {
+        alert('匯入失敗：格式不符');
+    }
+}
+
+// --- 智慧追蹤功能 (直接 Import 拿狀態) ---
+async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n將透過匯入 API 自動取得最新貨況。`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n系統將透過匯入 API 自動取得最新貨況。`)) return;
 
     for (let i of indices) {
         await checkTrackingSingle(i);
-        // 稍微暫停一下
+        // 稍微暫停一下，避免 API 請求過快
         await new Promise(r => setTimeout(r, 800)); 
     }
     
     savePayOrders();
     alert('查詢完成！');
-};
+}
 
 async function checkTrackingSingle(index) {
     const order = payOrders[index];
@@ -116,7 +175,6 @@ async function checkTrackingSingle(index) {
 
     if(!queryNo) return;
 
-    // 顯示查詢中...
     order.trackingStatus = "⏳ 查詢中...";
     renderPayTable();
 
@@ -132,6 +190,13 @@ async function checkTrackingSingle(index) {
         }
     }
 
+    // 如果找不到物流商 (例如自取)，就跳過
+    if (!carrierId) {
+        order.trackingStatus = "未知物流商";
+        renderPayTable();
+        return;
+    }
+
     const apiToken = "WSKyGuq6SjJJoC4VwD0d81D66n83rhnkxWqPY0te32f27c21";
     let finalStatus = null;
     let errorMsg = "";
@@ -139,7 +204,8 @@ async function checkTrackingSingle(index) {
     try {
         console.log(`[${queryNo}] 呼叫 Import API...`);
         
-        // 直接呼叫 Import，並讀取回傳結果
+        // ★★★ 關鍵策略：直接呼叫 Import ★★★
+        // Track.TW 的 Import API 會回傳該包裹的最新狀態，所以我們不需要拿到 UUID 再去查第二次
         const response = await fetch('https://track.tw/api/v1/package/import', {
             method: 'POST',
             headers: { 
@@ -149,7 +215,7 @@ async function checkTrackingSingle(index) {
             },
             body: JSON.stringify({
                 "carrier_id": carrierId,
-                "tracking_number": [queryNo], // 必須是陣列
+                "tracking_number": [queryNo], // 注意：這是陣列
                 "notify_state": "inactive"
             })
         });
@@ -167,7 +233,7 @@ async function checkTrackingSingle(index) {
             packageData = resData; 
         }
 
-        // 如果 Import 成功回傳了資料，直接從這裡抓狀態！
+        // 如果 Import 成功回傳了資料 (包含狀態)，直接使用！
         if (packageData) {
             console.log("取得包裹資料:", packageData);
             
@@ -176,3 +242,56 @@ async function checkTrackingSingle(index) {
                 const latest = packageData.package_history[0];
                 statusText = latest.status || latest.checkpoint_status || "未知";
             } else if (packageData.status) {
+                statusText = packageData.status;
+            }
+
+            // 狀態翻譯 (英翻中)
+            if (statusText === "delivered") statusText = "已配達";
+            if (statusText === "transit") statusText = "配送中";
+            if (statusText === "pending") statusText = "待出貨";
+            if (statusText === "picked_up") statusText = "已取件";
+            if (statusText === "shipping") statusText = "運送中";
+            if (statusText === "arrived") statusText = "已配達";
+
+            finalStatus = statusText;
+
+            // ★★★ 自動勾選已取 + 填入日期 ★★★
+            if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
+                if(!order.pickupDate) {
+                    const today = new Date().toISOString().split('T')[0];
+                    order.pickupDate = today;
+                }
+            }
+        } else {
+            errorMsg = `API格式回傳異常`;
+            console.warn("API回傳:", resData);
+        }
+
+    } catch (error) {
+        console.error(`單號 ${queryNo} 處理失敗:`, error);
+        errorMsg = "連線失敗"; 
+    }
+
+    // 更新介面狀態
+    if (finalStatus) {
+        order.trackingStatus = finalStatus;
+    } else {
+        order.trackingStatus = "LINK_FALLBACK"; // 失敗備案：顯示官網連結
+        order.debugMsg = errorMsg; 
+    }
+    
+    renderPayTable();
+}
+
+// --- 渲染表格 ---
+function renderPayTable() {
+    const tbody = document.getElementById('payTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    const totalCount = payOrders.length;
+    const pickedCount = payOrders.filter(o => o.pickupDate).length;
+    const unpickedCount = totalCount - pickedCount;
+
+    // 更新計數器
+    if(document.getElementById('cnt-all')) document.getElementById
