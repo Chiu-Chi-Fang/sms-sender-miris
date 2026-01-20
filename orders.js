@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (完整修復版：解決截斷與按鈕失效問題)
+// orders.js - 雲端同步版 (最終版：顯示詳細錯誤原因)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -217,6 +217,10 @@ async function checkTrackingSingle(index) {
             })
         });
 
+        if (!response.ok) {
+            throw new Error(`API 錯誤: ${response.status}`);
+        }
+
         const resData = await response.json();
         
         let packageData = null;
@@ -259,7 +263,8 @@ async function checkTrackingSingle(index) {
 
     } catch (error) {
         console.error(`單號 ${queryNo} 處理失敗:`, error);
-        errorMsg = "連線失敗"; 
+        // ★★★ 這裡會顯示真正的錯誤原因 ★★★
+        errorMsg = error.message === "Failed to fetch" ? "被瀏覽器擋住 (請開CORS)" : error.message; 
     }
 
     if (finalStatus) {
@@ -301,7 +306,6 @@ function renderPayTable() {
 
         const queryNo = order.trackingNum || order.no;
 
-        // 物流狀態顯示
         let trackHtml = '<span style="color:#ccc;">-</span>';
         
         if (order.trackingStatus === "LINK_FALLBACK") {
@@ -377,7 +381,24 @@ function renderPayTable() {
     });
 }
 
-// 小工具實作
+// ==========================================
+// ★★★ 最後一步：將功能綁定到 Window ★★★
+// ==========================================
+window.importFromText = importFromTextImpl;
+window.renderPayTable = renderPayTable;
+window.checkAllTracking = checkAllTrackingImpl;
+window.addNewOrder = addNewOrderImpl;
+window.updateOrderPickup = updateOrderPickupImpl; // 補回這幾個功能
+window.resetOrderStatus = resetOrderStatusImpl;
+window.deleteOrder = deleteOrderImpl;
+window.toggleSelectAllPay = toggleSelectAllPayImpl;
+window.batchSetDate = batchSetDateImpl;
+window.batchDeleteOrders = batchDeleteOrdersImpl;
+window.pushToSMS = pushToSMSImpl;
+window.doCalc = doCalcImpl;
+window.exportOrdersExcel = exportOrdersExcelImpl;
+
+// 補上小工具實作
 function addNewOrderImpl() {
     const no = document.getElementById('addOrderNo').value;
     const name = document.getElementById('addName').value;
@@ -392,7 +413,6 @@ function addNewOrderImpl() {
     });
     savePayOrders(); alert('新增成功！');
 }
-
 function updateOrderPickupImpl(index, dateStr) {
     if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); }
 }
@@ -444,7 +464,6 @@ function doCalcImpl() {
 }
 function exportOrdersExcelImpl() {
     if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出');
-    // 簡單的 Excel 匯出實作
     if(typeof XLSX !== 'undefined') {
         const ws = XLSX.utils.json_to_sheet(payOrders);
         const wb = XLSX.utils.book_new();
@@ -454,22 +473,5 @@ function exportOrdersExcelImpl() {
         alert('匯出元件未載入');
     }
 }
-
-// ==========================================
-// ★★★ 最後一步：將功能綁定到 Window (避免按鈕無效) ★★★
-// ==========================================
-window.importFromText = importFromTextImpl;
-window.renderPayTable = renderPayTable;
-window.checkAllTracking = checkAllTrackingImpl;
-window.addNewOrder = addNewOrderImpl;
-window.updateOrderPickup = updateOrderPickupImpl;
-window.resetOrderStatus = resetOrderStatusImpl;
-window.deleteOrder = deleteOrderImpl;
-window.toggleSelectAllPay = toggleSelectAllPayImpl;
-window.batchSetDate = batchSetDateImpl;
-window.batchDeleteOrders = batchDeleteOrdersImpl;
-window.pushToSMS = pushToSMSImpl;
-window.doCalc = doCalcImpl;
-window.exportOrdersExcel = exportOrdersExcelImpl;
 
 console.log("✅ orders.js 載入成功！按鈕功能已就緒。");
