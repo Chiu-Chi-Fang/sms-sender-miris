@@ -84,29 +84,39 @@ function calculatePaymentDate(platform, pickupDateStr) {
 // ==========================================
 // ★★★ 3. 渲染列表 (修復版：支援篩選) ★★★
 // ==========================================
+// ==========================================
+// ★★★ 3. 渲染列表 (含篩選 + 自動計數功能) ★★★
+// ==========================================
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
+
+    // ★★★ 新增：自動計算數量並更新介面 ★★★
+    const totalCount = payOrders.length;
+    const pickedCount = payOrders.filter(o => o.pickupDate).length; // 有日期的數量
+    const unpickedCount = totalCount - pickedCount; // 總數 - 已取 = 未取
+
+    // 更新 HTML 上的數字 (如果有找到該元素的話)
+    if(document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = `(${totalCount})`;
+    if(document.getElementById('cnt-picked')) document.getElementById('cnt-picked').innerText = `(${pickedCount})`;
+    if(document.getElementById('cnt-unpicked')) document.getElementById('cnt-unpicked').innerText = `(${unpickedCount})`;
+    // ★★★ 計算結束 ★★★
 
     if (payOrders.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#999; padding:20px;">☁️ 目前無訂單，請從 Excel 複製貼上</td></tr>`;
         return;
     }
 
-    // ★★★ 取得篩選狀態 ★★★
-    // 找出目前選中的是哪一個 radio 按鈕
+    // 取得目前篩選狀態
     const filterEl = document.querySelector('input[name="statusFilter"]:checked');
-    const filterVal = filterEl ? filterEl.value : 'all'; // 預設為 all
+    const filterVal = filterEl ? filterEl.value : 'all'; 
 
     payOrders.forEach((order, index) => {
-        // ★★★ 篩選過濾邏輯 ★★★
-        const isPicked = !!order.pickupDate; // 有日期=已取，沒日期=未取
+        const isPicked = !!order.pickupDate; 
 
-        // 如果選「已取」，但這筆是「未取」，就跳過 (return)
+        // 篩選過濾邏輯
         if (filterVal === 'picked' && !isPicked) return;
-        
-        // 如果選「未取」，但這筆是「已取」，就跳過 (return)
         if (filterVal === 'unpicked' && isPicked) return;
 
         // --- 以下顯示邏輯不變 ---
