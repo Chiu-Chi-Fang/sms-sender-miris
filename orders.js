@@ -181,15 +181,21 @@ async function checkAllTrackingImpl() {
     const inboxData = await inboxRes.json();
     const packageList = inboxData.data || [];
 
-    // 建立快查表: 單號 -> { text, code }
-    const statusMap = {};
-    packageList.forEach(item => {
-      const tn = item?.package?.tracking_number;
-      if (!tn) return;
+// 建立快查表: 單號 -> { text, code, time }
+const statusMap = {};
+packageList.forEach(item => {
+  const tn = item?.package?.tracking_number;
+  if (!tn) return;
 
-      const hist = item?.package?.latest_package_history;
-      const text = hist?.status || "";
-      const code = hist?.checkpoint_status || "";
+  const hist = item?.package?.latest_package_history;
+  const text = hist?.status || "";
+  const code = hist?.checkpoint_status || "";
+  // ★ 新增：抓取實際時間
+  const time = hist?.checkpoint_time || hist?.created_at || "";
+
+  statusMap[String(tn).trim()] = { text, code, time };
+});
+
 
       // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
       if (!text && !code) {
@@ -235,14 +241,19 @@ async function checkAllTrackingImpl() {
         order.trackingStatus = showStatus;
         updatedCount++;
 
-        const code2 = String(s.code || "");
-        if (showStatus.includes("已配達") || showStatus.includes("已取") || code2.includes("delivered")) {
-          if (!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
-        }
-      } else {
-        order.trackingStatus = "查無(或未入庫)";
-      }
-    });
+const code2 = String(s.code || "");
+if (showStatus.includes("已配達") || showStatus.includes("已取") || code2.includes("delivered")) {
+  if (!order.pickupDate) {
+    // ★ 優先使用 API 回傳的時間，沒有才用今天
+    if (s.time) {
+      // 假設 API 回傳格式是 ISO 或 "2026-01-20T14:30:00"
+      order.pickupDate = s.time.split('T')[0];
+    } else {
+      order.pickupDate = new Date().toISOString().split('T')[0];
+    }
+  }
+}
+
 
     savePayOrders();
     alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。\n（提醒：Track 那邊沒匯入單號就會顯示查無）`);
