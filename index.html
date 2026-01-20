@@ -27,18 +27,18 @@
         <div class="pay-tab" onclick="switchPaySubTab('add')">➕ 新增 / 匯入</div>
         <div class="pay-tab" onclick="switchPaySubTab('calc')">📅 日期試算</div>
         
-        <div style="margin-left: auto; display: flex; gap: 15px; font-size: 14px; color: #555; padding-right: 10px;">
+<div style="margin-left: auto; display: flex; gap: 15px; font-size: 14px; color: #555; padding-right: 10px;">
             <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
                 <input type="radio" name="statusFilter" value="all" checked onchange="renderPayTable()"> 
-                全部
+                全部 <span id="cnt-all" style="font-size:12px; color:#888;">(0)</span>
             </label>
             <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
                 <input type="radio" name="statusFilter" value="picked" onchange="renderPayTable()"> 
-                ✅ 已取
+                ✅ 已取 <span id="cnt-picked" style="font-size:12px; color:#2e7d32;">(0)</span>
             </label>
             <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
                 <input type="radio" name="statusFilter" value="unpicked" onchange="renderPayTable()"> 
-                📦 未取
+                📦 未取 <span id="cnt-unpicked" style="font-size:12px; color:#d63031; font-weight:bold;">(0)</span>
             </label>
         </div>
         </div>
