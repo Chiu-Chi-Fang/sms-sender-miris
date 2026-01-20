@@ -22,11 +22,26 @@
   <div class="shell-content">
     
     <div id="panel-pay" class="shell-panel active">
-      <div class="pay-tabs">
+<div class="pay-tabs" style="display: flex; align-items: center;">
         <div class="pay-tab active" onclick="switchPaySubTab('orders')">📦 訂單列表</div>
         <div class="pay-tab" onclick="switchPaySubTab('add')">➕ 新增 / 匯入</div>
         <div class="pay-tab" onclick="switchPaySubTab('calc')">📅 日期試算</div>
-      </div>
+        
+        <div style="margin-left: auto; display: flex; gap: 15px; font-size: 14px; color: #555; padding-right: 10px;">
+            <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <input type="radio" name="statusFilter" value="all" checked onchange="renderPayTable()"> 
+                全部
+            </label>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <input type="radio" name="statusFilter" value="picked" onchange="renderPayTable()"> 
+                ✅ 已取
+            </label>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:3px;">
+                <input type="radio" name="statusFilter" value="unpicked" onchange="renderPayTable()"> 
+                📦 未取
+            </label>
+        </div>
+        </div>
 
       <div id="pay-sub-orders" class="pay-panel active">
         <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
