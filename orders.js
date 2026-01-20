@@ -1,8 +1,8 @@
-// orders.js - 雲端同步版 (Batch V4 流量救星：真正實現批次打包)
+// orders.js - 雲端同步版 (Batch V5: 極致省流版，徹底解決流量超標)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-console.log(`🚀 orders.js (Batch V4 - Traffic Saver) Loaded at ${new Date().toLocaleTimeString()}`);
+console.log(`🚀 orders.js (Batch V5 - Power Saver) Loaded at ${new Date().toLocaleTimeString()}`);
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -97,13 +97,13 @@ function importFromTextImpl() {
 }
 
 // ==========================================
-// ★★★ 真正的批次追蹤 (省流量版) ★★★
+// ★★★ 智慧批次追蹤 (V5: 極致省流版) ★★★
 // ==========================================
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
 
-    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(本次將使用批次模式，大幅減少連線次數)`)) return;
+    if(!confirm(`準備查詢 ${indices.length} 筆訂單...\n(若顯示流量超標，請休息 5-10 分鐘再試)`)) return;
 
     // 1. 初始化狀態
     indices.forEach(i => { payOrders[i].trackingStatus = "⏳ 查詢中..."; });
@@ -113,7 +113,6 @@ async function checkAllTrackingImpl() {
     const proxyUrl = "https://cors-anywhere.herokuapp.com/";
     const targetUrl = "https://track.tw/api/v1";
 
-    // 陣列切塊工具 (API 限制每次 40 筆)
     const chunkArray = (arr, size) => {
         const result = [];
         for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
@@ -138,67 +137,67 @@ async function checkAllTrackingImpl() {
             }
         });
 
-        // 3. 批次匯入 (Batch Import) - 這是關鍵！
+        // 3. 批次匯入 (每 30 筆一次，間隔 2 秒)
         for (const [cId, numbers] of Object.entries(groups)) {
-            const chunks = chunkArray(numbers, 40); // 遵守 API 限制
+            const chunks = chunkArray(numbers, 30);
             
             for (const chunk of chunks) {
-                console.log(`正在打包匯入 ${chunk.length} 筆...`);
+                console.log(`匯入物流商 ${cId} 的 ${chunk.length} 筆訂單...`);
                 try {
                     const res = await fetch(`${proxyUrl}${targetUrl}/package/import`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiToken}` },
                         body: JSON.stringify({
                             "carrier_id": cId,
-                            "tracking_number": chunk, // 一次送出一整包單號！
+                            "tracking_number": chunk,
                             "notify_state": "inactive"
                         })
                     });
                     
-                    // 檢查是否被 Proxy 擋住
-                    if (res.status === 403) throw new Error("請點擊開通 Proxy");
-                    
+                    if (!res.ok) {
+                        const text = await res.text();
+                        if (res.status === 429) throw new Error("流量超標(請稍候)");
+                        if (text.includes("The origin")) throw new Error("Proxy需開通");
+                    }
                 } catch(importErr) {
                     console.error("匯入請求失敗:", importErr);
-                    if(importErr.message.includes("Proxy")) throw importErr;
+                    if(importErr.message.includes("流量") || importErr.message.includes("Proxy")) throw importErr;
                 }
-                // 休息 2 秒，確保 API 消化完畢
+                // 休息 2 秒 (非常重要！防止被擋)
                 await new Promise(r => setTimeout(r, 2000));
             }
         }
 
-        // 4. 批次下載狀態 (一次抓 100 筆) - 這也是關鍵！
-        console.log("正在一次下載所有貨況...");
+        // 4. 批次下載狀態 (一次抓 100 筆)
+        console.log("下載最新貨況...");
         const inboxRes = await fetch(`${proxyUrl}${targetUrl}/package/all/inbox?size=100`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${apiToken}` }
         });
 
         if(!inboxRes.ok) {
+             if(inboxRes.status === 429) throw new Error("流量超標(請稍候)");
              if(inboxRes.status === 403) throw new Error("Proxy需開通");
-             throw new Error(`API連線錯誤: ${inboxRes.status}`);
+             throw new Error(`API錯誤 ${inboxRes.status}`);
         }
         
         const inboxData = await inboxRes.json();
         const packageList = inboxData.data || [];
         const statusMap = {};
         
-        // 建立狀態對照表
         packageList.forEach(item => {
             if(item.package && item.package.tracking_number) {
                 let rawStatus = item.package.latest_package_history; 
-                // 嘗試從 history 找
                 if(!rawStatus && item.package.package_history && item.package.package_history.length > 0) {
                      rawStatus = item.package.package_history[0].status || item.package.package_history[0].checkpoint_status;
                 }
-                // 嘗試從外層 state 找
                 if(!rawStatus && item.state) rawStatus = item.state;
                 
                 if(rawStatus) statusMap[item.package.tracking_number] = rawStatus;
             }
         });
 
-        // 5. 更新本地資料 (超級翻譯機)
+        // 5. 更新介面
         let updatedCount = 0;
         indices.forEach(idx => {
             const order = payOrders[idx];
@@ -209,7 +208,6 @@ async function checkAllTrackingImpl() {
                 let showStatus = rawStatus;
                 let s = String(rawStatus).toLowerCase(); 
 
-                // 翻譯
                 if (s.includes('delivered') || s.includes('finish') || s.includes('complete') || s.includes('success')) {
                     showStatus = "✅ 已配達";
                 } else if (s.includes('picked') || s.includes('collected')) {
@@ -220,14 +218,11 @@ async function checkAllTrackingImpl() {
                     showStatus = "🚚 配送中";
                 } else if (s.includes('pending') || s.includes('created') || s.includes('order_placed')) {
                     showStatus = "📄 待出貨";
-                } else if (s.includes('return')) {
-                    showStatus = "🔙 退貨中";
                 }
 
                 order.trackingStatus = showStatus;
                 updatedCount++;
 
-                // 自動填入日期
                 if (showStatus.includes("已配達") || showStatus.includes("已取") || showStatus.includes("已達")) {
                     if(!order.pickupDate) order.pickupDate = new Date().toISOString().split('T')[0];
                 }
@@ -245,8 +240,8 @@ async function checkAllTrackingImpl() {
         if(e.message.includes("Proxy") || e.message.includes("開通")) {
             msg = "請開通 Proxy";
             window.open("https://cors-anywhere.herokuapp.com/corsdemo", "_blank");
-        } else if (e.message.includes("流量")) {
-            msg = "流量超標(請稍候)";
+        } else if (e.message.includes("流量") || e.message.includes("429")) {
+            msg = "流量超標 (請休息5分鐘)";
         }
         
         indices.forEach(i => { 
@@ -254,11 +249,10 @@ async function checkAllTrackingImpl() {
                 payOrders[i].trackingStatus = "❌ " + msg; 
         });
         savePayOrders();
-        alert("查詢中斷：" + msg);
+        alert(msg);
     }
 }
 
-// 綁定渲染函式
 function renderPayTable() {
     const tbody = document.getElementById('payTableBody');
     if(!tbody) return;
@@ -319,7 +313,6 @@ function renderPayTable() {
     });
 }
 
-// 綁定 Window
 window.importFromText = importFromTextImpl;
 window.renderPayTable = renderPayTable;
 window.checkAllTracking = checkAllTrackingImpl;
@@ -334,4 +327,4 @@ window.pushToSMS = function() { const indices = Array.from(document.querySelecto
 window.doCalc = function() { const p = document.getElementById('calcPlatform').value; const d = document.getElementById('calcDate').value; if(!d) return; const res = calculatePaymentDate(p, d); document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`; };
 window.exportOrdersExcel = function() { if(!payOrders || payOrders.length === 0) return alert('目前沒有訂單可以匯出'); if(typeof XLSX !== 'undefined') { const ws = XLSX.utils.json_to_sheet(payOrders); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Orders"); XLSX.writeFile(wb, "orders_backup.xlsx"); } else { alert('匯出元件未載入'); } };
 
-console.log("✅ orders.js Ready!");
+console.log("✅ orders.js 載入成功！");
