@@ -1,6 +1,8 @@
-// orders.js - 雲端同步版 (結構重整穩定版 + 自動追蹤)
+// orders.js - 雲端同步版 (修復 SyntaxError 括號問題 + 智慧追蹤)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+console.log("🚀 開始載入 orders.js...");
 
 // ★★★ 請填入您的 Firebase 設定 (sms-miris) ★★★
 const firebaseConfig = {
@@ -21,7 +23,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 // 2. 全域變數
 let payOrders = [];
 
-// 3. 物流商 ID 對照表 (API 認證版)
+// 3. 物流商 ID 對照表
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
     '賣貨便': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -41,12 +43,12 @@ const carrierMap = {
 onValue(payOrdersRef, (snapshot) => {
     const data = snapshot.val();
     payOrders = data || [];
-    renderPayTable(); // 資料載入後重新繪製表格
-    console.log("資料同步完成，目前訂單數:", payOrders.length);
+    renderPayTable();
+    console.log("☁️ 資料同步完成，目前訂單數:", payOrders.length);
 });
 
 // ==========================================
-// 核心功能函式定義 (先定義，最後再綁定)
+// 核心功能函式定義
 // ==========================================
 
 function savePayOrders() {
@@ -102,6 +104,7 @@ function calculatePaymentDate(platform, pickupDateStr) {
 
 // --- 批量匯入功能 ---
 function importFromTextImpl() {
+    console.log("執行匯入功能...");
     const el = document.getElementById('importText');
     if (!el) {
         alert('找不到輸入框，請確認您在「新增/匯入」分頁');
@@ -115,6 +118,7 @@ function importFromTextImpl() {
 
     lines.forEach(line => {
         if(!line.trim()) return;
+        // 兼容 Tab 或逗號分隔
         const cols = line.trim().split(/[|\t,\s]+/).filter(Boolean);
 
         if(cols.length >= 3) {
@@ -123,7 +127,7 @@ function importFromTextImpl() {
             if(rawPlatform.includes('賣貨便')) finalPlatform = '7-11';
             else if(rawPlatform.includes('好賣')) finalPlatform = '全家';
 
-            // 支援讀取第 8 欄 (物流單號)
+            // 讀取第 8 欄 (物流單號)，索引是 7
             let trackNo = cols[7] || '';
 
             payOrders.push({
@@ -152,7 +156,7 @@ function importFromTextImpl() {
     }
 }
 
-// --- 智慧追蹤功能 (直接 Import 拿狀態) ---
+// --- 智慧追蹤功能 ---
 async function checkAllTrackingImpl() {
     const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
     if(indices.length === 0) return alert('請先勾選要查詢的訂單');
@@ -161,7 +165,7 @@ async function checkAllTrackingImpl() {
 
     for (let i of indices) {
         await checkTrackingSingle(i);
-        // 稍微暫停一下，避免 API 請求過快
+        // 暫停 800ms 避免太快
         await new Promise(r => setTimeout(r, 800)); 
     }
     
@@ -178,7 +182,7 @@ async function checkTrackingSingle(index) {
     order.trackingStatus = "⏳ 查詢中...";
     renderPayTable();
 
-    // 1. 取得 Carrier ID
+    // 取得 Carrier ID
     let carrierId = "";
     if (order.platform) {
         const keys = Object.keys(carrierMap);
@@ -190,7 +194,7 @@ async function checkTrackingSingle(index) {
         }
     }
 
-    // 如果找不到物流商 (例如自取)，就跳過
+    // 如果沒有對應的物流商，直接跳過
     if (!carrierId) {
         order.trackingStatus = "未知物流商";
         renderPayTable();
@@ -202,10 +206,8 @@ async function checkTrackingSingle(index) {
     let errorMsg = "";
 
     try {
-        console.log(`[${queryNo}] 呼叫 Import API...`);
+        console.log(`[${queryNo}] 呼叫 API...`);
         
-        // ★★★ 關鍵策略：直接呼叫 Import ★★★
-        // Track.TW 的 Import API 會回傳該包裹的最新狀態，所以我們不需要拿到 UUID 再去查第二次
         const response = await fetch('https://track.tw/api/v1/package/import', {
             method: 'POST',
             headers: { 
@@ -215,15 +217,13 @@ async function checkTrackingSingle(index) {
             },
             body: JSON.stringify({
                 "carrier_id": carrierId,
-                "tracking_number": [queryNo], // 注意：這是陣列
+                "tracking_number": [queryNo], // 必須是陣列
                 "notify_state": "inactive"
             })
         });
 
-        // 嘗試讀取回傳資料
         const resData = await response.json();
         
-        // 解析 Import 的回傳結構
         let packageData = null;
         if (Array.isArray(resData)) {
             packageData = resData[0];
@@ -233,10 +233,7 @@ async function checkTrackingSingle(index) {
             packageData = resData; 
         }
 
-        // 如果 Import 成功回傳了資料 (包含狀態)，直接使用！
         if (packageData) {
-            console.log("取得包裹資料:", packageData);
-            
             let statusText = "未知";
             if (packageData.package_history && packageData.package_history.length > 0) {
                 const latest = packageData.package_history[0];
@@ -245,7 +242,7 @@ async function checkTrackingSingle(index) {
                 statusText = packageData.status;
             }
 
-            // 狀態翻譯 (英翻中)
+            // 狀態翻譯
             if (statusText === "delivered") statusText = "已配達";
             if (statusText === "transit") statusText = "配送中";
             if (statusText === "pending") statusText = "待出貨";
@@ -255,7 +252,7 @@ async function checkTrackingSingle(index) {
 
             finalStatus = statusText;
 
-            // ★★★ 自動勾選已取 + 填入日期 ★★★
+            // 自動勾選已取 + 填入日期
             if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
                 if(!order.pickupDate) {
                     const today = new Date().toISOString().split('T')[0];
@@ -263,7 +260,7 @@ async function checkTrackingSingle(index) {
                 }
             }
         } else {
-            errorMsg = `API格式回傳異常`;
+            errorMsg = `API格式異常`;
             console.warn("API回傳:", resData);
         }
 
@@ -272,11 +269,10 @@ async function checkTrackingSingle(index) {
         errorMsg = "連線失敗"; 
     }
 
-    // 更新介面狀態
     if (finalStatus) {
         order.trackingStatus = finalStatus;
     } else {
-        order.trackingStatus = "LINK_FALLBACK"; // 失敗備案：顯示官網連結
+        order.trackingStatus = "LINK_FALLBACK";
         order.debugMsg = errorMsg; 
     }
     
@@ -293,5 +289,5 @@ function renderPayTable() {
     const pickedCount = payOrders.filter(o => o.pickupDate).length;
     const unpickedCount = totalCount - pickedCount;
 
-    // 更新計數器
-    if(document.getElementById('cnt-all')) document.getElementById
+    if(document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = `(${totalCount})`;
+    if(
