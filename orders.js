@@ -1,4 +1,4 @@
-// orders.js - 雲端同步版 (自動匯入註冊 + 自動追蹤 + 自動算錢)
+// orders.js - 雲端同步版 (修復按鈕失效問題 + 自動化追蹤)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
 import { getDatabase, ref, set, onValue } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -20,7 +20,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 let payOrders = [];
 
 // ==========================================
-// ★★★ 1. 物流商 ID 對照表 (這是 API 審核過的正確 ID) ★★★
+// ★★★ 1. 物流商 ID 對照表 ★★★
 // ==========================================
 const carrierMap = {
     '7-11': '9a980809-8865-4741-9f0a-3daaaa7d9e19',
@@ -102,7 +102,6 @@ window.checkAllTracking = async function() {
 
     for (let i of indices) {
         await checkTrackingSingle(i);
-        // 稍微暫停一下，避免 API 覺得我們是機器人而封鎖
         await new Promise(r => setTimeout(r, 800)); 
     }
     
@@ -141,11 +140,9 @@ async function checkTrackingSingle(index) {
         if (!statusData && carrierId) {
             console.log(`查無資料，嘗試自動註冊單號: ${queryNo}`);
             
-            // 呼叫您剛剛提供的 IMPORT API
             const registerSuccess = await registerPackage(queryNo, carrierId, apiToken);
             
             if (registerSuccess) {
-                // 註冊成功後，稍微等一下讓系統入檔，再查一次
                 await new Promise(r => setTimeout(r, 1500)); 
                 statusData = await callTrackApi(queryNo, carrierId, apiToken);
             }
@@ -166,7 +163,6 @@ async function checkTrackingSingle(index) {
             order.trackingStatus = statusText;
 
             // ★★★ 自動勾選已取 + 填入日期 ★★★
-            // 關鍵字：已配達, 已取, 完成, delivered, arrived
             if (statusText.match(/已配達|已取|完成|delivered|arrived/)) {
                 if(!order.pickupDate) {
                     const today = new Date().toISOString().split('T')[0];
@@ -174,7 +170,6 @@ async function checkTrackingSingle(index) {
                 }
             }
         } else {
-            // 真的完全沒救了，才顯示按鈕
             order.trackingStatus = "LINK_FALLBACK";
         }
 
@@ -202,7 +197,7 @@ async function callTrackApi(no, carrierId, token) {
     return await res.json();
 }
 
-// ★★★ 輔助函式：註冊/匯入 API (POST) - 使用您提供的正確格式 ★★★
+// 輔助函式：註冊/匯入 API (POST)
 async function registerPackage(no, carrierId, token) {
     try {
         const url = `https://track.tw/api/v1/package/import`; 
@@ -216,14 +211,12 @@ async function registerPackage(no, carrierId, token) {
             },
             body: JSON.stringify({
                 "carrier_id": carrierId,
-                "tracking_number": [no], // 注意：這裡必須是陣列！
+                "tracking_number": [no], 
                 "notify_state": "inactive"
             })
         });
 
         if (res.ok) return true;
-        
-        // 如果失敗，印出原因方便除錯
         const errText = await res.text();
         console.warn('註冊失敗:', errText);
         return false;
@@ -266,7 +259,6 @@ function renderPayTable() {
         let trackHtml = '<span style="color:#ccc;">-</span>';
         
         if (order.trackingStatus === "LINK_FALLBACK") {
-            // 失敗備案：顯示按鈕
             let linkUrl = "#";
             let linkText = "🔍 查官網";
             let btnColor = "#6c757d"; 
@@ -284,9 +276,8 @@ function renderPayTable() {
             trackHtml = `<a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:${btnColor}; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${linkText}</a>`;
             
         } else if (order.trackingStatus) {
-            // 成功：顯示文字
-            let trackColor = '#007bff'; // 藍色 (運送中)
-            if(order.trackingStatus.match(/已配達|已取|完成|delivered/)) trackColor = '#28a745'; // 綠色
+            let trackColor = '#007bff'; 
+            if(order.trackingStatus.match(/已配達|已取|完成|delivered/)) trackColor = '#28a745'; 
             
             trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
         }
@@ -295,7 +286,6 @@ function renderPayTable() {
             ? `<br><span style="font-size:10px; color:#999;">🚚 ${order.trackingNum}</span>` 
             : '';
 
-        // ★★★ 自動計算撥款日顯示 ★★★
         let statusHtml = '';
         if (order.pickupDate) {
             const calc = calculatePaymentDate(order.platform, order.pickupDate);
@@ -336,6 +326,7 @@ function renderPayTable() {
     });
 }
 
+// ★★★ 修正這裡：直接把函式掛載到 window，避免 ReferenceError ★★★
 window.importFromText = function() {
     const txt = document.getElementById('importText').value;
     if(!txt) return alert('請先貼上資料喔！');
@@ -380,7 +371,55 @@ window.addNewOrder = function() {
     });
     savePayOrders(); alert('新增成功！');
 };
+
 window.updateOrderPickup = function(index, dateStr) {
     if(dateStr) { payOrders[index].pickupDate = dateStr; savePayOrders(); if(window.removeSMSOrder) window.removeSMSOrder(payOrders[index].no); }
 };
-window.resetOrderStatus = function
+window.resetOrderStatus = function(index) {
+    if(confirm('重設為未取貨？')) { payOrders[index].pickupDate = null; savePayOrders(); }
+};
+window.deleteOrder = function(index) {
+    if(confirm('確定刪除？')) { payOrders.splice(index, 1); savePayOrders(); }
+};
+window.toggleSelectAllPay = function() {
+    const checked = document.getElementById('selectAllPay').checked;
+    document.querySelectorAll('.pay-chk').forEach(c => c.checked = checked);
+};
+window.batchSetDate = function() {
+    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+    if(indices.length === 0) return alert('請先勾選訂單');
+    const dateVal = document.getElementById('batchDateInput').value;
+    if(!dateVal) return alert('請先選擇日期');
+    if(confirm(`將選取的 ${indices.length} 筆訂單設為 ${dateVal} 取貨？`)) {
+        indices.forEach(i => { payOrders[i].pickupDate = dateVal; if(window.removeSMSOrder) window.removeSMSOrder(payOrders[i].no); });
+        savePayOrders();
+    }
+};
+window.batchDeleteOrders = function() {
+    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+    if(indices.length === 0) return;
+    if(confirm(`刪除 ${indices.length} 筆？`)) {
+        indices.sort((a,b) => b-a).forEach(i => payOrders.splice(i, 1));
+        savePayOrders();
+        document.getElementById('selectAllPay').checked = false;
+    }
+};
+window.pushToSMS = function() {
+    const indices = Array.from(document.querySelectorAll('.pay-chk:checked')).map(c => parseInt(c.dataset.idx));
+    if(indices.length === 0) return alert('請先勾選訂單');
+    const dataToSync = indices.map(i => payOrders[i]);
+    if(window.receiveOrdersFromPay) {
+        window.receiveOrdersFromPay(dataToSync);
+        alert(`已同步 ${indices.length} 筆訂單到 SMS 系統！`);
+        switchMainTab('sms');
+    } else { alert('SMS 模組尚未載入，請稍候'); }
+};
+window.doCalc = function() {
+    const p = document.getElementById('calcPlatform').value;
+    const d = document.getElementById('calcDate').value;
+    if(!d) return;
+    const res = calculatePaymentDate(p, d);
+    document.getElementById('calcResult').innerText = `💰 預計撥款日：${res.payment}`;
+};
+// 綁定渲染函式
+window.renderPayTable = renderPayTable;
