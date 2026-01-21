@@ -3,7 +3,7 @@ name: Sync Track Inbox
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"  # 每 30 分鐘更新一次（可改）
+    - cron: "*/5 * * * *"  # 每 30 分鐘更新一次（可改）
 
 permissions:
   contents: write
