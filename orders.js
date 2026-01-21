@@ -182,25 +182,15 @@ async function checkAllTrackingImpl() {
     const packageList = inboxData.data || [];
 
     // 建立快查表: 單號 -> { text, code, time }
-    const statusMap = {};
-    packageList.forEach(item => {
-      const tn = item?.package?.tracking_number;
-      if (!tn) return;
-
-      const hist = item?.package?.latest_package_history;
-      let text = hist?.status || "";
-      let code = hist?.checkpoint_status || "";
-      let time = hist?.checkpoint_time || hist?.created_at || "";
-
-      // 兼容：若沒有 latest_package_history，就試著從 package_history 拿
-      if (!text && !code) {
-        const ph = item?.package?.package_history;
-        if (Array.isArray(ph) && ph.length > 0) {
-          text = ph[0]?.status || "";
-          code = ph[0]?.checkpoint_status || "";
-          time = ph[0]?.checkpoint_time || ph[0]?.created_at || "";
-        }
-      }
+packageList.forEach(item => {
+  const tn = item?.package?.tracking_number;
+  
+  // ★★★ DEBUG：印出完整資料結構 ★★★
+  if (tn && tn.includes("M58071369422")) {  // 用陳玟君那筆單號測試
+    console.log("📦 完整 package 資料:", JSON.stringify(item?.package, null, 2));
+    console.log("📦 latest_package_history:", item?.package?.latest_package_history);
+    console.log("📦 package_history 陣列:", item?.package?.package_history);
+  }
 
       statusMap[String(tn).trim()] = { text, code, time };
     });
