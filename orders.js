@@ -163,111 +163,119 @@ function importFromTextImpl() {
 // ==========================================
 // ★★★ 查詢貨況（做法1：讀 data/inbox.json）★★★
 // ==========================================
-async function checkAllTrackingImp
-function renderPayTable() {
-  const tbody = document.getElementById('payTableBody');
-  if (!tbody) return;
+async function checkAllTrackingImpl() {
+  const indices = Array.from(document.querySelectorAll('.pay-chk:checked'))
+    .map(c => parseInt(c.dataset.idx, 10));
 
-  tbody.innerHTML = '';
+  if (indices.length === 0) return alert('請先勾選要查詢的訂單');
+  if (!confirm(`準備更新 ${indices.length} 筆訂單貨況...\n(系統將讀取 ./data/inbox.json)`)) return;
 
-  const totalCount = payOrders.length;
-  const pickedCount = payOrders.filter(o => o.pickupDate).length;
-  const unpickedCount = totalCount - pickedCount;
+  indices.forEach(i => { if (payOrders[i]) payOrders[i].trackingStatus = "⏳ 查詢中..."; });
+  renderPayTable();
 
-  if (document.getElementById('cnt-all')) document.getElementById('cnt-all').innerText = `(${totalCount})`;
-  if (document.getElementById('cnt-picked')) document.getElementById('cnt-picked').innerText = `(${pickedCount})`;
-  if (document.getElementById('cnt-unpicked')) document.getElementById('cnt-unpicked').innerText = `(${unpickedCount})`;
+  try {
+    const inboxRes = await fetch(`./data/inbox.json?ts=${Date.now()}`, { cache: "no-store" });
+    if (!inboxRes.ok) throw new Error(`讀取 inbox.json 失敗: ${inboxRes.status}`);
 
-  if (payOrders.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; color:#999; padding:20px;">☁️ 目前無訂單，請從 Excel 複製貼上</td></tr>`;
-    return;
+    const inboxData = await inboxRes.json();
+    const packageList = inboxData.data || [];
+
+    // 建立快查表: 單號 -> { text, code, time }
+    const statusMap = {};
+    packageList.forEach(item => {
+      const tn = item?.package?.tracking_number;
+      if (!tn) return;
+
+      const hist = item?.package?.latest_package_history;
+      let text = hist?.status || "";
+      let code = hist?.checkpoint_status || "";
+      
+      // ★★★ 修正：優先讀取 Unix timestamp，轉換成日期 ★★★
+      let time = "";
+      if (hist?.time) {
+        // Unix timestamp (秒) 轉成 ISO 日期
+        const d = new Date(hist.time * 1000);
+        time = d.toISOString().split('T')[0];  // "2026-01-18"
+      } else if (hist?.checkpoint_time) {
+        time = hist.checkpoint_time.split('T')[0];
+      } else if (hist?.created_at) {
+        time = hist.created_at.split('T')[0];
+      }
+
+      // 兼容：若沒有 latest_package_history，從 package_history 拿
+      if (!text && !code) {
+        const ph = item?.package?.package_history;
+        if (Array.isArray(ph) && ph.length > 0) {
+          text = ph[0]?.status || "";
+          code = ph[0]?.checkpoint_status || "";
+          if (ph[0]?.time) {
+            const d = new Date(ph[0].time * 1000);
+            time = d.toISOString().split('T')[0];
+          }
+        }
+      }
+
+      statusMap[String(tn).trim()] = { text, code, time };
+    });
+
+    let updatedCount = 0;
+
+    indices.forEach(idx => {
+      const order = payOrders[idx];
+      if (!order) return;
+
+      const trackNo = String(order.trackingNum || "").trim();
+      if (!trackNo) {
+        order.trackingStatus = "查無(未填單號)";
+        return;
+      }
+
+      const s = statusMap[trackNo];
+
+      if (s) {
+        let showStatus = s.text || "";
+
+        if (!showStatus) {
+          const code = String(s.code || "");
+          if (code.includes("delivered") || code.includes("arrived")) showStatus = "已配達";
+          else if (code.includes("transit")) showStatus = "配送中";
+          else if (code.includes("pending")) showStatus = "待出貨";
+          else if (code.includes("picked_up")) showStatus = "已取件";
+          else if (code.includes("shipping")) showStatus = "運送中";
+          else showStatus = "更新中";
+        }
+
+        order.trackingStatus = showStatus;
+        updatedCount++;
+
+        const code2 = String(s.code || "");
+        if (showStatus.includes("已配達") || showStatus.includes("已取") || showStatus.includes("成功取件") || code2.includes("delivered")) {
+          if (!order.pickupDate && s.time) {
+            order.pickupDate = s.time;  // 已經是 "2026-01-18" 格式
+          }
+        }
+      } else {
+        order.trackingStatus = "查無(或未入庫)";
+      }
+    });
+
+    savePayOrders();
+    alert(`查詢完成！更新了 ${updatedCount} 筆訂單狀態。`);
+
+  } catch (e) {
+    console.error("Tracking Error:", e);
+
+    indices.forEach(i => {
+      if (payOrders[i] && payOrders[i].trackingStatus === "⏳ 查詢中...") {
+        payOrders[i].trackingStatus = "❌ 讀取失敗";
+      }
+    });
+
+    savePayOrders();
+    alert("執行失敗：無法讀取 data/inbox.json\n\n請檢查：\n1) GitHub Actions 是否已產生 data/inbox.json\n2) GitHub Pages 是否有部署 data/inbox.json");
   }
-
-  const filterEl = document.querySelector('input[name="statusFilter"]:checked');
-  const filterVal = filterEl ? filterEl.value : 'all';
-
-  payOrders.forEach((order, index) => {
-    const isPicked = !!order.pickupDate;
-    if (filterVal === 'picked' && !isPicked) return;
-    if (filterVal === 'unpicked' && isPicked) return;
-
-    const queryNo = order.trackingNum || order.no;
-    let trackHtml = '<span style="color:#ccc;">-</span>';
-
-    if (order.trackingStatus && order.trackingStatus.includes('❌')) {
-      let linkUrl = "#";
-      if (order.platform && order.platform.includes("7-11")) linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
-      else if (order.platform && order.platform.includes("全家")) linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
-
-      trackHtml = `<a href="${linkUrl}" target="_blank" class="btn btn-sm" style="background:#dc3545; color:white; font-size:12px; padding:2px 8px; text-decoration:none;">${order.trackingStatus}</a>`;
-    } else if (order.trackingStatus) {
-      let trackColor = '#007bff';
-      if (order.trackingStatus.includes('已配達') || order.trackingStatus.includes('已取')) trackColor = '#28a745';
-      trackHtml = `<span style="font-size:12px; color:${trackColor}; font-weight:bold;">${order.trackingStatus}</span>`;
-    }
-
-    const subNoHtml = order.trackingNum ? `<br><span style="font-size:10px; color:#999;">🚚 ${order.trackingNum}</span>` : '';
-    let statusHtml = '';
-
-    if (order.pickupDate) {
-      const calc = calculatePaymentDate(order.platform, order.pickupDate);
-      statusHtml = `<div style="text-align:right">
-        <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">✅ 已取 (${order.pickupDate.slice(5)})</button>
-        <div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">💰 撥款: ${calc.payment}</div>
-      </div>`;
-    } else {
-      statusHtml = `<div class="action-wrapper">
-        <button class="btn btn-danger btn-sm" style="pointer-events: none;">📦 未取貨</button>
-        <input type="date" class="hidden-date-input" onchange="updateOrderPickup(${index}, this.value)">
-      </div>`;
-    }
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
-      <td>${order.no}</td>
-      <td>${order.name}</td>
-      <td>${order.phone}</td>
-      <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform}</span></td>
-      <td>${order.shipDate || '-'}</td>
-      <td>${order.deadline || '-'}</td>
-      <td>${trackHtml} ${subNoHtml}</td>
-      <td>${statusHtml}</td>
-      <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>`;
-    tbody.appendChild(tr);
-  });
 }
 
-// 綁定 Window（module 下必須顯式掛到 window）
-window.importFromText = importFromTextImpl;
-window.ImportFromText = importFromTextImpl; // 兼容舊 onclick 寫法
-window.renderPayTable = renderPayTable;
-window.checkAllTracking = checkAllTrackingImpl;
-
-window.addNewOrder = function () {
-  const no = document.getElementById('addOrderNo').value;
-  const name = document.getElementById('addName').value;
-  if (!no || !name) return alert('請填寫完整資訊');
-
-  let p = document.getElementById('addPlatform').value;
-  if (p.includes('賣貨便')) p = '7-11';
-  if (p.includes('好賣')) p = '全家';
-
-  payOrders.push({
-    no: no.startsWith('#') ? no : '#' + no,
-    name: name,
-    phone: document.getElementById('addPhone').value,
-    platform: p,
-    store: '',
-    shipDate: document.getElementById('addShipDate').value,
-    deadline: document.getElementById('addDeadline').value,
-    pickupDate: null,
-    trackingStatus: '',
-    trackingNum: ''
-  });
-
-  savePayOrders();
-  alert('新增成功！');
-};
 
 window.updateOrderPickup = function (index, dateStr) {
   if (dateStr) {
