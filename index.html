@@ -1,362 +1,57 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌸 訂單管理系統 (51Tracking 版)</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-<div class="shell">
+<div id="pay-sub-orders" class="shell-panel active">
   
-  <!-- HTTPS 檢查提示 -->
-  <div id="httpsWarning" style="display:none; background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:20px; border-radius:8px;">
-    <b>⚠️ 警告:</b> 當前網站使用 HTTP 連線,51Tracking API 需要 <b>HTTPS</b> 才能正常運作!
-    <div style="margin-top:10px; font-size:13px; color:#666;">
-      請部署到支援 HTTPS 的平台 (如 Firebase Hosting, Netlify, Vercel) 或設定 SSL 憑證
+  <div class="shell-header" style="margin: -40px -40px 30px -40px; border-radius: 24px 24px 0 0; padding: 30px 40px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="margin:0; font-size:24px;">訂單列表</h2>
+        
+        <div style="display: flex; gap: 20px; font-size: 14px; font-weight: 600;">
+            <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <input type="radio" name="statusFilter" value="all" checked onchange="safeRender()"> 
+                全部 <span id="cnt-all" style="color:#888;">(0)</span>
+            </label>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <input type="radio" name="statusFilter" value="picked" onchange="safeRender()"> 
+                <span style="color:#00b894;">✅ 已取</span> <span id="cnt-picked">(0)</span>
+            </label>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
+                <input type="radio" name="statusFilter" value="unpicked" onchange="safeRender()"> 
+                <span style="color:#d63031;">📦 未取</span> <span id="cnt-unpicked">(0)</span>
+            </label>
+        </div>
     </div>
   </div>
-  
-  <div class="shell-tabs">
-    <div style="padding: 0 20px 10px 20px; font-size: 12px; color: #aaa; font-weight: 700;">MENU</div>
 
-    <button class="shell-tab active" onclick="switchTab('pay-sub-orders', this)">
-        📦 訂單列表
-    </button>
-    
-    <button class="shell-tab" onclick="switchTab('pay-sub-add', this)">
-        ➕ 新增訂單
-    </button>
-    
-    <button class="shell-tab" onclick="switchTab('pay-sub-import', this)">
-        📄 批量匯入
-    </button>
-    
-    <button class="shell-tab" onclick="switchTab('pay-sub-calc', this)">
-        📅 查詢撥款日
-    </button>
-    
-    <button class="shell-tab" onclick="switchTab('panel-sms', this)">
-        📱 SMS 客戶通知
-    </button>
+  <!-- ★★★ 修改後的按鈕區 (移除追蹤貨況) ★★★ -->
+  <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+     <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
+     <button class="btn btn-danger" onclick="batchDeleteOrders()">🗑️ 刪除選取</button>
+     
+     <div class="batch-date-box">
+         <span style="font-size:13px; font-weight:700;">📅 批量指定：</span>
+         <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit;">
+         <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
+     </div>
+     
+     <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
   </div>
 
-  <div class="shell-content">
-    
-    <!-- ========== 訂單列表 ========== -->
-    <div id="pay-sub-orders" class="shell-panel active">
-      
-      <div class="shell-header" style="margin: -40px -40px 30px -40px; border-radius: 24px 24px 0 0; padding: 30px 40px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2 style="margin:0; font-size:24px;">訂單列表</h2>
-            
-            <div style="display: flex; gap: 20px; font-size: 14px; font-weight: 600;">
-                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="all" checked onchange="safeRender()"> 
-                    全部 <span id="cnt-all" style="color:#888;">(0)</span>
-                </label>
-                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="picked" onchange="safeRender()"> 
-                    <span style="color:#00b894;">✅ 已取</span> <span id="cnt-picked">(0)</span>
-                </label>
-                <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="unpicked" onchange="safeRender()"> 
-                    <span style="color:#d63031;">📦 未取</span> <span id="cnt-unpicked">(0)</span>
-                </label>
-            </div>
-        </div>
-      </div>
-
-      <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-         <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
-         <button class="btn btn-secondary" style="background-color:#0984e3; color:white;" onclick="checkAllTracking()">🔍 追蹤貨況</button>
-         <button class="btn btn-danger" onclick="batchDeleteOrders()">🗑️ 刪除選取</button>
-         
-         <div class="batch-date-box">
-             <span style="font-size:13px; font-weight:700;">📅 批量指定：</span>
-             <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit;">
-             <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
-         </div>
-         
-         <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
-      </div>
-
-      <div class="table-wrap">
-        <table id="orderTable">
-            <thead>
-              <tr>
-                <th style="width:40px"><input type="checkbox" id="selectAllPay" onchange="toggleSelectAllPay()"></th>
-                <th>訂單號</th>
-                <th>姓名</th>
-                <th>電話</th>
-                <th>平台</th>
-                <th>出貨日</th>
-                <th>取貨期限</th>
-                <th>物流狀態</th>
-                <th>狀態 / 撥款日</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="payTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- ========== 新增訂單 ========== -->
-    <div id="pay-sub-add" class="shell-panel">
-      <h2>➕ 新增單筆訂單</h2>
-      
-      <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; border-left: 4px solid #ffc107;">
-        <b>📌 提示:</b> 本系統僅支援 <b>7-11 賣貨便</b> 和 <b>全家好賣+</b>
-      </div>
-      
-      <div class="pay-form-grid">
-        <div>
-           <label>訂單編號</label><input type="text" id="addOrderNo" placeholder="#1468">
-        </div>
-        <div>
-           <label>客戶姓名</label><input type="text" id="addName" placeholder="王小明">
-        </div>
-        <div>
-           <label>手機號碼</label><input type="tel" id="addPhone" placeholder="0912345678">
-        </div>
-        <div>
-           <label>平台</label>
-           <select id="addPlatform">
-             <option value="7-11">🟠 7-11 賣貨便</option>
-             <option value="全家">🟢 全家好賣+</option>
-           </select>
-        </div>
-        <div>
-           <label>📝 備註 (門市/其他)</label><input type="text" id="addStore" placeholder="中壢環北店">
-        </div>
-        <div>
-           <label>出貨日</label><input type="date" id="addShipDate">
-        </div>
-        <div>
-           <label>取貨期限</label><input type="date" id="addDeadline">
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="addNewOrder()">✨ 確認新增</button>
-    </div>
-
-    <!-- ========== 批量匯入 ========== -->
-    <div id="pay-sub-import" class="shell-panel">
-       <h2>📄 批量匯入訂單 (51Tracking 格式)</h2>
-       <p style="color:#666; margin-bottom:15px;">
-         請從 Excel 複製資料並直接貼上<br>
-         <b>格式:</b> 物流單號 | 物流商簡碼 | 訂單號 | 客戶名稱 | 客戶電話 | <b style="color:#e74c3c;">備註</b>
-       </p>
-       
-       <div style="background:#fff3cd; padding:15px; border-radius:8px; margin-bottom:15px; font-size:13px; border-left: 4px solid #ffc107;">
-         <b>📌 物流商簡碼對應:</b><br>
-         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-           <div style="background:white; padding:10px; border-radius:6px;">
-             <span style="background:#ff6b00; color:white; padding:4px 10px; border-radius:4px; font-weight:bold; font-size:12px;">7-11 賣貨便</span>
-             <code style="display:block; margin-top:8px; background:#f8f9fa; padding:6px; border-radius:4px; font-size:13px;">qi-eleven</code>
-           </div>
-           <div style="background:white; padding:10px; border-radius:6px;">
-             <span style="background:#00a650; color:white; padding:4px 10px; border-radius:4px; font-weight:bold; font-size:12px;">全家好賣+</span>
-             <code style="display:block; margin-top:8px; background:#f8f9fa; padding:6px; border-radius:4px; font-size:13px;">famiport</code>
-           </div>
-         </div>
-       </div>
-       
-       <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:15px; font-size:12px; border-left: 4px solid #2196f3;">
-         <b>💡 提示:</b> 本系統僅支援 <b>7-11</b> 和 <b>全家</b> 物流追蹤<br>
-         <b>備註欄位</b>可填寫門市名稱或其他資訊 (會儲存至 API 的 note 欄位)
-       </div>
-       
-       <textarea id="importText" rows="12" 
-         placeholder="範例 (從 Excel 直接複製貼上，Tab 分隔):
-
-物流單號          物流商簡碼    訂單號    客戶名稱    客戶電話        備註
-M57607673503      qi-eleven     #1489     謝毓潔      0912345678      中壢環北店
-16328466851       famiport      #1486     陳姵宇      0923456789      桃園文中店
-M57607697968      qi-eleven     #1490     李沛蓉      0934567890      新竹光復店
-
-或不含標題列:
-M57607673503      qi-eleven     #1489     謝毓潔      0912345678      中壢環北店
-16328466851       famiport      #1486     陳姵宇      0923456789      桃園文中店" 
-         style="width:100%; padding:15px; border:2px solid #e2e8f0; border-radius:12px; font-family:monospace; font-size:13px; line-height:1.6;">
-       </textarea>
-       
-       <div style="display:flex; gap:10px; margin-top:20px;">
-         <button class="btn btn-primary" style="flex:1;" onclick="importFromText()">
-           📥 匯入並創建追蹤
-         </button>
-         <button class="btn btn-secondary" onclick="document.getElementById('importText').value=''">
-           🗑️ 清空
-         </button>
-       </div>
-       
-       <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px; font-size:12px; color:#666;">
-         <b>⚠️ 注意事項:</b>
-         <ul style="margin:10px 0 0 0; padding-left:20px;">
-           <li>需要 <b>HTTPS</b> 連線才能使用 51Tracking API</li>
-           <li>請確保已在 <code>orders.js</code> 設定 API Key</li>
-           <li>匯入後會自動創建追蹤,可使用「追蹤貨況」按鈕查詢最新狀態</li>
-           <li>支援帶標題列或不帶標題列的格式</li>
-           <li><b>備註欄位</b>可填寫門市名稱或其他資訊</li>
-         </ul>
-       </div>
-    </div>
-
-    <!-- ========== 計算撥款日 ========== -->
-    <div id="pay-sub-calc" class="shell-panel">
-      <h2>📅 計算撥款日</h2>
-      
-      <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; border-left: 4px solid #2196f3;">
-        <b>💡 撥款規則:</b>
-        <div style="margin-top:8px;">
-          <b>7-11 賣貨便:</b> 週一~三取貨 → 週四結算 → +4天撥款 | 其他 → 週一結算 → +2天撥款<br>
-          <b>全家好賣+:</b> 週一~三取貨 → 週五結算 → +4天撥款 | 其他 → 週三結算 → +1天撥款
-        </div>
-      </div>
-      
-      <div class="pay-form-grid">
-         <div>
-            <label>選擇平台</label>
-            <select id="calcPlatform">
-              <option value="7-11">🟠 7-11 賣貨便</option>
-              <option value="全家">🟢 全家好賣+</option>
-            </select>
-         </div>
-         <div>
-            <label>客人取貨日</label>
-            <input type="date" id="calcDate">
-         </div>
-      </div>
-      <button class="btn btn-warning" onclick="doCalc()">💰 計算撥款日</button>
-      
-      <div id="calcResult" style="margin-top:30px; font-size: 18px; font-weight:bold; color:#00b894; padding: 20px; background: #e0f7fa; border-radius: 12px; display: none;"></div>
-    </div>
-
-    <!-- ========== SMS 客戶通知 ========== -->
-    <div id="panel-sms" class="shell-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-          <h2 style="margin:0;">SMS 客戶通知</h2>
-          <div style="font-size:13px; color:#999;">
-            <span class="sms-status-dot dot-online" id="smsIndicator"></span> 系統狀態
-          </div>
-      </div>
-
-      <div class="pay-tabs">
-        <div class="pay-tab active" onclick="switchSmsSubTab('list')">📨 待發送名單</div>
-        <div class="pay-tab" onclick="switchSmsSubTab('tpl')">💬 範本設定</div>
-      </div>
-
-      <div id="sms-sub-list" class="pay-panel active">
-        <div class="sms-card">
-          <label>選擇簡訊範本：</label>
-          <select id="smsTemplateSelect" onchange="previewTemplate()" style="margin-bottom:10px;"><option value="">-- 請選擇 --</option></select>
-          <textarea id="smsPreviewBox" rows="3" placeholder="簡訊內容預覽..." disabled style="background:#f9f9f9;"></textarea>
-          <button class="btn btn-primary" style="margin-top:15px; width:100%;" onclick="sendSelectedSMS()">🚀 發送選取的簡訊</button>
-        </div>
-        <div id="smsListContainer"></div>
-      </div>
-
-      <div id="sms-sub-tpl" class="pay-panel">
-         <div class="sms-card" style="background:#fff; border-color:#ffe4e1;">
-             <h3 style="margin:0 0 15px 0; font-size:16px; color:#ff6b81;">📝 編輯 / 新增範本</h3>
-             <label>範本名稱</label>
-             <input type="text" id="tplNameInput" placeholder="例如: 取貨通知" style="margin-bottom:15px;">
-             <label>簡訊內容 (可用參數: {name} {no} {storeName} {deadline})</label>
-             <textarea id="tplContentInput" rows="5" placeholder="輸入簡訊內容..."></textarea>
-             <div style="margin-top:15px; display:flex; gap:10px;">
-                 <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存</button>
-                 <button class="btn btn-secondary" onclick="clearTemplateInput()">取消</button>
-             </div>
-         </div>
-         <div id="templateListContainer"></div>
-         <button class="btn btn-secondary" style="width:100%; margin-top:20px;" onclick="resetDefaultTemplates()">🔄 重置回預設範本</button>
-      </div>
-
-    </div>
+  <div class="table-wrap">
+    <table id="orderTable">
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" id="selectAllPay" onchange="toggleSelectAllPay()"></th>
+            <th>訂單號</th>
+            <th>姓名</th>
+            <th>電話</th>
+            <th>平台</th>
+            <th>出貨日</th>
+            <th>取貨期限</th>
+            <th>物流狀態</th>
+            <th>狀態 / 撥款日</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="payTableBody"></tbody>
+    </table>
   </div>
 </div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="orders.js?v=20260123"></script>
-<script type="module" src="sms.js?v=20260123"></script>
-
-<script>
-  // ★★★ 安全渲染函式 ★★★
-  function safeRender() {
-    if (typeof window.renderPayTable === 'function') {
-        window.renderPayTable();
-    } else {
-        console.log("正在等待程式載入...");
-    }
-  }
-
-  // ★★★ 核心切換邏輯 ★★★
-  function switchTab(panelId, btnElement) {
-    document.querySelectorAll('.shell-panel').forEach(panel => {
-        panel.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.shell-tab').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const targetPanel = document.getElementById(panelId);
-    if(targetPanel) {
-        targetPanel.classList.add('active');
-    }
-    
-    if(btnElement) {
-        btnElement.classList.add('active');
-    }
-
-    if (panelId === 'pay-sub-orders') {
-        safeRender();
-    }
-  }
-
-  // SMS 內部的子分頁切換
-  function switchSmsSubTab(target) {
-    document.querySelectorAll('#panel-sms .pay-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('#panel-sms .pay-panel').forEach(p => p.classList.remove('active'));
-    
-    if(target==='list') { 
-        document.querySelectorAll('#panel-sms .pay-tab')[0].classList.add('active'); 
-        document.getElementById('sms-sub-list').classList.add('active'); 
-    }
-    if(target==='tpl') { 
-        document.querySelectorAll('#panel-sms .pay-tab')[1].classList.add('active'); 
-        document.getElementById('sms-sub-tpl').classList.add('active'); 
-    }
-  }
-  
-  // 初始化日期
-  document.addEventListener('DOMContentLoaded', () => {
-      const today = new Date().toISOString().split('T')[0];
-      if(document.getElementById('addShipDate')) document.getElementById('addShipDate').value = today;
-      if(document.getElementById('batchDateInput')) document.getElementById('batchDateInput').value = today;
-      
-      setTimeout(safeRender, 500); 
-  });
-  
-  // ★★★ HTTPS 檢查 ★★★
-  if (window.location.protocol !== 'https:') {
-    const warning = document.getElementById('httpsWarning');
-    if (warning) {
-      warning.style.display = 'block';
-    }
-    console.warn('⚠️ 需要 HTTPS 連線才能使用 51Tracking API');
-  }
-  
-  // ★★★ API Key 檢查提示 ★★★
-  setTimeout(() => {
-    if (window.location.protocol === 'https:') {
-      console.log('%c✅ HTTPS 連線正常', 'color: #00b894; font-weight: bold; font-size: 14px;');
-      console.log('%c📌 請確認已在 orders.js 設定 51Tracking API Key', 'color: #0984e3; font-size: 12px;');
-      console.log('%c🔗 取得 API Key: https://www.51tracking.com', 'color: #636e72; font-size: 11px;');
-    }
-  }, 1000);
-</script>
-
-</body>
-</html>
