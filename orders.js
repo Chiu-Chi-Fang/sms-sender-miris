@@ -140,27 +140,44 @@ function renderPayTable() {
       `;
     }
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
-      <td>${order.no}</td>
-      <td>${order.name}</td>
-      <td>${order.phone}</td>
-      <td>
-        <span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">
-          ${order.platform}
-        </span>
-      </td>
-      <td>${order.shipDate || '-'}</td>
-      <td>${order.deadline || '-'}</td>
-      <td>${trackHtml}</td>
-      <td>${statusHtml}</td>
-      <td>
-        <button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">
-          ❌
-        </button>
-      </td>
-    `;
+// ★★★ 根據平台設定顏色 ★★★
+let platformColor = '#eee';
+let platformTextColor = '#333';
+
+if (order.platform && (order.platform.includes('7-11') || order.platform.includes('賣貨便'))) {
+  platformColor = '#fe6601';
+  platformTextColor = '#fff';
+} else if (order.platform && (order.platform.includes('全家') || order.platform.includes('好賣'))) {
+  platformColor = '#008cd6';
+  platformTextColor = '#fff';
+}
+
+const tr = document.createElement('tr');
+tr.innerHTML = `
+  <td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
+  <td>
+    <span style="font-size:15px; font-weight:700; color:#1f2937;">
+      ${order.no}
+    </span>
+  </td>
+  <td>${order.name}</td>
+  <td>${order.phone}</td>
+  <td>
+    <span style="background:${platformColor}; color:${platformTextColor}; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; display:inline-block;">
+      ${order.platform}
+    </span>
+  </td>
+  <td>${order.shipDate || '-'}</td>
+  <td>${order.deadline || '-'}</td>
+  <td>${trackHtml}</td>
+  <td>${statusHtml}</td>
+  <td>
+    <button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">
+      ❌
+    </button>
+  </td>
+`;
+
     tbody.appendChild(tr);
   });
 }
