@@ -380,12 +380,7 @@ function exportToExcel() {
 // ★★★ 初始化 ★★★
 // ============================================
 
-onValue(payOrdersRef, (snapshot) => {
-  const data = snapshot.val();
-  payOrders = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-  renderPayTable();
-});
-
+// 先匯出函數到全域
 window.importFromTextImpl = importFromTextImpl;
 window.updateOrderPickup = updateOrderPickup;
 window.resetOrderStatus = resetOrderStatus;
@@ -393,10 +388,36 @@ window.deleteOrder = deleteOrder;
 window.batchDeleteOrders = batchDeleteOrders;
 window.exportToExcel = exportToExcel;
 window.copyTrackingNumber = copyTrackingNumber;
+window.savePayOrders = savePayOrders;
+window.renderPayTable = renderPayTable;
 
+// 監聽 Firebase 資料變化
+onValue(payOrdersRef, (snapshot) => {
+  const data = snapshot.val();
+  payOrders = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+  
+  // ★★★ 重要:每次更新都要同步到 window ★★★
+  window.payOrders = payOrders;
+  
+  renderPayTable();
+  
+  console.log('📊 訂單資料已更新:', {
+    訂單數量: payOrders.length,
+    已取貨: payOrders.filter(o => o.pickupDate).length,
+    未取貨: payOrders.filter(o => !o.pickupDate).length
+  });
+});
+
+// 初始化事件監聽
 document.addEventListener('DOMContentLoaded', () => {
   const radios = document.querySelectorAll('input[name="statusFilter"]');
   radios.forEach(r => r.addEventListener('change', renderPayTable));
+  
+  console.log('✅ orders.js 初始化完成 (無 API 追蹤版本)');
+  console.log('📦 已匯出到 window:', {
+    payOrders: typeof window.payOrders,
+    savePayOrders: typeof window.savePayOrders,
+    renderPayTable: typeof window.renderPayTable
+  });
 });
 
-console.log('✅ orders.js 初始化完成 (無 API 追蹤版本)');
