@@ -215,26 +215,3 @@ tbody tr:has(input[type="checkbox"]:checked) {
     .shell-tab { flex: 0 0 auto; border-radius: 50px; padding: 10px 20px; }
     .shell-content { padding: 20px; }
 }
-
-/* Toast 提示動畫 */
-@keyframes slideUp {
-  from {
-    bottom: -50px;
-    opacity: 0;
-  }
-  to {
-    bottom: 30px;
-    opacity: 1;
-  }
-}
-
-@keyframes slideDown {
-  from {
-    bottom: 30px;
-    opacity: 1;
-  }
-  to {
-    bottom: -50px;
-    opacity: 0;
-  }
-}
