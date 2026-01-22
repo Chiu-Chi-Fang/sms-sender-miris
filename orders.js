@@ -23,7 +23,7 @@ const payOrdersRef = ref(db, 'pay_orders');
 let payOrders = [];
 
 // ★★★ 51Tracking API 設定 ★★★
-const TRACKING_API_KEY = '3e3sheag-1e9r-mox4-m93f-2x2k88vo1far';
+const TRACKING_API_KEY = 't2l6hoex-eb9y-znvr-k7sc-yckeosa72yfm';
 const TRACKING_API_BASE = 'https://api.51tracking.com/v4';
 
 // 僅支援 7-11 和全家
