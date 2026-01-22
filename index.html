@@ -3,12 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌸 訂單管理系統 (Internia Style)</title>
+  <title>🌸 訂單管理系統 (51Tracking 版)</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="shell">
+  
+  <!-- HTTPS 檢查提示 -->
+  <div id="httpsWarning" style="display:none; background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:20px; border-radius:8px;">
+    <b>⚠️ 警告:</b> 當前網站使用 HTTP 連線,51Tracking API 需要 <b>HTTPS</b> 才能正常運作!
+    <div style="margin-top:10px; font-size:13px; color:#666;">
+      請部署到支援 HTTPS 的平台 (如 Firebase Hosting, Netlify, Vercel) 或設定 SSL 憑證
+    </div>
+  </div>
   
   <div class="shell-tabs">
     <div style="padding: 0 20px 10px 20px; font-size: 12px; color: #aaa; font-weight: 700;">MENU</div>
@@ -36,6 +44,7 @@
 
   <div class="shell-content">
     
+    <!-- ========== 訂單列表 ========== -->
     <div id="pay-sub-orders" class="shell-panel active">
       
       <div class="shell-header" style="margin: -40px -40px 30px -40px; border-radius: 24px 24px 0 0; padding: 30px 40px;">
@@ -94,8 +103,14 @@
       </div>
     </div>
 
+    <!-- ========== 新增訂單 ========== -->
     <div id="pay-sub-add" class="shell-panel">
       <h2>➕ 新增單筆訂單</h2>
+      
+      <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; border-left: 4px solid #ffc107;">
+        <b>📌 提示:</b> 本系統僅支援 <b>7-11 賣貨便</b> 和 <b>全家好賣+</b>
+      </div>
+      
       <div class="pay-form-grid">
         <div>
            <label>訂單編號</label><input type="text" id="addOrderNo" placeholder="#1468">
@@ -109,9 +124,12 @@
         <div>
            <label>平台</label>
            <select id="addPlatform">
-             <option value="賣貨便">賣貨便</option>
-             <option value="好賣+">好賣+</option>
+             <option value="7-11">🟠 7-11 賣貨便</option>
+             <option value="全家">🟢 全家好賣+</option>
            </select>
+        </div>
+        <div>
+           <label>📝 備註 (門市/其他)</label><input type="text" id="addStore" placeholder="中壢環北店">
         </div>
         <div>
            <label>出貨日</label><input type="date" id="addShipDate">
@@ -123,35 +141,99 @@
       <button class="btn btn-primary" onclick="addNewOrder()">✨ 確認新增</button>
     </div>
 
+    <!-- ========== 批量匯入 ========== -->
     <div id="pay-sub-import" class="shell-panel">
-       <h2>📄 批量匯入訂單</h2>
-       <p style="color:#666; margin-bottom:15px;">請從 Excel 複製資料並直接貼上，格式：<b>訂單號 | 姓名 | 電話 | 平台 | 出貨日</b></p>
+       <h2>📄 批量匯入訂單 (51Tracking 格式)</h2>
+       <p style="color:#666; margin-bottom:15px;">
+         請從 Excel 複製資料並直接貼上<br>
+         <b>格式:</b> 物流單號 | 物流商簡碼 | 訂單號 | 客戶名稱 | 客戶電話 | <b style="color:#e74c3c;">備註</b>
+       </p>
        
-       <textarea id="importText" rows="10" placeholder="例如：
-#1001  王大明  0912345678  賣貨便  2026/01/20
-#1002  陳小美  0987654321  好賣+   2026/01/21" 
-style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; font-family:monospace;"></textarea>
+       <div style="background:#fff3cd; padding:15px; border-radius:8px; margin-bottom:15px; font-size:13px; border-left: 4px solid #ffc107;">
+         <b>📌 物流商簡碼對應:</b><br>
+         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+           <div style="background:white; padding:10px; border-radius:6px;">
+             <span style="background:#ff6b00; color:white; padding:4px 10px; border-radius:4px; font-weight:bold; font-size:12px;">7-11 賣貨便</span>
+             <code style="display:block; margin-top:8px; background:#f8f9fa; padding:6px; border-radius:4px; font-size:13px;">qi-eleven</code>
+           </div>
+           <div style="background:white; padding:10px; border-radius:6px;">
+             <span style="background:#00a650; color:white; padding:4px 10px; border-radius:4px; font-weight:bold; font-size:12px;">全家好賣+</span>
+             <code style="display:block; margin-top:8px; background:#f8f9fa; padding:6px; border-radius:4px; font-size:13px;">famiport</code>
+           </div>
+         </div>
+       </div>
        
-       <button class="btn btn-primary" style="margin-top:20px" onclick="importFromText()">📥 開始匯入</button>
+       <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:15px; font-size:12px; border-left: 4px solid #2196f3;">
+         <b>💡 提示:</b> 本系統僅支援 <b>7-11</b> 和 <b>全家</b> 物流追蹤<br>
+         <b>備註欄位</b>可填寫門市名稱或其他資訊 (會儲存至 API 的 note 欄位)
+       </div>
+       
+       <textarea id="importText" rows="12" 
+         placeholder="範例 (從 Excel 直接複製貼上，Tab 分隔):
+
+物流單號          物流商簡碼    訂單號    客戶名稱    客戶電話        備註
+M57607673503      qi-eleven     #1489     謝毓潔      0912345678      中壢環北店
+16328466851       famiport      #1486     陳姵宇      0923456789      桃園文中店
+M57607697968      qi-eleven     #1490     李沛蓉      0934567890      新竹光復店
+
+或不含標題列:
+M57607673503      qi-eleven     #1489     謝毓潔      0912345678      中壢環北店
+16328466851       famiport      #1486     陳姵宇      0923456789      桃園文中店" 
+         style="width:100%; padding:15px; border:2px solid #e2e8f0; border-radius:12px; font-family:monospace; font-size:13px; line-height:1.6;">
+       </textarea>
+       
+       <div style="display:flex; gap:10px; margin-top:20px;">
+         <button class="btn btn-primary" style="flex:1;" onclick="importFromText()">
+           📥 匯入並創建追蹤
+         </button>
+         <button class="btn btn-secondary" onclick="document.getElementById('importText').value=''">
+           🗑️ 清空
+         </button>
+       </div>
+       
+       <div style="margin-top:20px; padding:15px; background:#f8f9fa; border-radius:8px; font-size:12px; color:#666;">
+         <b>⚠️ 注意事項:</b>
+         <ul style="margin:10px 0 0 0; padding-left:20px;">
+           <li>需要 <b>HTTPS</b> 連線才能使用 51Tracking API</li>
+           <li>請確保已在 <code>orders.js</code> 設定 API Key</li>
+           <li>匯入後會自動創建追蹤,可使用「追蹤貨況」按鈕查詢最新狀態</li>
+           <li>支援帶標題列或不帶標題列的格式</li>
+           <li><b>備註欄位</b>可填寫門市名稱或其他資訊</li>
+         </ul>
+       </div>
     </div>
 
+    <!-- ========== 計算撥款日 ========== -->
     <div id="pay-sub-calc" class="shell-panel">
       <h2>📅 計算撥款日</h2>
+      
+      <div style="background:#e3f2fd; padding:12px; border-radius:8px; margin-bottom:20px; font-size:13px; border-left: 4px solid #2196f3;">
+        <b>💡 撥款規則:</b>
+        <div style="margin-top:8px;">
+          <b>7-11 賣貨便:</b> 週一~三取貨 → 週四結算 → +4天撥款 | 其他 → 週一結算 → +2天撥款<br>
+          <b>全家好賣+:</b> 週一~三取貨 → 週五結算 → +4天撥款 | 其他 → 週三結算 → +1天撥款
+        </div>
+      </div>
+      
       <div class="pay-form-grid">
          <div>
             <label>選擇平台</label>
-            <select id="calcPlatform"><option>賣貨便</option><option>好賣+</option></select>
+            <select id="calcPlatform">
+              <option value="7-11">🟠 7-11 賣貨便</option>
+              <option value="全家">🟢 全家好賣+</option>
+            </select>
          </div>
          <div>
             <label>客人取貨日</label>
             <input type="date" id="calcDate">
          </div>
       </div>
-      <button class="btn btn-warning" onclick="doCalc()">計算</button>
+      <button class="btn btn-warning" onclick="doCalc()">💰 計算撥款日</button>
       
       <div id="calcResult" style="margin-top:30px; font-size: 18px; font-weight:bold; color:#00b894; padding: 20px; background: #e0f7fa; border-radius: 12px; display: none;"></div>
     </div>
 
+    <!-- ========== SMS 客戶通知 ========== -->
     <div id="panel-sms" class="shell-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
           <h2 style="margin:0;">SMS 客戶通知</h2>
@@ -191,13 +273,16 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
          <button class="btn btn-secondary" style="width:100%; margin-top:20px;" onclick="resetDefaultTemplates()">🔄 重置回預設範本</button>
       </div>
 
-    </div> </div> </div> <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script type="module" src="orders.js?v=20260122"></script>
-<script type="module" src="sms.js?v=20260122"></script>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module" src="orders.js?v=20260123"></script>
+<script type="module" src="sms.js?v=20260123"></script>
 
 <script>
   // ★★★ 安全渲染函式 ★★★
-  // 如果 orders.js 還沒載入好，window.renderPayTable 可能不存在，這裡做個保護
   function safeRender() {
     if (typeof window.renderPayTable === 'function') {
         window.renderPayTable();
@@ -208,17 +293,14 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
 
   // ★★★ 核心切換邏輯 ★★★
   function switchTab(panelId, btnElement) {
-    // 1. 隱藏所有右側內容
     document.querySelectorAll('.shell-panel').forEach(panel => {
         panel.classList.remove('active');
     });
     
-    // 2. 移除左側選單的 active 狀態
     document.querySelectorAll('.shell-tab').forEach(btn => {
         btn.classList.remove('active');
     });
     
-    // 3. 顯示目標區塊 & 點亮按鈕
     const targetPanel = document.getElementById(panelId);
     if(targetPanel) {
         targetPanel.classList.add('active');
@@ -228,7 +310,6 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
         btnElement.classList.add('active');
     }
 
-    // 4. 特殊處理：如果是切換回「訂單列表」，重新渲染表格
     if (panelId === 'pay-sub-orders') {
         safeRender();
     }
@@ -255,10 +336,27 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
       if(document.getElementById('addShipDate')) document.getElementById('addShipDate').value = today;
       if(document.getElementById('batchDateInput')) document.getElementById('batchDateInput').value = today;
       
-      // 嘗試初始渲染
       setTimeout(safeRender, 500); 
   });
-</script> 
+  
+  // ★★★ HTTPS 檢查 ★★★
+  if (window.location.protocol !== 'https:') {
+    const warning = document.getElementById('httpsWarning');
+    if (warning) {
+      warning.style.display = 'block';
+    }
+    console.warn('⚠️ 需要 HTTPS 連線才能使用 51Tracking API');
+  }
+  
+  // ★★★ API Key 檢查提示 ★★★
+  setTimeout(() => {
+    if (window.location.protocol === 'https:') {
+      console.log('%c✅ HTTPS 連線正常', 'color: #00b894; font-weight: bold; font-size: 14px;');
+      console.log('%c📌 請確認已在 orders.js 設定 51Tracking API Key', 'color: #0984e3; font-size: 12px;');
+      console.log('%c🔗 取得 API Key: https://www.51tracking.com', 'color: #636e72; font-size: 11px;');
+    }
+  }, 1000);
+</script>
 
 </body>
 </html>
