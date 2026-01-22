@@ -365,7 +365,6 @@ window.resetOrderStatus = resetOrderStatus;
 window.deleteOrder = deleteOrder;
 window.batchDeleteOrders = batchDeleteOrders;
 window.exportToExcel = exportToExcel;
-window.copyTrackingNumber = copyTrackingNumber;
 window.savePayOrders = savePayOrders;
 window.renderPayTable = renderPayTable;
 
