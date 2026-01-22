@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🌸 訂單管理系統 (Internia Style)</title>
-  <link rel="stylesheet" href="style.css"> </head>
+  <link rel="stylesheet" href="style.css">
+</head>
 <body>
 
 <div class="shell">
@@ -12,30 +13,30 @@
   <div class="shell-tabs">
     <div style="padding: 0 20px 10px 20px; font-size: 12px; color: #aaa; font-weight: 700;">MENU</div>
 
-    <button class="shell-tab active" onclick="switchTab('tab-list', this)">
+    <button class="shell-tab active" onclick="switchTab('pay-sub-orders', this)">
         📦 訂單列表
     </button>
     
-    <button class="shell-tab" onclick="switchTab('tab-add', this)">
+    <button class="shell-tab" onclick="switchTab('pay-sub-add', this)">
         ➕ 新增訂單
     </button>
     
-    <button class="shell-tab" onclick="switchTab('tab-import', this)">
+    <button class="shell-tab" onclick="switchTab('pay-sub-import', this)">
         📄 批量匯入
     </button>
     
-    <button class="shell-tab" onclick="switchTab('tab-calc', this)">
+    <button class="shell-tab" onclick="switchTab('pay-sub-calc', this)">
         📅 查詢撥款日
     </button>
     
-    <button class="shell-tab" onclick="switchTab('tab-sms', this)">
+    <button class="shell-tab" onclick="switchTab('panel-sms', this)">
         📱 SMS 客戶通知
     </button>
   </div>
 
   <div class="shell-content">
     
-    <div id="tab-list" class="shell-panel active">
+    <div id="pay-sub-orders" class="shell-panel active">
       
       <div class="shell-header" style="margin: -40px -40px 30px -40px; border-radius: 24px 24px 0 0; padding: 30px 40px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -43,15 +44,15 @@
             
             <div style="display: flex; gap: 20px; font-size: 14px; font-weight: 600;">
                 <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="all" checked onchange="renderPayTable()"> 
+                    <input type="radio" name="statusFilter" value="all" checked onchange="safeRender()"> 
                     全部 <span id="cnt-all" style="color:#888;">(0)</span>
                 </label>
                 <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="picked" onchange="renderPayTable()"> 
+                    <input type="radio" name="statusFilter" value="picked" onchange="safeRender()"> 
                     <span style="color:#00b894;">✅ 已取</span> <span id="cnt-picked">(0)</span>
                 </label>
                 <label style="cursor:pointer; display:flex; align-items:center; gap:5px;">
-                    <input type="radio" name="statusFilter" value="unpicked" onchange="renderPayTable()"> 
+                    <input type="radio" name="statusFilter" value="unpicked" onchange="safeRender()"> 
                     <span style="color:#d63031;">📦 未取</span> <span id="cnt-unpicked">(0)</span>
                 </label>
             </div>
@@ -88,13 +89,12 @@
                 <th>操作</th>
               </tr>
             </thead>
-            <tbody id="payTableBody">
-               </tbody>
+            <tbody id="payTableBody"></tbody>
         </table>
       </div>
     </div>
 
-    <div id="tab-add" class="shell-panel">
+    <div id="pay-sub-add" class="shell-panel">
       <h2>➕ 新增單筆訂單</h2>
       <div class="pay-form-grid">
         <div>
@@ -123,7 +123,7 @@
       <button class="btn btn-primary" onclick="addNewOrder()">✨ 確認新增</button>
     </div>
 
-    <div id="tab-import" class="shell-panel">
+    <div id="pay-sub-import" class="shell-panel">
        <h2>📄 批量匯入訂單</h2>
        <p style="color:#666; margin-bottom:15px;">請從 Excel 複製資料並直接貼上，格式：<b>訂單號 | 姓名 | 電話 | 平台 | 出貨日</b></p>
        
@@ -135,7 +135,7 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
        <button class="btn btn-primary" style="margin-top:20px" onclick="importFromText()">📥 開始匯入</button>
     </div>
 
-    <div id="tab-calc" class="shell-panel">
+    <div id="pay-sub-calc" class="shell-panel">
       <h2>📅 計算撥款日</h2>
       <div class="pay-form-grid">
          <div>
@@ -152,10 +152,113 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
       <div id="calcResult" style="margin-top:30px; font-size: 18px; font-weight:bold; color:#00b894; padding: 20px; background: #e0f7fa; border-radius: 12px; display: none;"></div>
     </div>
 
-    <div id="tab-sms" class="shell-panel">
+    <div id="panel-sms" class="shell-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
           <h2 style="margin:0;">SMS 客戶通知</h2>
           <div style="font-size:13px; color:#999;">
             <span class="sms-status-dot dot-online" id="smsIndicator"></span> 系統狀態
           </div>
       </div>
+
+      <div class="pay-tabs">
+        <div class="pay-tab active" onclick="switchSmsSubTab('list')">📨 待發送名單</div>
+        <div class="pay-tab" onclick="switchSmsSubTab('tpl')">💬 範本設定</div>
+      </div>
+
+      <div id="sms-sub-list" class="pay-panel active">
+        <div class="sms-card">
+          <label>選擇簡訊範本：</label>
+          <select id="smsTemplateSelect" onchange="previewTemplate()" style="margin-bottom:10px;"><option value="">-- 請選擇 --</option></select>
+          <textarea id="smsPreviewBox" rows="3" placeholder="簡訊內容預覽..." disabled style="background:#f9f9f9;"></textarea>
+          <button class="btn btn-primary" style="margin-top:15px; width:100%;" onclick="sendSelectedSMS()">🚀 發送選取的簡訊</button>
+        </div>
+        <div id="smsListContainer"></div>
+      </div>
+
+      <div id="sms-sub-tpl" class="pay-panel">
+         <div class="sms-card" style="background:#fff; border-color:#ffe4e1;">
+             <h3 style="margin:0 0 15px 0; font-size:16px; color:#ff6b81;">📝 編輯 / 新增範本</h3>
+             <label>範本名稱</label>
+             <input type="text" id="tplNameInput" placeholder="例如: 取貨通知" style="margin-bottom:15px;">
+             <label>簡訊內容 (可用參數: {name} {no} {storeName} {deadline})</label>
+             <textarea id="tplContentInput" rows="5" placeholder="輸入簡訊內容..."></textarea>
+             <div style="margin-top:15px; display:flex; gap:10px;">
+                 <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存</button>
+                 <button class="btn btn-secondary" onclick="clearTemplateInput()">取消</button>
+             </div>
+         </div>
+         <div id="templateListContainer"></div>
+         <button class="btn btn-secondary" style="width:100%; margin-top:20px;" onclick="resetDefaultTemplates()">🔄 重置回預設範本</button>
+      </div>
+
+    </div> </div> </div> <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script type="module" src="orders.js?v=20260122"></script>
+<script type="module" src="sms.js?v=20260122"></script>
+
+<script>
+  // ★★★ 安全渲染函式 ★★★
+  // 如果 orders.js 還沒載入好，window.renderPayTable 可能不存在，這裡做個保護
+  function safeRender() {
+    if (typeof window.renderPayTable === 'function') {
+        window.renderPayTable();
+    } else {
+        console.log("正在等待程式載入...");
+    }
+  }
+
+  // ★★★ 核心切換邏輯 ★★★
+  function switchTab(panelId, btnElement) {
+    // 1. 隱藏所有右側內容
+    document.querySelectorAll('.shell-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    
+    // 2. 移除左側選單的 active 狀態
+    document.querySelectorAll('.shell-tab').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // 3. 顯示目標區塊 & 點亮按鈕
+    const targetPanel = document.getElementById(panelId);
+    if(targetPanel) {
+        targetPanel.classList.add('active');
+    }
+    
+    if(btnElement) {
+        btnElement.classList.add('active');
+    }
+
+    // 4. 特殊處理：如果是切換回「訂單列表」，重新渲染表格
+    if (panelId === 'pay-sub-orders') {
+        safeRender();
+    }
+  }
+
+  // SMS 內部的子分頁切換
+  function switchSmsSubTab(target) {
+    document.querySelectorAll('#panel-sms .pay-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#panel-sms .pay-panel').forEach(p => p.classList.remove('active'));
+    
+    if(target==='list') { 
+        document.querySelectorAll('#panel-sms .pay-tab')[0].classList.add('active'); 
+        document.getElementById('sms-sub-list').classList.add('active'); 
+    }
+    if(target==='tpl') { 
+        document.querySelectorAll('#panel-sms .pay-tab')[1].classList.add('active'); 
+        document.getElementById('sms-sub-tpl').classList.add('active'); 
+    }
+  }
+  
+  // 初始化日期
+  document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().split('T')[0];
+      if(document.getElementById('addShipDate')) document.getElementById('addShipDate').value = today;
+      if(document.getElementById('batchDateInput')) document.getElementById('batchDateInput').value = today;
+      
+      // 嘗試初始渲染
+      setTimeout(safeRender, 500); 
+  });
+</script> 
+
+</body>
+</html>
