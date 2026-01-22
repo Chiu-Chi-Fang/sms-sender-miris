@@ -369,34 +369,85 @@ function importFromText() {
 
 // ========== 批量設定取貨日期 ==========
 function batchSetDate() {
+  // 1. 取得日期
   const dateVal = document.getElementById('batchDateInput').value;
   if (!dateVal) {
-    alert('請先選擇日期！');
+    alert('⚠️ 請先選擇日期！');
     return;
   }
 
+  // 2. 取得勾選的訂單
   const checked = Array.from(document.querySelectorAll('.pay-chk:checked'));
   if (checked.length === 0) {
-    alert('請先勾選訂單！');
+    alert('⚠️ 請先勾選要更新的訂單！');
     return;
   }
 
+  // 3. 確認操作
   if (!confirm(`確定要將 ${checked.length} 筆訂單的取貨日設為 ${dateVal} 嗎？`)) {
     return;
   }
 
-  checked.forEach(cb => {
-    const idx = parseInt(cb.dataset.idx);
-    if (window.payOrders && window.payOrders[idx]) {
+  // 4. 檢查資料
+  if (!window.payOrders || !Array.isArray(window.payOrders)) {
+    alert('❌ 系統錯誤：訂單資料未載入，請重新整理頁面');
+    console.error('payOrders 未定義:', window.payOrders);
+    return;
+  }
+
+  // 5. 更新訂單 (加強錯誤處理)
+  let successCount = 0;
+  checked.forEach((cb, index) => {
+    // 嘗試多種方式取得索引
+    let idx = cb.dataset.idx || cb.getAttribute('data-idx');
+    
+    if (idx === undefined || idx === null) {
+      console.warn(`第 ${index + 1} 個 checkbox 沒有 data-idx 屬性`, cb);
+      return;
+    }
+    
+    idx = parseInt(idx);
+    
+    if (isNaN(idx)) {
+      console.warn(`無效的索引值: ${cb.dataset.idx}`);
+      return;
+    }
+    
+    if (window.payOrders[idx]) {
       window.payOrders[idx].pickupDate = dateVal;
+      successCount++;
+      console.log(`✅ 更新訂單 ${idx}:`, window.payOrders[idx].no);
+    } else {
+      console.warn(`找不到訂單索引 ${idx}`);
     }
   });
 
-  if (typeof savePayOrders === 'function') savePayOrders();
-  if (typeof renderPayTable === 'function') renderPayTable();
+  // 6. 儲存到 Firebase
+  if (typeof savePayOrders === 'function') {
+    savePayOrders();
+  } else {
+    console.error('savePayOrders 函數不存在');
+  }
 
-  alert(`✅ 已更新 ${checked.length} 筆訂單`);
+  // 7. 重新渲染表格
+  if (typeof renderPayTable === 'function') {
+    renderPayTable();
+  } else {
+    console.error('renderPayTable 函數不存在');
+  }
+
+  // 8. 清空勾選和日期
+  document.getElementById('selectAllPay').checked = false;
+  document.getElementById('batchDateInput').value = '';
+
+  // 9. 顯示結果
+  if (successCount > 0) {
+    alert(`✅ 成功更新 ${successCount} 筆訂單的取貨日期！`);
+  } else {
+    alert('❌ 沒有成功更新任何訂單，請檢查 Console');
+  }
 }
+
 
 // ========== 匯出 Excel ==========
 function exportOrdersExcel() {
