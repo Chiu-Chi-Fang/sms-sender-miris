@@ -107,33 +107,10 @@ function renderPayTable() {
     if (filterVal === 'picked' && !isPicked) return;
     if (filterVal === 'unpicked' && isPicked) return;
 
-    const queryNo = order.trackingNum || order.no;
-    
-    // ★★★ 簡化物流單號顯示 (移除 API 狀態) ★★★
+    // ★★★ 只顯示物流單號 ★★★
     let trackHtml = '<span style="color:#ccc;">-</span>';
-    
     if (order.trackingNum) {
-      let linkUrl = "#";
-      if (order.platform && order.platform.includes("7-11")) {
-        linkUrl = `https://eservice.7-11.com.tw/E-Tracking/search.aspx?shipNum=${queryNo}`;
-      } else if (order.platform && order.platform.includes("全家")) {
-        linkUrl = `https://www.famiport.com.tw/Web_Famiport/page/process.aspx`;
-      }
-
-      trackHtml = `
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size:12px; color:#666;">${order.trackingNum}</span>
-          ${linkUrl !== "#" ? `
-            <a href="${linkUrl}" 
-               target="_blank" 
-               class="btn btn-sm" 
-               style="background:#007bff; color:white; font-size:11px; padding:2px 8px; text-decoration:none;"
-               onclick="copyTrackingNumber('${order.trackingNum}')">
-              🔗 查詢
-            </a>
-          ` : ''}
-        </div>
-      `;
+      trackHtml = `<span style="font-size:12px; color:#666;">${order.trackingNum}</span>`;
     }
 
     let statusHtml = '';
@@ -187,6 +164,7 @@ function renderPayTable() {
     tbody.appendChild(tr);
   });
 }
+
 
 // ★★★ 新增:複製物流單號功能 ★★★
 function copyTrackingNumber(trackingNum) {
