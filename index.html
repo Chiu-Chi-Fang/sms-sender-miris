@@ -460,21 +460,65 @@ function exportOrdersExcel() {
 
 // ========== 推送到 SMS ==========
 function pushToSMS() {
+  console.log('🚀 pushToSMS 被呼叫');
+  
   const checked = Array.from(document.querySelectorAll('.pay-chk:checked'));
+  
   if (checked.length === 0) {
-    alert('請先勾選要通知的訂單！');
+    alert('⚠️ 請先勾選要通知的訂單！');
     return;
   }
 
-  const indices = checked.map(cb => parseInt(cb.dataset.idx));
-  
-  if (typeof window.pushOrdersToSMS === 'function') {
-    window.pushOrdersToSMS(indices);
-    switchTab('panel-sms', document.querySelectorAll('.shell-tab')[4]);
-  } else {
-    alert('SMS 功能尚未載入');
+  console.log(`📦 已勾選 ${checked.length} 筆訂單`);
+
+  // 檢查 payOrders 是否存在
+  if (!window.payOrders || !Array.isArray(window.payOrders)) {
+    alert('❌ 系統錯誤：訂單資料未載入');
+    console.error('payOrders 未定義:', window.payOrders);
+    return;
   }
+
+  // 取得訂單資料
+  const orderList = checked.map(cb => {
+    const idx = parseInt(cb.dataset.idx || cb.getAttribute('data-idx'));
+    const order = window.payOrders[idx];
+    
+    if (!order) {
+      console.warn(`找不到訂單索引 ${idx}`);
+      return null;
+    }
+    
+    return {
+      no: order.no,
+      name: order.name,
+      phone: order.phone,
+      deadline: order.deadline,
+      store: order.store || '',
+      platform: order.platform || ''
+    };
+  }).filter(Boolean); // 移除 null 值
+
+  console.log('📨 準備推送的訂單:', orderList);
+
+  // 檢查 SMS 函數是否存在
+  if (typeof window.receiveOrdersFromPay !== 'function') {
+    alert('❌ SMS 功能尚未載入，請重新整理頁面');
+    console.error('receiveOrdersFromPay 函數不存在');
+    return;
+  }
+
+  // 推送到 SMS
+  window.receiveOrdersFromPay(orderList);
+  
+  // 切換到 SMS 分頁
+  const smsTabs = document.querySelectorAll('.shell-tab');
+  if (smsTabs[4]) {
+    switchTab('panel-sms', smsTabs[4]);
+  }
+  
+  alert(`✅ 已將 ${orderList.length} 筆訂單帶入 SMS 待發送名單`);
 }
+
 
 console.log('✅ index.html 載入完成');
 </script>
