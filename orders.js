@@ -186,7 +186,7 @@ function renderPayTable() {
     // ✅ 快速查詢（訂單號/姓名）
     if (!matchQuickSearch(order)) return;
 
-    // ✅ 到店狀態欄（取代物流追蹤）
+// ✅ 到店狀態欄（取代物流追蹤）
 const arrivedVal = order.arrivedDate || todayISO();
 const deadlineVal = order.deadline || addDaysISO(arrivedVal, 7);
 
@@ -214,7 +214,7 @@ let arriveHtml = `
   </div>
 
   <div style="margin-top:6px; font-size:12px; color:#666;">
-    取貨期限：${mmdd(order.deadline || addDaysISO(arrivedVal, 7))}
+    取貨期限：${mmdd(deadlineVal)}
   </div>
 `;
 
@@ -225,36 +225,6 @@ if (order.arrivedDate) {
     </div>
   ` + arriveHtml;
 }
-`;
-
-
-// 上面那顆按鈕用到 id，所以把 input 改成有 id（避免 querySelector 失效）
-arriveHtml = `
-  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <input id="arriveDate_${index}" type="date"
-      value="${arrivedVal}"
-      onchange="markArrived(${index}, this.value)"
-      style="padding:6px 8px; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;">
-    <button class="btn btn-secondary btn-sm" onclick="markArrived(${index}, document.getElementById('arriveDate_${index}').value)">
-      📦 設為已到店
-    </button>
-  </div>
-`;
-
-if (order.arrivedDate) {
-  arriveHtml += `
-    <div style="margin-top:8px; font-size:12px; font-weight:800; color:#28a745;">
-      已到店（${order.arrivedDate}）
-    </div>
-    <div style="font-size:12px; color:#666; margin-top:4px;">
-      取貨期限：${order.deadline || '-'}
-    </div>
-    <div style="margin-top:8px;">
-      <button class="btn btn-secondary btn-sm" onclick="resetArrived(${index})">重設</button>
-    </div>
-  `;
-}
-
 
     // 原本狀態/撥款日欄
     let statusHtml = '';
