@@ -180,16 +180,30 @@ function renderPayTable() {
 const arrivedVal = order.arrivedDate || todayISO();
 
 let arriveHtml = `
-  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <input type="date"
+  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <input
+      id="arriveDate_${index}"
+      type="date"
+      lang="en-CA"
       value="${arrivedVal}"
-      onchange="markArrived(${index}, this.value)"
-      style="padding:6px 8px; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;">
-    <button class="btn btn-secondary btn-sm" onclick="markArrived(${index}, document.querySelector('#arriveDate_${index}')?.value)">
-      📦 設為已到店
-    </button>
+      oninput="markArrived(${index}, this.value)"
+      style="width:130px; padding:6px 8px; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;"
+    />
+    <button class="btn btn-secondary btn-sm" onclick="resetArrived(${index})">重設</button>
+  </div>
+  <div style="margin-top:6px; font-size:12px; color:#666;">
+    取貨期限：${order.deadline || addDaysISO(arrivedVal, 7)}
   </div>
 `;
+
+if (order.arrivedDate) {
+  arriveHtml = `
+    <div style="font-size:12px; font-weight:800; color:#28a745; margin-bottom:6px;">
+      已到店（${order.arrivedDate}）
+    </div>
+  ` + arriveHtml;
+}
+
 
 // 上面那顆按鈕用到 id，所以把 input 改成有 id（避免 querySelector 失效）
 arriveHtml = `
