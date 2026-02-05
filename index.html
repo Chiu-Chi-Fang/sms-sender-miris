@@ -60,6 +60,17 @@
         </div>
       </div>
 
+<!-- 新增：订单快速搜索 -->
+<div style="margin-bottom: 20px;">
+  <input 
+    type="text" 
+    id="orderSearch" 
+    placeholder="🔍 搜尋訂單號/姓名/電話/物流單號" 
+    oninput="searchOrders()"
+    style="width: 100%; padding: 12px 15px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 14px;"
+  >
+</div>
+      
       <!-- ★★★ 修改後的按鈕區 (移除追蹤貨況) ★★★ -->
       <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
          <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
@@ -244,15 +255,44 @@ function toggleSelectAllPay() {
   document.querySelectorAll('.pay-chk').forEach(cb => cb.checked = checked);
 }
 
-// ========== 安全渲染 (避免 orders.js 未載入) ==========
+// ========== 安全渲染 + 搜尋過濾 (修改版) ==========
 function safeRender() {
   if (typeof renderPayTable === 'function') {
+    // 如果有搜尋文字，先過濾訂單
+    if (window.orderSearchText && window.orderSearchText.trim()) {
+      const searchText = window.orderSearchText.toLowerCase();
+      // 過濾：訂單號、姓名、電話、物流單號包含搜尋文字
+      window.filteredPayOrders = window.payOrders.filter(order => {
+        return (
+          (order.no && order.no.toLowerCase().includes(searchText)) ||
+          (order.name && order.name.toLowerCase().includes(searchText)) ||
+          (order.phone && order.phone.toLowerCase().includes(searchText)) ||
+          (order.trackingNum && order.trackingNum.toLowerCase().includes(searchText))
+        );
+      });
+    } else {
+      // 沒有搜尋，顯示全部
+      window.filteredPayOrders = [...window.payOrders];
+    }
+    // 用過濾後的資料渲染
     renderPayTable();
   } else {
     console.warn('renderPayTable 尚未載入');
   }
 }
 
+// ========== 訂單快速搜尋 ==========
+function searchOrders() {
+  // 取得搜尋框的文字
+  const searchText = document.getElementById('orderSearch').value.trim().toLowerCase();
+  
+  // 把搜尋文字存到全域，讓渲染表格時過濾
+  window.orderSearchText = searchText;
+  
+  // 重新渲染表格（只顯示符合搜尋的訂單）
+  safeRender();
+}
+  
 // ========== 計算撥款日 ==========
 function doCalc() {
   const platform = document.getElementById('calcPlatform').value;
