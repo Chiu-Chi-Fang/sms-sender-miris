@@ -35,14 +35,15 @@ function addDaysISO(dateStr, n) {
   return d.toISOString().split('T')[0];
 }
 
-function shortMD(dateStr) {
-  if (!dateStr) return '';
+function mmdd(dateStr) {
+  if (!dateStr) return '-';
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
+  if (isNaN(d.getTime())) return dateStr; // 以防格式不是 ISO
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${m}/${day}`;
 }
+
 
 function normalizeOrderNo(v) {
   // 忽略 #、空白、全形井字；統一轉小寫（保險）
@@ -187,31 +188,40 @@ function renderPayTable() {
 
     // ✅ 到店狀態欄（取代物流追蹤）
 const arrivedVal = order.arrivedDate || todayISO();
+const deadlineVal = order.deadline || addDaysISO(arrivedVal, 7);
 
 let arriveHtml = `
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-    <input
-      id="arriveDate_${index}"
-      type="date"
-      lang="en-CA"
+    <button class="btn btn-secondary btn-sm"
+      onclick="(function(){
+        const el=document.getElementById('arriveDate_${index}');
+        if (el.showPicker) el.showPicker(); else el.click();
+      })()">
+      📅 ${mmdd(arrivedVal)}
+    </button>
+
+    <input id="arriveDate_${index}" type="date"
       value="${arrivedVal}"
       oninput="markArrived(${index}, this.value)"
-      style="width:130px; padding:6px 8px; border:1px solid #e2e8f0; border-radius:10px; font-size:12px;"
+      style="width:0;height:0;border:0;padding:0;margin:0;opacity:0;position:absolute;pointer-events:none;"
     />
+
     <button class="btn btn-secondary btn-sm" onclick="resetArrived(${index})">重設</button>
   </div>
+
   <div style="margin-top:6px; font-size:12px; color:#666;">
-    取貨期限：${order.deadline || addDaysISO(arrivedVal, 7)}
+    取貨期限：${mmdd(deadlineVal)}
   </div>
 `;
 
 if (order.arrivedDate) {
   arriveHtml = `
     <div style="font-size:12px; font-weight:800; color:#28a745; margin-bottom:6px;">
-      已到店（${order.arrivedDate}）
+      已到店（${mmdd(order.arrivedDate)}）
     </div>
   ` + arriveHtml;
 }
+
 
 
 // 上面那顆按鈕用到 id，所以把 input 改成有 id（避免 querySelector 失效）
@@ -265,7 +275,7 @@ if (order.arrivedDate) {
       <td>${order.phone || ''}</td>
       <td><span style="background:#eee; padding:2px 6px; border-radius:4px; font-size:12px">${order.platform || ''}</span></td>
       <td>${order.shipDate || '-'}</td>
-      <td>${order.deadline || '-'}</td>
+      <td>${mmdd(order.deadline)}</td>
       <td>${arriveHtml}</td>
       <td>${statusHtml}</td>
       <td><button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">❌</button></td>
