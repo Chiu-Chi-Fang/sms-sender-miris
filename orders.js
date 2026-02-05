@@ -107,15 +107,17 @@ function renderPayTable() {
   const searchText = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
   // 第一步：先過濾搜尋條件（訂單號/姓名/電話/物流單號）
-  let filteredOrders = payOrders.filter(order => {
-    if (!searchText) return true; // 沒有搜尋文字，顯示全部
-    return (
-      (order.no && order.no.toLowerCase().includes(searchText)) ||
-      (order.name && order.name.toLowerCase().includes(searchText)) ||
-      (order.phone && order.phone.toLowerCase().includes(searchText)) ||
-      (order.trackingNum && order.trackingNum.toLowerCase().includes(searchText))
-    );
-  });
+  let filteredOrders = payOrders; // 先默認顯示全部訂單
+  if (searchText) { // 只有當搜尋框有文字時，才過濾
+    filteredOrders = payOrders.filter(order => {
+      return (
+        (order.no && order.no.toLowerCase().includes(searchText)) ||
+        (order.name && order.name.toLowerCase().includes(searchText)) ||
+        (order.phone && order.phone.toLowerCase().includes(searchText)) ||
+        (order.trackingNum && order.trackingNum.toLowerCase().includes(searchText))
+      );
+    });
+  }
 
   // 第二步：再過濾狀態（全部/已取/未取）
   filteredOrders = filteredOrders.filter(order => {
