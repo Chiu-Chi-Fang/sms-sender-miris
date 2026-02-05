@@ -35,6 +35,15 @@ function addDaysISO(dateStr, n) {
   return d.toISOString().split('T')[0];
 }
 
+function shortMD(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${m}/${day}`;
+}
+
 function normalizeOrderNo(v) {
   // 忽略 #、空白、全形井字；統一轉小寫（保險）
   return String(v || '')
