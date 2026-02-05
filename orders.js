@@ -127,81 +127,61 @@ function renderPayTable() {
     return true;
   });
 
-  // 用過濾後的訂單渲染表格，保留真實索引（用於批量操作）
-  filteredOrders.forEach((order) => {
-    const realIndex = payOrders.indexOf(order);
-    const isPicked = !!order.pickupDate;
+// 用過濾後的訂單渲染表格，保留真實索引（用於批量操作）
+filteredOrders.forEach((order, idx) => { // 1. 加 idx 参数（循环索引，没用但要定义）
+  const realIndex = payOrders.indexOf(order); // 真实索引（关联原始订单数组）
+  const isPicked = !!order.pickupDate;
+  // ★★★ 只顯示物流單號 ★★★
+  let trackHtml = '<span style="color:#ccc;">-</span>';
+  if (order.trackingNum) {
+    trackHtml = `<span style="font-size:12px; color:#666;">${order.trackingNum}</span>`;
+  }
 
-    // ★★★ 只顯示物流單號 ★★★
-    let trackHtml = '<span style="color:#ccc;">-</span>';
-    if (order.trackingNum) {
-      trackHtml = `<span style="font-size:12px; color:#666;">${order.trackingNum}</span>`;
-    }
+  let statusHtml = '';
 
-    let statusHtml = '';
-
-    if (order.pickupDate) {
-      const calc = calculatePaymentDate(order.platform, order.pickupDate);
-      statusHtml = `
-        <div style="text-align:right">
-          <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${index})">
-            ✅ 已取 (${order.pickupDate.slice(5)})
-          </button>
-          <div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">
-            💰 撥款: ${calc.payment}
-          </div>
+  if (order.pickupDate) {
+    const calc = calculatePaymentDate(order.platform, order.pickupDate);
+    statusHtml = `
+      <div style="text-align:right">
+        <!-- 2. 把 ${index} 改成 ${realIndex} -->
+        <button class="btn btn-success btn-sm" onclick="resetOrderStatus(${realIndex})">
+          ✅ 已取 (${order.pickupDate.slice(5)})
+        </button>
+        <div style="font-size:13px; color:#d63031; font-weight:bold; margin-top:4px;">
+          💰 撥款: ${calc.payment}
         </div>
-      `;
-    } else {
-      statusHtml = `
-        <div class="action-wrapper">
-          <button class="btn btn-danger btn-sm" style="pointer-events: none;">
-            📦 未取貨
-          </button>
-          <input type="date" 
-                 class="hidden-date-input" 
-                 onchange="updateOrderPickup(${index}, this.value)">
-        </div>
-      `;
-    }
-
-// ★★★ 根據平台設定顏色 ★★★
-let platformColor = '#eee';
-let platformTextColor = '#333';
-
-if (order.platform && (order.platform.includes('7-11') || order.platform.includes('賣貨便'))) {
-  platformColor = '#fe6601';
-  platformTextColor = '#fff';
-} else if (order.platform && (order.platform.includes('全家') || order.platform.includes('好賣'))) {
-  platformColor = '#008cd6';
-  platformTextColor = '#fff';
-}
-
-const tr = document.createElement('tr');
-tr.innerHTML = `
-    <td><input type="checkbox" class="pay-chk" data-idx="${realIndex}"></td>
-  <td>
-    <span style="font-size:15px; font-weight:700; color:#1f2937;">
-      ${order.no}
-    </span>
-  </td>
-  <td>${order.name}</td>
-  <td>${order.phone}</td>
-  <td>
-    <span style="background:${platformColor}; color:${platformTextColor}; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:600; display:inline-block;">
-      ${order.platform}
-    </span>
-  </td>
-  <td>${order.shipDate || '-'}</td>
-  <td>${order.deadline || '-'}</td>
-  <td>${trackHtml}</td>
-  <td>${statusHtml}</td>
-  <td>
-    <button class="btn btn-secondary btn-sm" onclick="deleteOrder(${index})">
-      ❌
-    </button>
-  </td>
-`;
+      </div>
+    `;
+  } else {
+    statusHtml = `
+      <div class="action-wrapper">
+        <button class="btn btn-danger btn-sm" style="pointer-events: none;">
+          📦 未取貨
+        </button>
+        <!-- 3. 把 ${index} 改成 ${realIndex} -->
+        <input type="date" 
+               class="hidden-date-input" 
+               onchange="updateOrderPickup(${realIndex}, this.value)">
+      </div>
+    `;
+  }
+  // ... 后面的平台颜色代码不变 ...
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+      <td><input type="checkbox" class="pay-chk" data-idx="${realIndex}"></td>
+    <td>
+      <span style="font-size:15px; font-weight:700; color:#1f2937;">
+        ${order.no}
+      </span>
+    </td>
+    <!-- ... 其他表格列不变 ... -->
+    <td>
+      <!-- 4. 把 ${index} 改成 ${realIndex} -->
+      <button class="btn btn-secondary btn-sm" onclick="deleteOrder(${realIndex})">
+        ❌
+      </button>
+    </td>
+  `;
 
     tbody.appendChild(tr);
   });
