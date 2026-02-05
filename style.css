@@ -215,3 +215,18 @@ tbody tr:has(input[type="checkbox"]:checked) {
     .shell-tab { flex: 0 0 auto; border-radius: 50px; padding: 10px 20px; }
     .shell-content { padding: 20px; }
 }
+
+/* --- UI 小補丁 --- */
+.fake-date-btn{
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 12px;
+  background: #f8fafc;
+  color: #0f172a;
+  user-select: none;
+  line-height: 1;
+}
+.fake-date-btn:hover{
+  background:#eef2ff;
+}
