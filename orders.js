@@ -102,10 +102,33 @@ function renderPayTable() {
   const filterEl = document.querySelector('input[name="statusFilter"]:checked');
   const filterVal = filterEl ? filterEl.value : 'all';
 
-  payOrders.forEach((order, index) => {
+  // 取得搜尋框的文字（忽略大小寫）
+  const searchInput = document.getElementById('orderSearch');
+  const searchText = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  // 第一步：先過濾搜尋條件（訂單號/姓名/電話/物流單號）
+  let filteredOrders = payOrders.filter(order => {
+    if (!searchText) return true; // 沒有搜尋文字，顯示全部
+    return (
+      (order.no && order.no.toLowerCase().includes(searchText)) ||
+      (order.name && order.name.toLowerCase().includes(searchText)) ||
+      (order.phone && order.phone.toLowerCase().includes(searchText)) ||
+      (order.trackingNum && order.trackingNum.toLowerCase().includes(searchText))
+    );
+  });
+
+  // 第二步：再過濾狀態（全部/已取/未取）
+  filteredOrders = filteredOrders.filter(order => {
     const isPicked = !!order.pickupDate;
-    if (filterVal === 'picked' && !isPicked) return;
-    if (filterVal === 'unpicked' && isPicked) return;
+    if (filterVal === 'picked') return isPicked;
+    if (filterVal === 'unpicked') return !isPicked;
+    return true;
+  });
+
+  // 用過濾後的訂單渲染表格，保留真實索引（用於批量操作）
+  filteredOrders.forEach((order) => {
+    const realIndex = payOrders.indexOf(order);
+    const isPicked = !!order.pickupDate;
 
     // ★★★ 只顯示物流單號 ★★★
     let trackHtml = '<span style="color:#ccc;">-</span>';
@@ -154,7 +177,7 @@ if (order.platform && (order.platform.includes('7-11') || order.platform.include
 
 const tr = document.createElement('tr');
 tr.innerHTML = `
-  <td><input type="checkbox" class="pay-chk" data-idx="${index}"></td>
+    <td><input type="checkbox" class="pay-chk" data-idx="${realIndex}"></td>
   <td>
     <span style="font-size:15px; font-weight:700; color:#1f2937;">
       ${order.no}
