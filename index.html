@@ -65,11 +65,12 @@
          <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
          <button class="btn btn-danger" onclick="batchDeleteOrders()">🗑️ 刪除選取</button>
          
-         <div class="batch-date-box">
-             <span style="font-size:13px; font-weight:700;">📅 批量指定：</span>
-             <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit;">
-             <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
-         </div>
+<!-- 新增：批量设置到货日，自动算取货期限 -->
+<div class="batch-date-box">
+    <span style="font-size:13px; font-weight:700;">📦 批量設到貨日：</span>
+    <input type="date" id="batchArriveDate" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit;">
+    <button class="btn btn-success btn-sm" onclick="batchSetArriveDate()">套用（自動算期限）</button>
+</div>
          
          <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
       </div>
@@ -131,7 +132,7 @@
     <!-- ========== 批量匯入 ========== -->
     <div id="pay-sub-import" class="shell-panel">
        <h2>📄 批量匯入訂單</h2>
-       <p style="color:#666; margin-bottom:15px;">請從 Excel 複製資料並直接貼上，格式：<b>訂單號 | 姓名 | 電話 | 平台 | 出貨日 | 取貨期限 | 物流單號</b></p>
+       <p style="color:#666; margin-bottom:15px;">請從 Excel 複製資料並直接貼上，格式：<b>訂單號 | 姓名 | 電話 | 平台 | 出貨日 | 取貨期限（可留空） | 物流單號</b></p>
        
        <textarea id="importText" rows="10" placeholder="例如：
 #1001	王大明	0912345678	賣貨便	2026/01/20	2026/01/27	M57607673503
@@ -319,10 +320,10 @@ function addNewOrder() {
   const deadline = document.getElementById('addDeadline').value;
   const trackingNum = document.getElementById('addTrackingNum')?.value.trim() || '';
 
-  if (!orderNo || !name || !phone) {
-    alert('請填寫完整資料！');
+if (!orderNo || !name || !phone || !shipDate) {
+    alert('請填寫訂單號、姓名、電話、出貨日！');
     return;
-  }
+}
 
   if (typeof window.payOrders === 'undefined') {
     alert('系統尚未載入完成，請稍後再試');
@@ -368,11 +369,12 @@ function importFromText() {
 }
 
 // ========== 批量設定取貨日期 ==========
-function batchSetDate() {
-  // 1. 取得日期
-  const dateVal = document.getElementById('batchDateInput').value;
-  if (!dateVal) {
-    alert('⚠️ 請先選擇日期！');
+// ========== 批量設置到貨日，自動生成取貨期限 ==========
+function batchSetArriveDate() {
+  // 1. 取得選擇的到貨日
+  const arriveDateVal = document.getElementById('batchArriveDate').value;
+  if (!arriveDateVal) {
+    alert('⚠️ 請先選擇到貨日期！');
     return;
   }
 
@@ -384,78 +386,72 @@ function batchSetDate() {
   }
 
   // 3. 確認操作
-  if (!confirm(`確定要將 ${checked.length} 筆訂單的取貨日設為 ${dateVal} 嗎？`)) {
+  if (!confirm(`確定要將 ${checked.length} 筆訂單設為 ${arriveDateVal} 到貨，並自動生成取貨期限嗎？`)) {
     return;
   }
 
-  // 4. 檢查資料
+  // 4. 檢查訂單資料
   if (!window.payOrders || !Array.isArray(window.payOrders)) {
     alert('❌ 系統錯誤：訂單資料未載入，請重新整理頁面');
-    console.error('payOrders 未定義:', window.payOrders);
     return;
   }
 
-  // 5. 更新訂單 (加強錯誤處理)
+  // 5. 批量更新到貨日和取貨期限
   let successCount = 0;
-  checked.forEach((cb, index) => {
-    // 嘗試多種方式取得索引
-    let idx = cb.dataset.idx || cb.getAttribute('data-idx');
-    
-    if (idx === undefined || idx === null) {
-      console.warn(`第 ${index + 1} 個 checkbox 沒有 data-idx 屬性`, cb);
-      return;
-    }
-    
-    idx = parseInt(idx);
-    
-    if (isNaN(idx)) {
-      console.warn(`無效的索引值: ${cb.dataset.idx}`);
-      return;
-    }
-    
-    if (window.payOrders[idx]) {
-      window.payOrders[idx].pickupDate = dateVal;
-      successCount++;
-      console.log(`✅ 更新訂單 ${idx}:`, window.payOrders[idx].no);
-    } else {
-      console.warn(`找不到訂單索引 ${idx}`);
-    }
+  checked.forEach((cb) => {
+    let idx = parseInt(cb.dataset.idx || cb.getAttribute('data-idx'));
+    const order = window.payOrders[idx];
+    if (!order) return;
+
+    // 設置到貨日
+    order.arriveDate = arriveDateVal;
+
+    // 按平台自動算取貨期限（賣貨便7天，好賣+5天）
+    const arriveDateObj = new Date(arriveDateVal);
+    let addDays = order.platform === '賣貨便' ? 7 : 5;
+    const deadlineObj = new Date(arriveDateObj);
+    deadlineObj.setDate(deadlineObj.getDate() + addDays);
+    order.deadline = deadlineObj.toISOString().split('T')[0];
+
+    successCount++;
   });
 
-  // 6. 儲存到 Firebase
-  if (typeof savePayOrders === 'function') {
-    savePayOrders();
-  } else {
-    console.error('savePayOrders 函數不存在');
-  }
+  // 6. 儲存並刷新表格
+  if (typeof savePayOrders === 'function') savePayOrders();
+  if (typeof renderPayTable === 'function') renderPayTable();
 
-  // 7. 重新渲染表格
-  if (typeof renderPayTable === 'function') {
-    renderPayTable();
-  } else {
-    console.error('renderPayTable 函數不存在');
-  }
-
-  // 8. 清空勾選和日期
+  // 7. 清空勾選和日期框
   document.getElementById('selectAllPay').checked = false;
-  document.getElementById('batchDateInput').value = '';
+  document.getElementById('batchArriveDate').value = '';
 
-  // 9. 顯示結果
-  if (successCount > 0) {
-    alert(`✅ 成功更新 ${successCount} 筆訂單的取貨日期！`);
-  } else {
-    alert('❌ 沒有成功更新任何訂單，請檢查 Console');
-  }
+  // 8. 提示結果
+  alert(`✅ 成功設置 ${successCount} 筆訂單到貨日，並自動生成取貨期限！`);
 }
 
 
-// ========== 匯出 Excel ==========
-function exportOrdersExcel() {
-  if (typeof exportToExcel === 'function') {
-    exportToExcel();
-  } else {
-    alert('匯出功能尚未載入');
-  }
+
+// ========== 單筆編輯到貨日（自動算取貨期限） ==========
+function editOrder(idx) {
+  const order = window.payOrders[idx];
+  if (!order) return;
+
+  // 彈窗輸入到貨日
+  const newArriveDate = prompt('輸入實際到貨日（格式：YYYY-MM-DD，例如2026-02-06）：', order.arriveDate || '');
+  if (newArriveDate === null || !newArriveDate) return;
+
+  // 更新到貨日和取貨期限
+  order.arriveDate = newArriveDate;
+  const arriveDateObj = new Date(newArriveDate);
+  let addDays = order.platform === '賣貨便' ? 7 : 5;
+  const deadlineObj = new Date(arriveDateObj);
+  deadlineObj.setDate(deadlineObj.getDate() + addDays);
+  order.deadline = deadlineObj.toISOString().split('T')[0];
+
+  // 儲存並刷新
+  if (typeof savePayOrders === 'function') savePayOrders();
+  if (typeof renderPayTable === 'function') renderPayTable();
+
+  alert('✅ 編輯成功！取貨期限已自動更新');
 }
 
 // ========== 推送到 SMS ==========
