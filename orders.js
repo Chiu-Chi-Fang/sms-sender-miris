@@ -186,14 +186,18 @@ function renderPayTable() {
     // ✅ 快速查詢（訂單號/姓名）
     if (!matchQuickSearch(order)) return;
 
-// ✅ 到店狀態欄（取代物流追蹤）
-const arrivedVal = order.arrivedDate || todayISO();
-const deadlineVal = order.deadline || addDaysISO(arrivedVal, 7);
+// ✅ 到店狀態欄（取代物流追蹤）— 方案A：未設定就顯示「選日期」
+const arrivedVal = order.arrivedDate || ''; // 沒有到店日就留空
+
+// 取貨期限：只有「有到店日」才用 +7 推算；否則尊重原本 deadline（可能空白）
+const deadlineVal = order.arrivedDate
+  ? (order.deadline || addDaysISO(order.arrivedDate, 7))
+  : (order.deadline || '');
 
 let arriveHtml = `
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
     <div style="position:relative; display:inline-block;">
-      <div class="fake-date-btn">📅 ${mmdd(arrivedVal)}</div>
+      <div class="fake-date-btn">📅 ${arrivedVal ? mmdd(arrivedVal) : '選日期'}</div>
 
       <input
         id="arriveDate_${index}"
@@ -214,7 +218,7 @@ let arriveHtml = `
   </div>
 
   <div style="margin-top:6px; font-size:12px; color:#666;">
-    取貨期限：${mmdd(deadlineVal)}
+    取貨期限：${deadlineVal ? mmdd(deadlineVal) : '-'}
   </div>
 `;
 
