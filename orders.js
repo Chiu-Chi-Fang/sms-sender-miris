@@ -192,25 +192,29 @@ const deadlineVal = order.deadline || addDaysISO(arrivedVal, 7);
 
 let arriveHtml = `
   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-    <button class="btn btn-secondary btn-sm"
-      onclick="(function(){
-        const el=document.getElementById('arriveDate_${index}');
-        if (el.showPicker) el.showPicker(); else el.click();
-      })()">
-      📅 ${mmdd(arrivedVal)}
-    </button>
+    <div style="position:relative; display:inline-block;">
+      <div class="fake-date-btn">📅 ${mmdd(arrivedVal)}</div>
 
-    <input id="arriveDate_${index}" type="date"
-      value="${arrivedVal}"
-      oninput="markArrived(${index}, this.value)"
-      style="width:0;height:0;border:0;padding:0;margin:0;opacity:0;position:absolute;pointer-events:none;"
-    />
+      <input
+        id="arriveDate_${index}"
+        type="date"
+        value="${arrivedVal}"
+        oninput="markArrived(${index}, this.value)"
+        aria-label="到店日期"
+        style="
+          position:absolute; inset:0;
+          width:100%; height:100%;
+          opacity:0;
+          cursor:pointer;
+        "
+      />
+    </div>
 
     <button class="btn btn-secondary btn-sm" onclick="resetArrived(${index})">重設</button>
   </div>
 
   <div style="margin-top:6px; font-size:12px; color:#666;">
-    取貨期限：${mmdd(deadlineVal)}
+    取貨期限：${mmdd(order.deadline || addDaysISO(arrivedVal, 7))}
   </div>
 `;
 
@@ -221,7 +225,7 @@ if (order.arrivedDate) {
     </div>
   ` + arriveHtml;
 }
-
+`;
 
 
 // 上面那顆按鈕用到 id，所以把 input 改成有 id（避免 querySelector 失效）
