@@ -368,7 +368,6 @@ function importFromText() {
   }
 }
 
-// ========== 批量設定取貨日期 ==========
 // ========== 批量設置到貨日，自動生成取貨期限 ==========
 function batchSetArriveDate() {
   // 1. 取得選擇的到貨日
@@ -408,7 +407,7 @@ function batchSetArriveDate() {
 
     // 按平台自動算取貨期限（賣貨便7天，好賣+5天）
     const arriveDateObj = new Date(arriveDateVal);
-    let addDays = order.platform === '賣貨便' ? 7 : 5;
+    let addDays = order.platform === '賣貨便' ? 7 : 7;
     const deadlineObj = new Date(arriveDateObj);
     deadlineObj.setDate(deadlineObj.getDate() + addDays);
     order.deadline = deadlineObj.toISOString().split('T')[0];
@@ -442,7 +441,7 @@ function editOrder(idx) {
   // 更新到貨日和取貨期限
   order.arriveDate = newArriveDate;
   const arriveDateObj = new Date(newArriveDate);
-  let addDays = order.platform === '賣貨便' ? 7 : 5;
+  let addDays = order.platform === '賣貨便' ? 7 : 7;
   const deadlineObj = new Date(arriveDateObj);
   deadlineObj.setDate(deadlineObj.getDate() + addDays);
   order.deadline = deadlineObj.toISOString().split('T')[0];
