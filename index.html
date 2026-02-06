@@ -172,12 +172,32 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
         <div class="pay-tab" onclick="switchSmsSubTab('tpl')">💬 範本設定</div>
       </div>
 
-      <div id="sms-sub-list" class="pay-panel active">
-        <!-- 你的原本 SMS 內容保持不變 -->
-      </div>
+<div id="sms-sub-list" class="pay-panel active">
+  <div id="smsListContainer"></div>
+</div>
 
       <div id="sms-sub-tpl" class="pay-panel">
-        <!-- 你的原本 SMS 範本內容保持不變 -->
+<div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+  <select id="smsTemplateSelect" onchange="previewTemplate()" style="padding:8px;"></select>
+</div>
+
+<textarea id="smsPreviewBox" rows="6" style="width:100%; padding:10px;"></textarea>
+
+<div style="margin-top:12px;">
+  <input id="tplNameInput" placeholder="範本名稱" style="width:100%; padding:10px; margin-bottom:8px;">
+  <textarea id="tplContentInput" rows="6" placeholder="範本內容" style="width:100%; padding:10px;"></textarea>
+
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
+    <button class="btn btn-secondary" onclick="clearTemplateInput()">清空</button>
+    <button class="btn btn-warning" onclick="resetDefaultTemplates()">重置預設</button>
+  </div>
+</div>
+
+<div style="margin-top:12px;">
+  <div id="templateListContainer"></div>
+</div>
+
       </div>
     </div>
 
