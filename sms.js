@@ -234,16 +234,49 @@ function renderTemplates() {
   console.log('✅ 範本列表已渲染');
 }
 
+// --- sms.js 新增與修改 ---
+
+// 1. 切換顯示模式的工具函式
+function toggleTplView(mode) {
+  const viewList = document.getElementById('tpl-view-list');
+  const viewEdit = document.getElementById('tpl-view-edit');
+  
+  if (mode === 'list') {
+    viewList.style.display = 'block';
+    viewEdit.style.display = 'none';
+  } else {
+    viewList.style.display = 'none';
+    viewEdit.style.display = 'block';
+  }
+}
+
+// 2. 按下「新增範本」按鈕
+window.showAddTpl = function() {
+  window.clearTemplateInput(); // 清空舊資料
+  document.getElementById('tplEditTitle').innerText = "➕ 新增範本"; // 改標題
+  toggleTplView('edit'); // 切換到編輯頁
+}
+
+// 3. 按下「返回」或「取消」
+window.cancelEditTpl = function() {
+  toggleTplView('list'); // 切換回列表頁
+}
+
+// 4. 修改原本的 editTemplate (編輯舊範本)
 window.editTemplate = function(idx) {
   editingIndex = idx;
   const t = templates[idx];
+  
+  // 填入資料
   document.getElementById('tplNameInput').value = t.name;
   document.getElementById('tplContentInput').value = t.content;
-  document.getElementById('tplNameInput').focus();
-  document.querySelector('#sms-sub-tpl .btn-primary').innerText = "💾 更新範本";
-  console.log(`✏️ 編輯範本 ${idx}:`, t.name);
+  
+  // 改標題並切換頁面
+  document.getElementById('tplEditTitle').innerText = "✏️ 編輯範本";
+  toggleTplView('edit');
 };
 
+// 5. 修改原本的 saveTemplate (儲存後自動跳回列表)
 window.saveTemplate = function() {
   const name = document.getElementById('tplNameInput').value.trim();
   const content = document.getElementById('tplContentInput').value.trim();
@@ -255,16 +288,17 @@ window.saveTemplate = function() {
 
   if (editingIndex >= 0) {
     templates[editingIndex] = { name, content };
-    alert('✅ 範本已更新！');
-    console.log('✅ 更新範本:', name);
+    // alert('✅ 範本已更新！'); // 覺得太吵可以註解掉
   } else {
     templates.push({ name, content });
-    alert('✅ 新範本已建立！');
-    console.log('✅ 新增範本:', name);
+    // alert('✅ 新範本已建立！');
   }
 
   set(tplRef, templates);
   window.clearTemplateInput();
+  
+  // ★ 關鍵修改：存檔後自動回到列表頁
+  toggleTplView('list');
 };
 
 window.deleteTemplate = function(idx) {
