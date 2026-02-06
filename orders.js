@@ -186,49 +186,39 @@ function renderPayTable() {
     // ✅ 快速查詢（訂單號/姓名）
     if (!matchQuickSearch(order)) return;
 
-// ✅ 到店狀態欄（取代物流追蹤）— 方案A：未設定就顯示「選日期」
-const arrivedVal = order.arrivedDate || ''; // 沒有到店日就留空
+// --- orders.js 修改片段 ---
 
-// 取貨期限：只有「有到店日」才用 +7 推算；否則尊重原本 deadline（可能空白）
-const deadlineVal = order.arrivedDate
-  ? (order.deadline || addDaysISO(order.arrivedDate, 7))
-  : (order.deadline || '');
+// 1. 準備到店日與期限
+const arrivedVal = order.arrivedDate || ''; 
+// 如果有到店日，期限就是到店日+7天，否則顯示 '-'
+const deadlineText = arrivedVal ? mmdd(addDaysISO(arrivedVal, 7)) : (order.deadline ? mmdd(order.deadline) : '-');
 
+// 2. 決定標籤的樣子 (有到店 vs 沒到店)
+let pillClass = arrivedVal ? 'status-pill arrived' : 'status-pill empty';
+let pillText  = arrivedVal ? `🚚 已到店 ${mmdd(arrivedVal)}` : '📅 登記到店';
+
+// 3. 組裝 HTML (超乾淨版本)
+// 結構：[膠囊按鈕 (內含隱藏日期輸入框)] + [小小的重設 X] + [下面一行小字顯示期限]
 let arriveHtml = `
-  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-    <div style="position:relative; display:inline-block;">
-      <div class="fake-date-btn">📅 ${arrivedVal ? mmdd(arrivedVal) : '選日期'}</div>
+  <div style="display:flex; flex-direction:column; align-items:flex-start;">
+      
+      <div style="display:flex; align-items:center;">
+          <div class="${pillClass}">
+              ${pillText}
+              <input type="date" value="${arrivedVal}" oninput="markArrived(${index}, this.value)" class="hidden-trigger">
+          </div>
+          
+          ${arrivedVal ? `<button class="reset-btn-mini" onclick="resetArrived(${index})" title="重設狀態">✕</button>` : ''}
+      </div>
 
-      <input
-        id="arriveDate_${index}"
-        type="date"
-        value="${arrivedVal}"
-        oninput="markArrived(${index}, this.value)"
-        aria-label="到店日期"
-        style="
-          position:absolute; inset:0;
-          width:100%; height:100%;
-          opacity:0;
-          cursor:pointer;
-        "
-      />
-    </div>
+      <div style="margin-top:4px; font-size:11px; color:#94a3b8; padding-left:4px;">
+         期限：${deadlineText}
+      </div>
 
-    <button class="btn btn-secondary btn-sm" onclick="resetArrived(${index})">重設</button>
-  </div>
-
-  <div style="margin-top:6px; font-size:12px; color:#666;">
-    取貨期限：${deadlineVal ? mmdd(deadlineVal) : '-'}
   </div>
 `;
 
-if (order.arrivedDate) {
-  arriveHtml = `
-    <div style="font-size:12px; font-weight:800; color:#28a745; margin-bottom:6px;">
-      已到店（${mmdd(order.arrivedDate)}）
-    </div>
-  ` + arriveHtml;
-}
+// ... (後面接著原本的 statusHtml 邏輯)
 
     // 原本狀態/撥款日欄
     let statusHtml = '';
