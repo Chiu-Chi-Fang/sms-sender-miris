@@ -6,7 +6,6 @@
 body {
   margin: 0;
   font-family: 'Poppins', 'Noto Sans TC', sans-serif;
-  /* 淺紫到淺藍的漸層 */
   background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
   background-attachment: fixed;
   min-height: 100vh;
@@ -14,35 +13,29 @@ body {
   color: #2d3436;
 }
 
-/* --- 2. 版面結構 --- */
+/* --- 2. 版面結構 (Grid 佈局) --- */
 .shell {
   max-width: 1600px;
   width: 95%;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px 1fr; /* 左側固定，右側自適應 */
   grid-template-rows: auto 1fr;
   gap: 30px;
   align-items: start;
 }
 
-/* --- 3. 類玻璃卡片 (效能優化版：移除 blur) --- */
+/* --- 3. 毛玻璃卡片風格 (無 Blur 優化版) --- */
 .shell-tabs, 
 .shell-panel, 
 .shell-header {
-  /* 改用 85% 不透明的白，保留一點透光感，但不用運算模糊，速度最快 */
-  background: rgba(255, 255, 255, 0.85) !important;
-  
-  /* 加上玻璃邊框 */
+  background: rgba(255, 255, 255, 0.85) !important; /* 高透明白，解決卡頓 */
   border: 1px solid rgba(255, 255, 255, 0.6);
-  
-  /* 柔和陰影 */
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-  
   border-radius: 24px;
 }
 
-/* --- 4. 左側選單 --- */
+/* --- 4. 左側選單 (Sidebar) --- */
 .shell-tabs { 
   grid-column: 1 / 2;
   grid-row: 2 / 3;
@@ -74,10 +67,10 @@ body {
 }
 
 .shell-tab.active { 
-  background: #fff; /* 選中變純白 */
+  background: #fff;
   color: #6c5ce7;
   border-color: #fff;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.15);
+  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
   font-weight: 700;
 }
 
@@ -87,35 +80,45 @@ body {
   grid-row: 2 / 3;
 }
 
-/* 頁面切換控制 */
 .shell-panel { 
   display: none; 
   padding: 40px; 
   min-height: 80vh;
-  animation: fadeIn 0.2s ease-out; /* 動畫加速 */
+  animation: fadeIn 0.3s ease-out; 
 }
 
 .shell-panel.active { 
   display: block; 
 }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- 6. 表格樣式 --- */
-.table-wrap { overflow-x: auto; }
-table { width:100%; border-collapse: separate; border-spacing: 0 8px; min-width: 1000px; }
+/* --- 6. 表格樣式優化 (解決撐爆問題) --- */
+.table-wrap { 
+    width: 100%;
+    overflow-x: auto; /* 關鍵：表格太寬時自己產生卷軸 */
+    border-radius: 12px;
+}
+
+table { 
+    width: 100%; 
+    border-collapse: separate; 
+    border-spacing: 0 8px; 
+    /* 移除強制 1000px，改為自動，但保留最小寬度以免縮太小 */
+    min-width: 800px; 
+}
+
 th, td { padding: 15px 20px; border: none; vertical-align: middle; text-align: left; white-space: nowrap; }
-
 th { color: #6c5ce7; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
 tbody tr {
-  background: rgba(255, 255, 255, 0.5); /* 表格行半透明 */
+  background: rgba(255, 255, 255, 0.4);
   transition: all 0.2s;
 }
 tbody tr:hover {
   background: #fff;
-  transform: scale(1.002); /* 縮放幅度改小，減少重繪負擔 */
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  transform: scale(1.002);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
 }
 
 td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
@@ -124,22 +127,21 @@ td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px;
 /* --- 7. 元件樣式 --- */
 input, select, textarea {
   width:100%; padding:14px 18px; 
-  border:1px solid rgba(100, 116, 139, 0.2); 
+  border:1px solid rgba(255,255,255,0.6); 
   border-radius: 10px; font-size:15px; 
-  background: rgba(255,255,255,0.8); 
+  background: rgba(255,255,255,0.7); 
   transition: all 0.2s;
 }
 input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1); }
 
-/* 按鈕 */
 .btn { padding:10px 20px; border:0; border-radius:10px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;}
-.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3); }
+.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3); }
 .btn-secondary { background: #dfe6e9; color: #636e72; }
 .btn-danger { background: #ff7675; color: white; }
 .btn-success { background: #00b894; color: white; }
 .btn-warning { background: #ffeaa7; color: #d63031; }
 
-/* --- 8. 補回遺失的 SMS 卡片樣式！ --- */
+/* --- 8. ★補回遺失的 SMS 卡片樣式★ --- */
 .sms-card {
     background: #fff;
     border: 1px solid #e2e8f0;
@@ -162,14 +164,14 @@ input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #ff
     padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
     cursor: pointer; transition: all 0.2s ease; position: relative; min-width: 100px;
 }
-.status-pill.empty { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+.status-pill.empty { background-color: rgba(255,255,255,0.5); color: #64748b; border: 1px solid #cbd5e0; }
 .status-pill.empty:hover { background-color: #fff; }
 .status-pill.arrived { background-color: #fff7ed; color: #c05621; border: 1px solid #ffedd5; }
 
 .hidden-trigger { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .reset-btn-mini { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #fee2e2; color: #ef4444; font-size: 10px; margin-left: 6px; cursor: pointer; border: none; }
 
-.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.8); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
+.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.6); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
 .batch-select { border: 1px solid #b2ebf2; background: #ffffff; border-radius: 8px; padding: 4px 8px; font-size: 13px; color: #00695c; cursor: pointer; outline: none; margin-right: 5px; }
 
 /* 勾選框放大 */
@@ -187,48 +189,36 @@ input[type="checkbox"]:checked::after {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
 }
 
-@media (max-width: 1024px) {
-    .shell { display: block; width: 100%; padding: 0; }
-    .shell-tabs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; margin-bottom: 20px; position: static; min-height: auto; padding: 15px; }
-    .shell-tab { flex: 0 0 auto; padding: 8px 16px; font-size: 13px; white-space: nowrap; }
-    .shell-content { padding: 0 10px; }
-    .shell-panel { padding: 20px; }
-}
-
-/* --- 📱 RWD 響應式優化 (解決擠壓感) --- */
-
-/* 針對平板與手機 (小於 1024px) */
-@media (max-width: 1024px) {
-    /* 1. 版面改為直式堆疊 */
+/* --- 10. RWD 響應式優化 (針對筆電與手機) --- */
+/* ★關鍵修改：將斷點改為 1366px，讓大部分筆電直接切換為直式排列，避免擠壓 */
+@media (max-width: 1366px) {
     .shell { 
         display: block; 
         width: 100%; 
-        padding: 10px; /* 增加外圍呼吸空間 */
+        padding: 10px; /* 增加外圍空間 */
         gap: 20px;
     }
 
-    /* 2. 選單變為橫向滑動 (像 App 的導航列) */
+    /* 選單變橫向滑動列 */
     .shell-tabs { 
         display: flex; 
         flex-direction: row; 
         gap: 10px; 
-        overflow-x: auto; /* 允許橫向滑動 */
+        overflow-x: auto; 
         padding: 15px; 
         position: static; 
         min-height: auto;
         margin-bottom: 20px;
-        white-space: nowrap; /* 防止按鈕換行 */
-        /* 隱藏醜醜的滾動條 */
-        scrollbar-width: none; 
-        -ms-overflow-style: none;
+        white-space: nowrap;
+        scrollbar-width: none;
     }
     .shell-tabs::-webkit-scrollbar { display: none; }
 
     .shell-tab { 
         flex: 0 0 auto; 
-        padding: 10px 20px; 
+        padding: 8px 16px; 
         font-size: 14px; 
-        border-radius: 50px; /* 變回膠囊狀 */
+        border-radius: 50px; 
         background: rgba(255,255,255,0.5);
     }
     .shell-tab.active {
@@ -236,118 +226,51 @@ input[type="checkbox"]:checked::after {
         box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
-    /* 3. 內容區塊放鬆 */
+    /* 內容區放鬆 */
     .shell-content { padding: 0; }
     .shell-panel { 
-        padding: 20px; /* 內距縮小，讓內容空間變大 */
+        padding: 20px; 
         min-height: auto;
     }
     
-    /* 4. 頂部標題自動換行 (避免撞在一起) */
+    /* 標題與按鈕列自動換行 */
     .shell-header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: flex-start !important;
         gap: 15px;
-        margin: -20px -20px 20px -20px !important; /* 修正邊距 */
+        margin: -20px -20px 20px -20px !important;
         padding: 20px !important;
         border-radius: 24px 24px 0 0 !important;
     }
     .shell-header > div {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap; /* 允許換行 */
+        gap: 10px;
     }
 }
 
-/* 針對手機直立 (小於 768px) */
+/* --- 11. 手機極小螢幕優化 (小於 768px) --- */
 @media (max-width: 768px) {
-    /* 5. 表單強制變單欄 (解決輸入框太窄) */
     .pay-form-grid {
-        grid-template-columns: 1fr !important; /* 強制 1 欄 */
+        grid-template-columns: 1fr !important; /* 強制單欄 */
         gap: 15px;
     }
 
-    /* 6. 按鈕群組自動堆疊 */
-    .shell-panel .btn {
-        width: 100%; /* 手機上按鈕滿版比較好按 */
-        margin-bottom: 5px;
+    .shell-panel .btn, 
+    #quickSearch, 
+    .batch-date-box, 
+    select {
+        width: 100% !important; /* 按鈕輸入框滿版 */
     }
     
-    /* 工具列自動換行 */
-    .shell-panel > div[style*="flex"] {
+    .shell-header > div {
         flex-direction: column;
         align-items: stretch !important;
-    }
-    
-    /* 搜尋框和下拉選單滿版 */
-    #quickSearch, .batch-date-box, select {
-        width: 100% !important;
-        min-width: 0 !important;
     }
     
     .batch-date-box {
         flex-direction: column;
         align-items: stretch;
-    }
-}
-
-/* --- 🚑 螢幕適配修正補丁 (解決 100% 比例下擠壓問題) --- */
-
-/* 1. 修正表格寬度邏輯 */
-/* 原本強制 1000px 太寬了，改成「自動適應」但保留最小閱讀空間 */
-table { 
-    min-width: auto !important; /* 解除強制寬度 */
-    width: 100%; 
-}
-
-/* 2. 讓表格可以自己產生卷軸，不要撐爆整個頁面 */
-.table-wrap {
-    width: 100%;
-    overflow-x: auto; /* 超出範圍時，只有表格自己會有卷軸，不會影響整頁 */
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.5); /* 加個邊框比較好看 */
-}
-
-/* 3. 提早切換成「平板模式」(直式排列) */
-/* 原本是 1024px，現在改成 1366px，讓一般筆電直接用直式排列，空間比較大 */
-@media (max-width: 1366px) {
-    .shell { 
-        display: block !important; 
-        width: 100% !important;
-        padding: 10px !important;
-    }
-
-    /* 選單變成橫向滑動列 */
-    .shell-tabs { 
-        display: flex !important;
-        flex-direction: row !important;
-        gap: 10px;
-        overflow-x: auto;
-        padding: 10px !important;
-        margin-bottom: 20px;
-        position: static !important;
-    }
-    
-    .shell-tab {
-        flex: 0 0 auto; /* 不准壓縮按鈕 */
-        white-space: nowrap;
-        font-size: 14px;
-        padding: 8px 16px;
-        background: rgba(255,255,255,0.8);
-    }
-    
-    /* 內容區放鬆 */
-    .shell-content { padding: 0 !important; }
-    .shell-panel { padding: 20px !important; }
-    
-    /* 標題自動換行 */
-    .shell-header {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 15px;
-    }
-    
-    /* 工具列自動堆疊 */
-    .shell-panel > div[style*="flex"] {
-        flex-wrap: wrap; /* 允許換行 */
     }
 }
