@@ -310,3 +310,55 @@ tbody tr:has(input[type="checkbox"]:checked) {
 .batch-select:hover {
     border-color: #00b894;
 }
+
+/* --- style.css 新增：折疊清單美化 --- */
+
+.styled-details {
+    width: 100%;
+}
+
+.styled-details summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #475569;
+    padding: 12px 16px;
+    background: #f1f5f9; /* 淺灰背景 */
+    border-radius: 12px;
+    list-style: none;    /* 移除醜醜的預設三角形 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+/* 滑鼠移過去變色 */
+.styled-details summary:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+/* 隱藏 Chrome 預設的箭頭 (以防萬一) */
+.styled-details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* 我們自己做一個漂亮的箭頭 */
+.styled-details summary::after {
+    content: '▼';
+    font-size: 12px;
+    color: #94a3b8;
+    transition: transform 0.3s ease;
+}
+
+/* 當打開時，箭頭轉 180 度 */
+.styled-details[open] summary::after {
+    transform: rotate(180deg);
+}
+
+/* 打開後的列表樣式微調 */
+.styled-details[open] summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin-bottom: 0;
+}
