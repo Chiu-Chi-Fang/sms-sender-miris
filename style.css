@@ -2,60 +2,59 @@
 
 * { box-sizing: border-box; }
 
-/* --- 1. 全域設定 (極光漸層) --- */
+/* --- 1. 全域設定 --- */
 body {
   margin: 0;
   font-family: 'Poppins', 'Noto Sans TC', sans-serif;
   background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
   background-attachment: fixed;
   min-height: 100vh;
-  padding: 15px; /* 縮小邊距 */
+  padding: 20px;
   color: #2d3436;
 }
 
-/* --- 2. 版面結構 (Grid) --- */
+/* --- 2. 版面結構 (修正寬度) --- */
 .shell {
-  /* ★釋放寬度！給大螢幕更多空間 */
-  max-width: 99%; 
-  width: 100%;
+  /* ★修正：限制最大寬度 1440px，讓大螢幕左右留白，不會太寬 */
+  max-width: 1440px; 
+  width: 95%;
   margin: 0 auto;
   
   display: grid;
-  /* ★縮小左側選單寬度 (220px)，右側自適應 */
   grid-template-columns: 220px 1fr; 
   grid-template-rows: auto 1fr;
-  gap: 20px; /* 縮小間距 */
+  gap: 25px;
   align-items: start;
 }
 
-/* --- 3. 毛玻璃卡片 (高透明度 / 無 Blur) --- */
+/* --- 3. 毛玻璃卡片 --- */
 .shell-tabs, 
 .shell-panel, 
 .shell-header {
-  background: rgba(255, 255, 255, 0.9) !important; /* 90% 不透明，字更清楚 */
+  background: rgba(255, 255, 255, 0.9) !important;
   border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.08); /* 陰影變淡 */
-  border-radius: 16px; /* 圓角改小一點，比較俐落 */
+  box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.08);
+  border-radius: 20px;
 }
 
-/* --- 4. 左側選單 (Compact Sidebar) --- */
+/* --- 4. 左側選單 --- */
 .shell-tabs { 
   grid-column: 1 / 2;
   grid-row: 2 / 3;
-  padding: 20px 15px; /* 縮小內距 */
+  padding: 20px 15px;
   display: flex;
   flex-direction: column; 
   gap: 10px;
   position: sticky;
-  top: 15px;
-  max-height: 90vh; /* 避免選單太長 */
+  top: 20px;
+  max-height: 90vh;
 }
 
 .shell-tab {
   text-align: left;
-  padding: 12px 15px; /* 按鈕變扁一點 */
-  border-radius: 10px;
-  font-size: 14px; /* 字縮小一點 */
+  padding: 12px 15px;
+  border-radius: 12px;
+  font-size: 14px;
   color: #64748b;
   background: transparent;
   border: 1px solid transparent;
@@ -86,7 +85,7 @@ body {
 
 .shell-panel { 
   display: none; 
-  padding: 25px; /* ★大幅減少內距 (原本40px)，內容更滿 */
+  padding: 30px; /* 適度的內距 */
   min-height: 85vh;
   animation: fadeIn 0.2s ease-out; 
 }
@@ -95,103 +94,148 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- 6. 表格樣式 (緊湊版) --- */
+/* --- 6. 表格樣式 (含選取高亮) --- */
 .table-wrap { 
     width: 100%;
     overflow-x: auto; 
-    border-radius: 10px;
+    border-radius: 12px;
     border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.3);
 }
 
 table { 
     width: 100%; 
     border-collapse: separate; 
-    border-spacing: 0 4px; /* 表格行距縮小 */
-    min-width: 800px; /* 確保不會縮到爛掉 */
+    border-spacing: 0; /* 改回0，為了做連續的背景色 */
+    min-width: 800px;
 }
 
-/* 緊湊的單元格 Padding */
 th, td { 
-    padding: 10px 15px; /* ★縮小內距 (原本15px 20px) */
-    border: none; 
+    padding: 12px 18px; 
+    border-bottom: 1px solid rgba(0,0,0,0.05); /* 細分隔線 */
     vertical-align: middle; 
     text-align: left; 
     white-space: nowrap; 
 }
 
-th { color: #6c5ce7; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+th { 
+    color: #6c5ce7; font-size: 13px; font-weight: 700; 
+    text-transform: uppercase; letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.5); /* 表頭半透明 */
+    position: sticky; top: 0; z-index: 10;
+}
 
 tbody tr {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.4);
   transition: all 0.1s;
 }
+
 tbody tr:hover {
   background: #fff;
-  transform: scale(1.001);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+/* ★★★ 關鍵功能：勾選時填滿背景顏色 ★★★ */
+tbody tr:has(.pay-chk:checked) {
+    background-color: rgba(108, 92, 231, 0.15) !important; /* 淺紫色背景 */
+    color: #4834d4; /* 文字變深紫 */
+}
+/* 選取時，左邊加一條線 */
+tbody tr:has(.pay-chk:checked) td:first-child {
+    border-left: 4px solid #6c5ce7;
+}
 
-/* --- 7. 元件樣式 (Compact Input) --- */
+/* --- 7. 按鈕與篩選器樣式 (新版) --- */
+/* 篩選器容器 */
+.filter-group {
+    display: flex;
+    gap: 5px;
+    background: #f1f5f9; /* 淺灰底座 */
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+/* 篩選按鈕本體 */
+.filter-label {
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+    user-select: none;
+    border: 1px solid transparent;
+}
+
+.filter-label:hover { color: #333; }
+
+/* 隱藏原生 Radio */
+.filter-label input { display: none; }
+
+/* 選中狀態 (變成白色浮起按鈕) */
+.filter-label:has(input:checked) {
+    background: #fff;
+    color: #6c5ce7;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    border-color: #e2e8f0;
+}
+
+/* 數量標籤 */
+.badge-count {
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+.filter-label:has(input:checked) .badge-count {
+    background: #f3e8ff; /* 選中時的數字底色 */
+    color: #6c5ce7;
+}
+
+/* --- 8. 其他元件 --- */
 input, select, textarea {
-  width:100%; padding: 10px 14px; /* 輸入框變扁 */
+  width:100%; padding: 10px 14px;
   border:1px solid rgba(100, 116, 139, 0.2); 
-  border-radius: 8px; font-size: 14px; 
+  border-radius: 10px; font-size: 14px; 
   background: rgba(255,255,255,0.8); 
   transition: all 0.2s;
 }
-input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.1); }
+input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1); }
 
-.btn { padding: 8px 18px; border:0; border-radius: 8px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; white-space: nowrap;}
+.btn { padding: 8px 20px; border:0; border-radius: 10px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; white-space: nowrap;}
 .btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 3px 10px rgba(108, 92, 231, 0.2); }
 .btn-secondary { background: #dfe6e9; color: #636e72; }
 .btn-danger { background: #ff7675; color: white; }
 .btn-success { background: #00b894; color: white; }
 .btn-warning { background: #ffeaa7; color: #d63031; }
 
-/* --- 8. SMS 卡片 (白色框框) --- */
 .sms-card {
-    background: #fff;
-    border: 1px solid #cbd5e0;
-    border-radius: 10px;
-    padding: 12px 15px; /* 縮小內距 */
-    margin-bottom: 10px;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    transition: all 0.2s;
+    background: #fff; border: 1px solid #cbd5e0; border-radius: 12px;
+    padding: 15px; margin-bottom: 12px;
+    position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s;
 }
-.sms-card:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    border-color: #6c5ce7;
-}
+.sms-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.05); border-color: #6c5ce7; }
 
-/* --- 9. 功能性元件 --- */
 .status-pill {
     display: inline-flex; align-items: center; justify-content: center;
     padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
     cursor: pointer; transition: all 0.2s ease; position: relative; min-width: 90px;
 }
 .status-pill.empty { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
-.status-pill.empty:hover { background-color: #fff; }
 .status-pill.arrived { background-color: #fff7ed; color: #c05621; border: 1px solid #ffedd5; }
 
 .hidden-trigger { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .reset-btn-mini { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #fee2e2; color: #ef4444; font-size: 9px; margin-left: 5px; cursor: pointer; border: none; }
 
-.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.8); border: 1px solid #fff; padding: 6px 10px; border-radius: 8px; color: #2d3436; }
+.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.8); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
 .batch-select { border: 1px solid #b2ebf2; background: #ffffff; border-radius: 6px; padding: 4px 6px; font-size: 13px; color: #00695c; cursor: pointer; outline: none; margin-right: 5px; }
 
-/* 勾選框 */
 input[type="checkbox"] {
-    appearance: none; -webkit-appearance: none;
-    width: 18px; height: 18px;
-    border: 2px solid #cbd5e0; border-radius: 4px;
-    background-color: #fff; cursor: pointer;
-    vertical-align: middle; position: relative;
-    margin-right: 6px;
+    appearance: none; -webkit-appearance: none; width: 18px; height: 18px;
+    border: 2px solid #cbd5e0; border-radius: 4px; background-color: #fff; cursor: pointer;
+    vertical-align: middle; position: relative; margin-right: 6px;
 }
 input[type="checkbox"]:checked { background-color: #6c5ce7; border-color: #6c5ce7; }
 input[type="checkbox"]:checked::after {
@@ -199,52 +243,12 @@ input[type="checkbox"]:checked::after {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
 }
 
-/* --- 10. RWD 斷點設定 (僅針對真正的小螢幕) --- */
-/* ★這裡改成了 900px！確保你在大螢幕上絕對是左右排版 */
 @media (max-width: 900px) {
-    .shell { 
-        display: block; 
-        padding: 10px;
-        gap: 15px;
-    }
-
-    /* 手機版：選單變橫向滑動 */
-    .shell-tabs { 
-        display: flex; 
-        flex-direction: row; 
-        gap: 8px; 
-        overflow-x: auto; 
-        padding: 10px; 
-        position: static; 
-        margin-bottom: 15px;
-        white-space: nowrap;
-        scrollbar-width: none;
-        max-height: auto;
-    }
-    .shell-tabs::-webkit-scrollbar { display: none; }
-
-    .shell-tab { 
-        flex: 0 0 auto; 
-        padding: 8px 16px; 
-        font-size: 13px; 
-        background: rgba(255,255,255,0.6);
-    }
+    .shell { display: block; padding: 10px; gap: 15px; }
+    .shell-tabs { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding: 10px; position: static; margin-bottom: 15px; }
+    .shell-tab { flex: 0 0 auto; padding: 8px 16px; background: rgba(255,255,255,0.6); }
     .shell-tab.active { background: #fff; }
-
     .shell-content { padding: 0; }
-    .shell-panel { padding: 15px; min-height: auto; }
-    
-    .shell-header {
-        flex-direction: column;
-        align-items: flex-start !important;
-        gap: 10px;
-        margin: -15px -15px 15px -15px !important;
-        padding: 15px !important;
-    }
-    .shell-header > div { flex-wrap: wrap; gap: 10px; }
-}
-
-@media (max-width: 600px) {
-    .pay-form-grid { grid-template-columns: 1fr !important; }
-    .shell-panel .btn, #quickSearch, .batch-date-box, select { width: 100% !important; }
+    .shell-panel { padding: 15px; }
+    .shell-header { flex-direction: column; align-items: flex-start !important; margin: -15px -15px 15px -15px !important; padding: 15px !important; }
 }
