@@ -289,3 +289,65 @@ input[type="checkbox"]:checked::after {
         align-items: stretch;
     }
 }
+
+/* --- 🚑 螢幕適配修正補丁 (解決 100% 比例下擠壓問題) --- */
+
+/* 1. 修正表格寬度邏輯 */
+/* 原本強制 1000px 太寬了，改成「自動適應」但保留最小閱讀空間 */
+table { 
+    min-width: auto !important; /* 解除強制寬度 */
+    width: 100%; 
+}
+
+/* 2. 讓表格可以自己產生卷軸，不要撐爆整個頁面 */
+.table-wrap {
+    width: 100%;
+    overflow-x: auto; /* 超出範圍時，只有表格自己會有卷軸，不會影響整頁 */
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.5); /* 加個邊框比較好看 */
+}
+
+/* 3. 提早切換成「平板模式」(直式排列) */
+/* 原本是 1024px，現在改成 1366px，讓一般筆電直接用直式排列，空間比較大 */
+@media (max-width: 1366px) {
+    .shell { 
+        display: block !important; 
+        width: 100% !important;
+        padding: 10px !important;
+    }
+
+    /* 選單變成橫向滑動列 */
+    .shell-tabs { 
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 10px !important;
+        margin-bottom: 20px;
+        position: static !important;
+    }
+    
+    .shell-tab {
+        flex: 0 0 auto; /* 不准壓縮按鈕 */
+        white-space: nowrap;
+        font-size: 14px;
+        padding: 8px 16px;
+        background: rgba(255,255,255,0.8);
+    }
+    
+    /* 內容區放鬆 */
+    .shell-content { padding: 0 !important; }
+    .shell-panel { padding: 20px !important; }
+    
+    /* 標題自動換行 */
+    .shell-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 15px;
+    }
+    
+    /* 工具列自動堆疊 */
+    .shell-panel > div[style*="flex"] {
+        flex-wrap: wrap; /* 允許換行 */
+    }
+}
