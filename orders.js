@@ -405,19 +405,48 @@ function batchDeleteOrdersImpl() {
 // 批量指定日期（保留：你原本用來指定 deadline 或 shipDate）
 // 你沒說要改這個，我先保持：批量指定「取貨期限」
 // =====================================================
+// --- orders.js 修改 batchSetDateImpl 函式 ---
+
 function batchSetDateImpl() {
-  const date = document.getElementById('batchDateInput')?.value;
-  if (!date) return alert('請先選日期');
+  // 1. 取得選擇的日期 & 動作
+  const dateInput = document.getElementById('batchDateInput');
+  const actionSelect = document.getElementById('batchActionSelect');
+  
+  const date = dateInput?.value;
+  const action = actionSelect?.value;
 
+  if (!date) return alert('請先選擇日期！');
+
+  // 2. 找出有勾選的訂單
   const checks = Array.from(document.querySelectorAll('.pay-chk')).filter(chk => chk.checked);
-  if (checks.length === 0) return alert('請先勾選要套用的訂單');
+  if (checks.length === 0) return alert('請先勾選要處理的訂單');
 
+  // 3. 開始批量處理
   checks.forEach(chk => {
     const idx = Number(chk.dataset.idx);
-    payOrders[idx].deadline = date;
+    
+    if (action === 'arrived') {
+      // ★ 動作 A：批量到貨
+      // 設定到店日，並且自動推算 +7 天為期限
+      payOrders[idx].arrivedDate = date;
+      payOrders[idx].deadline = addDaysISO(date, 7);
+      
+      // (選用) 如果變成到店，是否要清空「已取貨」狀態？通常是合理的，避免狀態衝突
+      payOrders[idx].pickupDate = null; 
+
+    } else if (action === 'picked') {
+      // ★ 動作 B：批量取貨
+      payOrders[idx].pickupDate = date;
+    }
   });
 
+  // 4. 存檔並重繪
   savePayOrders();
+  alert(`✅ 已成功更新 ${checks.length} 筆訂單！`);
+  
+  // 清空勾選 (選用，看你習慣)
+  // document.getElementById('selectAllPay').checked = false;
+  // toggleSelectAllPayImpl(); 
 }
 
 // =====================================================
