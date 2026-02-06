@@ -29,15 +29,18 @@
         📅 查詢撥款日
     </button>
     
-    <button class="shell-tab" onclick="switchTab('panel-sms', this)">
-        📱 SMS 客戶通知
+    <div style="height: 1px; background: #f1f5f9; margin: 10px 20px;"></div> <button class="shell-tab" onclick="switchTab('panel-sms', this)">
+        📱 SMS 發送作業
+    </button>
+    
+    <button class="shell-tab" onclick="switchTab('panel-templates', this)">
+        💬 範本設定
     </button>
   </div>
 
   <div class="shell-content">
     
     <div id="pay-sub-orders" class="shell-panel active">
-      
       <div class="shell-header" style="margin: -40px -40px 30px -40px; border-radius: 24px 24px 0 0; padding: 30px 40px;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
             <h2 style="margin:0; font-size:24px;">訂單列表</h2>
@@ -61,28 +64,26 @@
 
       <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
          <button class="btn btn-warning" onclick="pushToSMS()">📤 帶入 SMS</button>
-         <!-- ✅ 已移除：追蹤貨況 -->
          <button class="btn btn-danger" onclick="batchDeleteOrders()">🗑️ 刪除選取</button>
 
-         <!-- ✅ 新增：快速查詢（訂單號/姓名） -->
          <input id="quickSearch"
             type="text"
             placeholder="快速查詢：訂單號/姓名"
             style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:12px; min-width:260px;"
             oninput="safeRender()">
 
-<div class="batch-date-box">
-    <span style="font-size:13px; font-weight:700;">📅 批量操作：</span>
-    
-    <select id="batchActionSelect" class="batch-select">
-        <option value="arrived">🚚 設為已到店</option>
-        <option value="picked">✅ 設為已取貨</option>
-    </select>
-
-    <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit; cursor:pointer;">
-    
-    <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
-</div>
+         <div class="batch-date-box">
+             <span style="font-size:13px; font-weight:700;">📅 批量操作：</span>
+             
+             <select id="batchActionSelect" class="batch-select">
+                 <option value="arrived">🚚 設為已到店</option>
+                 <option value="picked">✅ 設為已取貨</option>
+             </select>
+         
+             <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit; cursor:pointer;">
+             
+             <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
+         </div>
          
          <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
       </div>
@@ -168,85 +169,64 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
 
     <div id="panel-sms" class="shell-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-          <h2 style="margin:0;">SMS 客戶通知</h2>
+          <h2 style="margin:0;">📱 SMS 發送作業</h2>
           <div style="font-size:13px; color:#999;">
-            <span class="sms-status-dot dot-online" id="smsIndicator"></span> 系統狀態
+            <span class="sms-status-dot dot-online" id="smsIndicator"></span> 準備就緒
           </div>
       </div>
 
-      <div class="pay-tabs">
-        <div class="pay-tab active" onclick="switchSmsSubTab('list')">📨 待發送名單</div>
-<button class="shell-tab" onclick="switchTab('panel-templates', this)">
-    💬 範本設定
-</button>
+      <h3 style="font-size:16px; margin-bottom:10px; color:#64748b;">1️⃣ 勾選收件人</h3>
+      <div id="smsListContainer" style="margin-bottom: 30px; min-height:100px;"></div>
 
-<button class="shell-tab" onclick="switchTab('panel-sms', this)">
-    📱 SMS 客戶通知
-</button>
+      <div style="background: #f8fafc; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0;">
+          <h3 style="margin-top:0; font-size:16px; color:#64748b; margin-bottom:15px;">2️⃣ 選擇內容並發送</h3>
+          
+          <div style="display:flex; gap:15px; margin-bottom:15px; align-items:center;">
+              <select id="smsTemplateSelect" onchange="previewTemplate()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #cbd5e0; font-size:15px;">
+                  <option value="">-- 請選擇要使用的範本 --</option>
+              </select>
+              <button class="btn btn-primary" onclick="sendSelectedSMS()" style="padding: 12px 25px; font-size:15px;">
+                  🚀 發送選取簡訊
+              </button>
+          </div>
 
-
-<div id="panel-sms" class="shell-panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
-        <h2 style="margin:0;">📱 SMS 發送作業</h2>
-        <div style="font-size:13px; color:#999;">
-          <span class="sms-status-dot dot-online"></span> 準備就緒
-        </div>
+          <textarea id="smsPreviewBox" rows="3" placeholder="選取範本後，預覽內容將顯示於此..." style="width:100%; padding:15px; border-radius:10px; border:1px solid #cbd5e0; background:#fff; color:#475569; font-size:14px;"></textarea>
+      </div>
     </div>
 
-    <h3 style="font-size:16px; margin-bottom:10px; color:#64748b;">1️⃣ 勾選收件人</h3>
-    <div id="smsListContainer" style="margin-bottom: 30px; min-height:100px;"></div>
-
-    <div style="background: #f1f5f9; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0;">
-        <h3 style="margin-top:0; font-size:16px; color:#64748b; margin-bottom:15px;">2️⃣ 選擇內容並發送</h3>
+    <div id="panel-templates" class="shell-panel">
+      
+      <div id="tpl-view-list">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <h2 style="margin:0;">💬 範本管理</h2>
+          <button class="btn btn-primary" onclick="showAddTpl()">➕ 新增範本</button>
+        </div>
         
-        <div style="display:flex; gap:15px; margin-bottom:15px; align-items:center;">
-            <select id="smsTemplateSelect" onchange="previewTemplate()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #cbd5e0; font-size:15px;">
-                <option value="">-- 請選擇要使用的範本 --</option>
-            </select>
-            
-            <button class="btn btn-primary" onclick="sendSelectedSMS()" style="padding: 12px 25px; font-size:15px;">
-                🚀 發送選取簡訊
-            </button>
+        <div id="templateListContainer"></div>
+      </div>
+
+      <div id="tpl-view-edit" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+          <h3 style="margin:0;" id="tplEditTitle">✏️ 編輯範本</h3>
+          <button class="btn btn-secondary btn-sm" onclick="cancelEditTpl()">↩ 返回列表</button>
         </div>
 
-        <textarea id="smsPreviewBox" rows="3" placeholder="選取範本後，預覽內容將顯示於此..." style="width:100%; padding:15px; border-radius:10px; border:1px solid #cbd5e0; background:#fff; color:#475569; font-size:14px;"></textarea>
-    </div>
-</div>
-
-
-<div id="panel-templates" class="shell-panel">
-  
-  <div id="tpl-view-list">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-      <h2 style="margin:0;">💬 範本管理</h2>
-      <button class="btn btn-primary" onclick="showAddTpl()">➕ 新增範本</button>
-    </div>
-    
-    <div id="templateListContainer"></div>
-  </div>
-
-  <div id="tpl-view-edit" style="display:none;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-      <h3 style="margin:0;" id="tplEditTitle">✏️ 編輯範本</h3>
-      <button class="btn btn-secondary btn-sm" onclick="cancelEditTpl()">↩ 返回列表</button>
-    </div>
-
-    <input id="tplNameInput" placeholder="範本名稱 (例如: 到貨通知)" style="width:100%; padding:12px; margin-bottom:15px; font-weight:bold; border-radius:8px; border:1px solid #cbd5e0;">
-    
-    <textarea id="tplContentInput" rows="12" placeholder="輸入簡訊內容...
+        <input id="tplNameInput" placeholder="範本名稱 (例如: 到貨通知)" style="width:100%; padding:12px; margin-bottom:15px; font-weight:bold; border-radius:8px; border:1px solid #cbd5e0;">
+        
+        <textarea id="tplContentInput" rows="12" placeholder="輸入簡訊內容...
 可用參數: {name}, {no}, {store}, {deadline}" style="width:100%; padding:15px; border:1px solid #cbd5e0; border-radius:12px; font-size:14px; line-height:1.6;"></textarea>
 
-    <div style="display:flex; gap:10px; margin-top:20px;">
-      <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
-      <button class="btn btn-secondary" onclick="cancelEditTpl()">取消</button>
-      <div style="flex:1"></div>
-      <button class="btn btn-warning" onclick="resetDefaultTemplates()">↻ 重置預設</button>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
+          <button class="btn btn-secondary" onclick="cancelEditTpl()">取消</button>
+          <div style="flex:1"></div>
+          <button class="btn btn-warning" onclick="resetDefaultTemplates()">↻ 重置預設</button>
+        </div>
+      </div>
+
     </div>
-  </div>
 
-</div>
-
-<script type="module" src="orders.js"></script>
+  </div> </div> <script type="module" src="orders.js"></script>
 <script type="module" src="sms.js"></script>
 </body>
 </html>
