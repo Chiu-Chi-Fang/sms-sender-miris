@@ -71,11 +71,18 @@
             style="padding:10px 12px; border:1px solid #e2e8f0; border-radius:12px; min-width:260px;"
             oninput="safeRender()">
 
-         <div class="batch-date-box">
-             <span style="font-size:13px; font-weight:700;">📅 批量指定：</span>
-             <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit;">
-             <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
-         </div>
+<div class="batch-date-box">
+    <span style="font-size:13px; font-weight:700;">📅 批量操作：</span>
+    
+    <select id="batchActionSelect" class="batch-select">
+        <option value="arrived">🚚 設為已到店</option>
+        <option value="picked">✅ 設為已取貨</option>
+    </select>
+
+    <input type="date" id="batchDateInput" style="border:none; background:transparent; font-size:13px; width:auto; color: inherit; cursor:pointer;">
+    
+    <button class="btn btn-success btn-sm" onclick="batchSetDate()">套用</button>
+</div>
          
          <button class="btn btn-secondary" onclick="exportOrdersExcel()">📥 匯出 Excel</button>
       </div>
