@@ -183,35 +183,44 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
   <div id="smsListContainer"></div>
 </div>
 
-      <div id="sms-sub-tpl" class="pay-panel">
-<div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-  <select id="smsTemplateSelect" onchange="previewTemplate()" style="padding:8px;"></select>
-</div>
-
-<textarea id="smsPreviewBox" rows="6" style="width:100%; padding:10px;"></textarea>
-
-<div style="margin-top:12px;">
-  <input id="tplNameInput" placeholder="範本名稱" style="width:100%; padding:10px; margin-bottom:8px;">
-  <textarea id="tplContentInput" rows="6" placeholder="範本內容" style="width:100%; padding:10px;"></textarea>
-
-  <div style="display:flex; gap:8px; margin-top:8px;">
-    <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
-    <button class="btn btn-secondary" onclick="clearTemplateInput()">清空</button>
-    <button class="btn btn-warning" onclick="resetDefaultTemplates()">重置預設</button>
+<div id="sms-sub-tpl" class="pay-panel">
+  
+  <div id="tpl-view-list">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3 style="margin:0;">📂 範本管理</h3>
+      <button class="btn btn-primary" onclick="showAddTpl()">➕ 新增範本</button>
+    </div>
+    
+    <div id="templateListContainer"></div>
+    
+    <div style="margin-top:30px; border-top:1px dashed #eee; padding-top:20px;">
+        <label style="font-size:12px; color:#888;">👇 快速測試預覽：</label>
+        <div style="display:flex; gap:10px; margin-bottom:5px;">
+           <select id="smsTemplateSelect" onchange="previewTemplate()" style="padding:8px; width:200px;"></select>
+        </div>
+        <textarea id="smsPreviewBox" rows="3" style="width:100%; padding:10px; background:#f9f9f9; border:1px solid #eee; color:#666;" placeholder="選擇範本後預覽內容..."></textarea>
+    </div>
   </div>
-</div>
 
-<div style="margin-top:20px; border-top: 1px dashed #e2e8f0; padding-top: 20px;">
-  <details class="styled-details">
-    <summary>📂 管理現有範本清單 (點擊展開/收合)</summary>
-    <div id="templateListContainer" style="margin-top: 15px;"></div>
-  </details>
-</div>
-
-      </div>
+  <div id="tpl-view-edit" style="display:none;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+      <h3 style="margin:0;" id="tplEditTitle">✏️ 編輯範本</h3>
+      <button class="btn btn-secondary btn-sm" onclick="cancelEditTpl()">↩ 返回列表</button>
     </div>
 
+    <input id="tplNameInput" placeholder="輸入範本名稱 (例如: 到貨通知)" style="width:100%; padding:12px; margin-bottom:15px; font-weight:bold;">
+    
+    <textarea id="tplContentInput" rows="10" placeholder="輸入簡訊內容...
+可用參數: {name}, {no}, {store}, {deadline}" style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; font-size:14px; line-height:1.6;"></textarea>
+
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
+      <button class="btn btn-secondary" onclick="cancelEditTpl()">取消</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-warning" onclick="resetDefaultTemplates()">↻ 重置預設</button>
+    </div>
   </div>
+
 </div>
 
 <script type="module" src="orders.js"></script>
