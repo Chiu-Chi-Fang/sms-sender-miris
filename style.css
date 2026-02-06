@@ -2,7 +2,7 @@
 
 * { box-sizing: border-box; }
 
-/* --- 1. 全域設定 (強制置中核心) --- */
+/* --- 1. 全域設定 --- */
 body {
   margin: 0;
   font-family: 'Poppins', 'Noto Sans TC', sans-serif;
@@ -12,19 +12,18 @@ body {
   padding: 20px;
   color: #2d3436;
   
-  /* ★★★ 關鍵修改：使用 Flexbox 強制內容水平置中 ★★★ */
+  /* 強制水平置中 */
   display: flex;
-  justify-content: center; /* 水平置中 */
-  align-items: flex-start; /* 靠上對齊 (避免垂直置中導致頭被切掉) */
+  justify-content: center; 
+  align-items: flex-start;
 }
 
-/* --- 2. 版面結構 --- */
+/* --- 2. 版面結構 (大螢幕解放版) --- */
 .shell {
-  /* ★放寬寬度：上限改為 1600px，適應 27 吋大螢幕 */
-  max-width: 1600px; 
-  width: 100%; /* 在 Flexbox 下，設為 100% 會自動被 justify-content 限制 */
+  /* ★修正：放寬到 2400px，讓 27 吋螢幕也能滿版 */
+  max-width: 2400px; 
+  width: 96%; /* 佔滿畫面 96%，留一點點邊才好看 */
   
-  /* 保險起見，保留 margin auto */
   margin-inline: auto; 
   
   display: grid;
@@ -88,7 +87,6 @@ body {
 .shell-content { 
   grid-column: 2 / 3;
   grid-row: 2 / 3;
-  /* 確保內容區寬度正確 */
   width: 100%;
   min-width: 0; 
 }
@@ -104,7 +102,7 @@ body {
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- 6. 表格樣式 (加大版) --- */
+/* --- 6. 表格樣式 --- */
 .table-wrap { 
     width: 100%;
     overflow-x: auto; 
@@ -144,7 +142,7 @@ tbody tr:hover {
   background: #fff;
 }
 
-/* 勾選時的高亮效果 */
+/* 勾選時的高亮效果 (整行變紫) */
 tbody tr:has(.pay-chk:checked) {
     background-color: rgba(108, 92, 231, 0.15) !important;
     color: #4834d4;
@@ -153,7 +151,24 @@ tbody tr:has(.pay-chk:checked) td:first-child {
     border-left: 5px solid #6c5ce7;
 }
 
-/* --- 7. 篩選按鈕組 --- */
+/* --- 7. ★★★ 關鍵修復：「未取貨」按鈕功能 ★★★ --- */
+.action-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.hidden-date-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0; /* 透明 */
+    cursor: pointer;
+    z-index: 10; /* 蓋在按鈕上面 */
+}
+
+/* --- 8. 篩選按鈕組 --- */
 .filter-group {
     display: flex;
     gap: 8px;
@@ -197,7 +212,7 @@ tbody tr:has(.pay-chk:checked) td:first-child {
     color: #6c5ce7;
 }
 
-/* --- 8. 輸入框與按鈕 (加大版) --- */
+/* --- 9. 輸入框與按鈕 --- */
 input, select, textarea {
   width:100%; 
   padding: 14px 18px; 
@@ -248,7 +263,7 @@ input[type="checkbox"]:checked::after {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
 }
 
-/* --- RWD 設定 (修正斷點) --- */
+/* --- 10. RWD 設定 --- */
 @media (max-width: 900px) {
     .shell { display: block; padding: 10px; gap: 15px; width: 100%; }
     .shell-tabs { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding: 10px; position: static; margin-bottom: 15px; }
