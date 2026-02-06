@@ -2,56 +2,60 @@
 
 * { box-sizing: border-box; }
 
-/* --- 1. 全域設定 (極光漸層背景) --- */
+/* --- 1. 全域設定 (極光漸層) --- */
 body {
   margin: 0;
   font-family: 'Poppins', 'Noto Sans TC', sans-serif;
   background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
   background-attachment: fixed;
   min-height: 100vh;
-  padding: 20px;
+  padding: 15px; /* 縮小邊距 */
   color: #2d3436;
 }
 
-/* --- 2. 版面結構 (Grid 佈局) --- */
+/* --- 2. 版面結構 (Grid) --- */
 .shell {
-  max-width: 1600px;
-  width: 95%;
+  /* ★釋放寬度！給大螢幕更多空間 */
+  max-width: 99%; 
+  width: 100%;
   margin: 0 auto;
+  
   display: grid;
-  grid-template-columns: 260px 1fr; /* 左側固定，右側自適應 */
+  /* ★縮小左側選單寬度 (220px)，右側自適應 */
+  grid-template-columns: 220px 1fr; 
   grid-template-rows: auto 1fr;
-  gap: 30px;
+  gap: 20px; /* 縮小間距 */
   align-items: start;
 }
 
-/* --- 3. 毛玻璃卡片風格 (無 Blur 優化版) --- */
+/* --- 3. 毛玻璃卡片 (高透明度 / 無 Blur) --- */
 .shell-tabs, 
 .shell-panel, 
 .shell-header {
-  background: rgba(255, 255, 255, 0.85) !important; /* 高透明白，解決卡頓 */
+  background: rgba(255, 255, 255, 0.9) !important; /* 90% 不透明，字更清楚 */
   border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-  border-radius: 24px;
+  box-shadow: 0 4px 20px 0 rgba(31, 38, 135, 0.08); /* 陰影變淡 */
+  border-radius: 16px; /* 圓角改小一點，比較俐落 */
 }
 
-/* --- 4. 左側選單 (Sidebar) --- */
+/* --- 4. 左側選單 (Compact Sidebar) --- */
 .shell-tabs { 
   grid-column: 1 / 2;
   grid-row: 2 / 3;
-  padding: 30px 20px;
+  padding: 20px 15px; /* 縮小內距 */
   display: flex;
   flex-direction: column; 
-  gap: 15px;
+  gap: 10px;
   position: sticky;
-  top: 20px;
+  top: 15px;
+  max-height: 90vh; /* 避免選單太長 */
 }
 
 .shell-tab {
   text-align: left;
-  padding: 15px 20px;
-  border-radius: 12px;
-  font-size: 15px;
+  padding: 12px 15px; /* 按鈕變扁一點 */
+  border-radius: 10px;
+  font-size: 14px; /* 字縮小一點 */
   color: #64748b;
   background: transparent;
   border: 1px solid transparent;
@@ -62,15 +66,15 @@ body {
 }
 
 .shell-tab:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.6);
   color: #6c5ce7;
 }
 
 .shell-tab.active { 
   background: #fff;
   color: #6c5ce7;
-  border-color: #fff;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 10px rgba(108, 92, 231, 0.1);
   font-weight: 700;
 }
 
@@ -82,195 +86,165 @@ body {
 
 .shell-panel { 
   display: none; 
-  padding: 40px; 
-  min-height: 80vh;
-  animation: fadeIn 0.3s ease-out; 
+  padding: 25px; /* ★大幅減少內距 (原本40px)，內容更滿 */
+  min-height: 85vh;
+  animation: fadeIn 0.2s ease-out; 
 }
 
-.shell-panel.active { 
-  display: block; 
-}
+.shell-panel.active { display: block; }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- 6. 表格樣式優化 (解決撐爆問題) --- */
+/* --- 6. 表格樣式 (緊湊版) --- */
 .table-wrap { 
     width: 100%;
-    overflow-x: auto; /* 關鍵：表格太寬時自己產生卷軸 */
-    border-radius: 12px;
+    overflow-x: auto; 
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.5);
 }
 
 table { 
     width: 100%; 
     border-collapse: separate; 
-    border-spacing: 0 8px; 
-    /* 移除強制 1000px，改為自動，但保留最小寬度以免縮太小 */
-    min-width: 800px; 
+    border-spacing: 0 4px; /* 表格行距縮小 */
+    min-width: 800px; /* 確保不會縮到爛掉 */
 }
 
-th, td { padding: 15px 20px; border: none; vertical-align: middle; text-align: left; white-space: nowrap; }
+/* 緊湊的單元格 Padding */
+th, td { 
+    padding: 10px 15px; /* ★縮小內距 (原本15px 20px) */
+    border: none; 
+    vertical-align: middle; 
+    text-align: left; 
+    white-space: nowrap; 
+}
+
 th { color: #6c5ce7; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
 tbody tr {
-  background: rgba(255, 255, 255, 0.4);
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.6);
+  transition: all 0.1s;
 }
 tbody tr:hover {
   background: #fff;
-  transform: scale(1.002);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  transform: scale(1.001);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
-td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
-td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
 
-/* --- 7. 元件樣式 --- */
+/* --- 7. 元件樣式 (Compact Input) --- */
 input, select, textarea {
-  width:100%; padding:14px 18px; 
-  border:1px solid rgba(255,255,255,0.6); 
-  border-radius: 10px; font-size:15px; 
-  background: rgba(255,255,255,0.7); 
+  width:100%; padding: 10px 14px; /* 輸入框變扁 */
+  border:1px solid rgba(100, 116, 139, 0.2); 
+  border-radius: 8px; font-size: 14px; 
+  background: rgba(255,255,255,0.8); 
   transition: all 0.2s;
 }
-input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1); }
+input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 2px rgba(108, 92, 231, 0.1); }
 
-.btn { padding:10px 20px; border:0; border-radius:10px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;}
-.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3); }
+.btn { padding: 8px 18px; border:0; border-radius: 8px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; white-space: nowrap;}
+.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 3px 10px rgba(108, 92, 231, 0.2); }
 .btn-secondary { background: #dfe6e9; color: #636e72; }
 .btn-danger { background: #ff7675; color: white; }
 .btn-success { background: #00b894; color: white; }
 .btn-warning { background: #ffeaa7; color: #d63031; }
 
-/* --- 8. ★補回遺失的 SMS 卡片樣式★ --- */
+/* --- 8. SMS 卡片 (白色框框) --- */
 .sms-card {
     background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 15px 20px;
-    margin-bottom: 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 10px;
+    padding: 12px 15px; /* 縮小內距 */
+    margin-bottom: 10px;
     position: relative;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     transition: all 0.2s;
 }
 .sms-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     border-color: #6c5ce7;
 }
 
 /* --- 9. 功能性元件 --- */
 .status-pill {
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s ease; position: relative; min-width: 100px;
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s ease; position: relative; min-width: 90px;
 }
-.status-pill.empty { background-color: rgba(255,255,255,0.5); color: #64748b; border: 1px solid #cbd5e0; }
+.status-pill.empty { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 .status-pill.empty:hover { background-color: #fff; }
 .status-pill.arrived { background-color: #fff7ed; color: #c05621; border: 1px solid #ffedd5; }
 
 .hidden-trigger { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-.reset-btn-mini { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #fee2e2; color: #ef4444; font-size: 10px; margin-left: 6px; cursor: pointer; border: none; }
+.reset-btn-mini { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #fee2e2; color: #ef4444; font-size: 9px; margin-left: 5px; cursor: pointer; border: none; }
 
-.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.6); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
-.batch-select { border: 1px solid #b2ebf2; background: #ffffff; border-radius: 8px; padding: 4px 8px; font-size: 13px; color: #00695c; cursor: pointer; outline: none; margin-right: 5px; }
+.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.8); border: 1px solid #fff; padding: 6px 10px; border-radius: 8px; color: #2d3436; }
+.batch-select { border: 1px solid #b2ebf2; background: #ffffff; border-radius: 6px; padding: 4px 6px; font-size: 13px; color: #00695c; cursor: pointer; outline: none; margin-right: 5px; }
 
-/* 勾選框放大 */
+/* 勾選框 */
 input[type="checkbox"] {
     appearance: none; -webkit-appearance: none;
-    width: 20px; height: 20px;
-    border: 2px solid #cbd5e0; border-radius: 5px;
+    width: 18px; height: 18px;
+    border: 2px solid #cbd5e0; border-radius: 4px;
     background-color: #fff; cursor: pointer;
     vertical-align: middle; position: relative;
-    margin-right: 8px;
+    margin-right: 6px;
 }
 input[type="checkbox"]:checked { background-color: #6c5ce7; border-color: #6c5ce7; }
 input[type="checkbox"]:checked::after {
-    content: '✔'; color: white; font-size: 14px;
+    content: '✔'; color: white; font-size: 12px;
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
 }
 
-/* --- 10. RWD 響應式優化 (針對筆電與手機) --- */
-/* ★關鍵修改：將斷點改為 1366px，讓大部分筆電直接切換為直式排列，避免擠壓 */
-@media (max-width: 1366px) {
+/* --- 10. RWD 斷點設定 (僅針對真正的小螢幕) --- */
+/* ★這裡改成了 900px！確保你在大螢幕上絕對是左右排版 */
+@media (max-width: 900px) {
     .shell { 
         display: block; 
-        width: 100%; 
-        padding: 10px; /* 增加外圍空間 */
-        gap: 20px;
+        padding: 10px;
+        gap: 15px;
     }
 
-    /* 選單變橫向滑動列 */
+    /* 手機版：選單變橫向滑動 */
     .shell-tabs { 
         display: flex; 
         flex-direction: row; 
-        gap: 10px; 
+        gap: 8px; 
         overflow-x: auto; 
-        padding: 15px; 
+        padding: 10px; 
         position: static; 
-        min-height: auto;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         white-space: nowrap;
         scrollbar-width: none;
+        max-height: auto;
     }
     .shell-tabs::-webkit-scrollbar { display: none; }
 
     .shell-tab { 
         flex: 0 0 auto; 
         padding: 8px 16px; 
-        font-size: 14px; 
-        border-radius: 50px; 
-        background: rgba(255,255,255,0.5);
+        font-size: 13px; 
+        background: rgba(255,255,255,0.6);
     }
-    .shell-tab.active {
-        background: #fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+    .shell-tab.active { background: #fff; }
 
-    /* 內容區放鬆 */
     .shell-content { padding: 0; }
-    .shell-panel { 
-        padding: 20px; 
-        min-height: auto;
-    }
+    .shell-panel { padding: 15px; min-height: auto; }
     
-    /* 標題與按鈕列自動換行 */
     .shell-header {
         flex-direction: column;
         align-items: flex-start !important;
-        gap: 15px;
-        margin: -20px -20px 20px -20px !important;
-        padding: 20px !important;
-        border-radius: 24px 24px 0 0 !important;
-    }
-    .shell-header > div {
-        width: 100%;
-        justify-content: space-between;
-        flex-wrap: wrap; /* 允許換行 */
         gap: 10px;
+        margin: -15px -15px 15px -15px !important;
+        padding: 15px !important;
     }
+    .shell-header > div { flex-wrap: wrap; gap: 10px; }
 }
 
-/* --- 11. 手機極小螢幕優化 (小於 768px) --- */
-@media (max-width: 768px) {
-    .pay-form-grid {
-        grid-template-columns: 1fr !important; /* 強制單欄 */
-        gap: 15px;
-    }
-
-    .shell-panel .btn, 
-    #quickSearch, 
-    .batch-date-box, 
-    select {
-        width: 100% !important; /* 按鈕輸入框滿版 */
-    }
-    
-    .shell-header > div {
-        flex-direction: column;
-        align-items: stretch !important;
-    }
-    
-    .batch-date-box {
-        flex-direction: column;
-        align-items: stretch;
-    }
+@media (max-width: 600px) {
+    .pay-form-grid { grid-template-columns: 1fr !important; }
+    .shell-panel .btn, #quickSearch, .batch-date-box, select { width: 100% !important; }
 }
