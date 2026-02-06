@@ -89,8 +89,64 @@ body {
   min-height: 80vh;
 }
 
-.shell-panel { display: none; animation: fadeIn 0.3s ease-out; }
-.shell-panel.active { display: block; }
+/* --- 1. 背景不再是純色，而是漸層 --- */
+body {
+  margin: 0;
+  font-family: 'Poppins', 'Noto Sans TC', sans-serif;
+  /* 這裡用了 淺紫 -> 淺藍 的漸層，透出玻璃會很漂亮 */
+  background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+  background-attachment: fixed; /* 讓背景固定，滾動時更有層次感 */
+  min-height: 100vh;
+  padding: 20px;
+  color: #2d3436;
+}
+
+/* --- 2. 讓所有卡片變成「毛玻璃」 --- */
+/* 包括：左側選單、右側面板、頂部標題 */
+.shell-tabs, 
+.shell-panel, 
+.shell-header {
+  /* 關鍵：半透明白色 (0.6 = 60% 不透明) */
+  background: rgba(255, 255, 255, 0.6) !important;
+  
+  /* 關鍵：背景模糊 (這就是毛玻璃的魔法) */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  
+  /* 加上一點點白色的邊框，讓邊緣發光 */
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  
+  /* 陰影帶一點點顏色，不要純黑，會更通透 */
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  
+  border-radius: 24px;
+}
+
+/* --- 3. 左側選單按鈕微調 --- */
+.shell-tab:hover {
+  background: rgba(255, 255, 255, 0.5); /* 滑鼠移上去更白一點 */
+  color: #6c5ce7; /* 深紫色字 */
+}
+
+.shell-tab.active {
+  background: rgba(255, 255, 255, 0.85); /* 選中時接近不透明 */
+  color: #6c5ce7;
+  border-color: #fff;
+  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
+}
+
+/* --- 4. 表格與內容微調 --- */
+/* 為了讓文字在玻璃上更清楚，表格的斑馬紋可以拿掉或變淡 */
+tbody tr {
+  background: rgba(255, 255, 255, 0.4); /* 表格行也是半透明 */
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.9); /* 滑鼠移上去變實心白 */
+  transform: scale(1.01); /* 微微放大 */
+}
+
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* --- 內部元件與篩選區 --- */
