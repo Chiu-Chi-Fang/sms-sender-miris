@@ -14,31 +14,35 @@ body {
   color: #2d3436;
 }
 
-/* --- 2. 版面結構 (Grid 佈局) --- */
+/* --- 2. 版面結構 --- */
 .shell {
   max-width: 1600px;
   width: 95%;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 260px 1fr; /* 左側固定，右側自適應 */
+  grid-template-columns: 260px 1fr;
   grid-template-rows: auto 1fr;
   gap: 30px;
   align-items: start;
 }
 
-/* --- 3. 毛玻璃卡片風格 (共用樣式) --- */
+/* --- 3. 類玻璃卡片 (效能優化版：移除 blur) --- */
 .shell-tabs, 
 .shell-panel, 
 .shell-header {
-  background: rgba(255, 255, 255, 0.6) !important; /* 半透明白 */
-  backdrop-filter: blur(12px); /* 模糊特效 */
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4); /* 玻璃邊框 */
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); /* 柔和陰影 */
+  /* 改用 85% 不透明的白，保留一點透光感，但不用運算模糊，速度最快 */
+  background: rgba(255, 255, 255, 0.85) !important;
+  
+  /* 加上玻璃邊框 */
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  
+  /* 柔和陰影 */
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+  
   border-radius: 24px;
 }
 
-/* --- 4. 左側選單 (Sidebar) --- */
+/* --- 4. 左側選單 --- */
 .shell-tabs { 
   grid-column: 1 / 2;
   grid-row: 2 / 3;
@@ -70,92 +74,119 @@ body {
 }
 
 .shell-tab.active { 
-  background: rgba(255, 255, 255, 0.85);
+  background: #fff; /* 選中變純白 */
   color: #6c5ce7;
   border-color: #fff;
-  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.2);
+  box-shadow: 0 4px 15px rgba(108, 92, 231, 0.15);
   font-weight: 700;
 }
 
-/* --- 5. 右側內容區 (重要邏輯) --- */
+/* --- 5. 右側內容區 --- */
 .shell-content { 
   grid-column: 2 / 3;
   grid-row: 2 / 3;
-  /* 內容區本身不設背景，背景由內部的 .shell-panel 負責 */
 }
 
-/* ★★★ 關鍵修復：這裡控制頁面的隱藏與顯示 ★★★ */
+/* 頁面切換控制 */
 .shell-panel { 
-  display: none; /* 預設全部隱藏 */
+  display: none; 
   padding: 40px; 
   min-height: 80vh;
-  animation: fadeIn 0.3s ease-out; 
+  animation: fadeIn 0.2s ease-out; /* 動畫加速 */
 }
 
 .shell-panel.active { 
-  display: block; /* 只有加了 active 的才顯示 */
+  display: block; 
 }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-/* --- 6. 表格樣式優化 --- */
+/* --- 6. 表格樣式 --- */
 .table-wrap { overflow-x: auto; }
 table { width:100%; border-collapse: separate; border-spacing: 0 8px; min-width: 1000px; }
 th, td { padding: 15px 20px; border: none; vertical-align: middle; text-align: left; white-space: nowrap; }
 
 th { color: #6c5ce7; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
-/* 表格行的玻璃質感 */
 tbody tr {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.5); /* 表格行半透明 */
   transition: all 0.2s;
 }
 tbody tr:hover {
-  background: rgba(255, 255, 255, 0.9);
-  transform: scale(1.005);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+  background: #fff;
+  transform: scale(1.002); /* 縮放幅度改小，減少重繪負擔 */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
-/* 圓角處理 */
 td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
 td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
 
-/* --- 7. 元件樣式 (輸入框、按鈕) --- */
+/* --- 7. 元件樣式 --- */
 input, select, textarea {
   width:100%; padding:14px 18px; 
-  border:1px solid rgba(255,255,255,0.6); 
+  border:1px solid rgba(100, 116, 139, 0.2); 
   border-radius: 10px; font-size:15px; 
-  background: rgba(255,255,255,0.7); 
+  background: rgba(255,255,255,0.8); 
   transition: all 0.2s;
 }
 input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #fff; box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1); }
 
-/* 按鈕美化 */
+/* 按鈕 */
 .btn { padding:10px 20px; border:0; border-radius:10px; font-weight:700; cursor:pointer; display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;}
-.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3); }
+.btn-primary { background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%); color: white; box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3); }
 .btn-secondary { background: #dfe6e9; color: #636e72; }
 .btn-danger { background: #ff7675; color: white; }
 .btn-success { background: #00b894; color: white; }
 .btn-warning { background: #ffeaa7; color: #d63031; }
 
-/* --- 8. 功能性元件 (狀態標籤) --- */
+/* --- 8. 補回遺失的 SMS 卡片樣式！ --- */
+.sms-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 15px 20px;
+    margin-bottom: 12px;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    transition: all 0.2s;
+}
+.sms-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    border-color: #6c5ce7;
+}
+
+/* --- 9. 功能性元件 --- */
 .status-pill {
     display: inline-flex; align-items: center; justify-content: center;
     padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
     cursor: pointer; transition: all 0.2s ease; position: relative; min-width: 100px;
 }
-.status-pill.empty { background-color: rgba(255,255,255,0.5); color: #64748b; border: 1px solid #cbd5e0; }
+.status-pill.empty { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 .status-pill.empty:hover { background-color: #fff; }
 .status-pill.arrived { background-color: #fff7ed; color: #c05621; border: 1px solid #ffedd5; }
 
 .hidden-trigger { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .reset-btn-mini { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: #fee2e2; color: #ef4444; font-size: 10px; margin-left: 6px; cursor: pointer; border: none; }
 
-/* 批量操作選單 */
-.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.6); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
+.batch-date-box { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.8); border: 1px solid #fff; padding: 6px 12px; border-radius: 8px; color: #2d3436; }
 .batch-select { border: 1px solid #b2ebf2; background: #ffffff; border-radius: 8px; padding: 4px 8px; font-size: 13px; color: #00695c; cursor: pointer; outline: none; margin-right: 5px; }
 
-/* --- RWD 手機版適配 --- */
+/* 勾選框放大 */
+input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border: 2px solid #cbd5e0; border-radius: 5px;
+    background-color: #fff; cursor: pointer;
+    vertical-align: middle; position: relative;
+    margin-right: 8px;
+}
+input[type="checkbox"]:checked { background-color: #6c5ce7; border-color: #6c5ce7; }
+input[type="checkbox"]:checked::after {
+    content: '✔'; color: white; font-size: 14px;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+}
+
 @media (max-width: 1024px) {
     .shell { display: block; width: 100%; padding: 0; }
     .shell-tabs { display: flex; flex-direction: row; gap: 10px; overflow-x: auto; margin-bottom: 20px; position: static; min-height: auto; padding: 15px; }
