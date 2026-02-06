@@ -176,30 +176,53 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
 
       <div class="pay-tabs">
         <div class="pay-tab active" onclick="switchSmsSubTab('list')">📨 待發送名單</div>
-        <div class="pay-tab" onclick="switchSmsSubTab('tpl')">💬 範本設定</div>
-      </div>
+<button class="shell-tab" onclick="switchTab('panel-templates', this)">
+    💬 範本設定
+</button>
 
-<div id="sms-sub-list" class="pay-panel active">
-  <div id="smsListContainer"></div>
+<button class="shell-tab" onclick="switchTab('panel-sms', this)">
+    📱 SMS 客戶通知
+</button>
+
+
+<div id="panel-sms" class="shell-panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+        <h2 style="margin:0;">📱 SMS 發送作業</h2>
+        <div style="font-size:13px; color:#999;">
+          <span class="sms-status-dot dot-online"></span> 準備就緒
+        </div>
+    </div>
+
+    <h3 style="font-size:16px; margin-bottom:10px; color:#64748b;">1️⃣ 勾選收件人</h3>
+    <div id="smsListContainer" style="margin-bottom: 30px; min-height:100px;"></div>
+
+    <div style="background: #f1f5f9; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0;">
+        <h3 style="margin-top:0; font-size:16px; color:#64748b; margin-bottom:15px;">2️⃣ 選擇內容並發送</h3>
+        
+        <div style="display:flex; gap:15px; margin-bottom:15px; align-items:center;">
+            <select id="smsTemplateSelect" onchange="previewTemplate()" style="flex:1; padding:12px; border-radius:10px; border:1px solid #cbd5e0; font-size:15px;">
+                <option value="">-- 請選擇要使用的範本 --</option>
+            </select>
+            
+            <button class="btn btn-primary" onclick="sendSelectedSMS()" style="padding: 12px 25px; font-size:15px;">
+                🚀 發送選取簡訊
+            </button>
+        </div>
+
+        <textarea id="smsPreviewBox" rows="3" placeholder="選取範本後，預覽內容將顯示於此..." style="width:100%; padding:15px; border-radius:10px; border:1px solid #cbd5e0; background:#fff; color:#475569; font-size:14px;"></textarea>
+    </div>
 </div>
 
-<div id="sms-sub-tpl" class="pay-panel">
+
+<div id="panel-templates" class="shell-panel">
   
   <div id="tpl-view-list">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-      <h3 style="margin:0;">📂 範本管理</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <h2 style="margin:0;">💬 範本管理</h2>
       <button class="btn btn-primary" onclick="showAddTpl()">➕ 新增範本</button>
     </div>
     
     <div id="templateListContainer"></div>
-    
-    <div style="margin-top:30px; border-top:1px dashed #eee; padding-top:20px;">
-        <label style="font-size:12px; color:#888;">👇 快速測試預覽：</label>
-        <div style="display:flex; gap:10px; margin-bottom:5px;">
-           <select id="smsTemplateSelect" onchange="previewTemplate()" style="padding:8px; width:200px;"></select>
-        </div>
-        <textarea id="smsPreviewBox" rows="3" style="width:100%; padding:10px; background:#f9f9f9; border:1px solid #eee; color:#666;" placeholder="選擇範本後預覽內容..."></textarea>
-    </div>
   </div>
 
   <div id="tpl-view-edit" style="display:none;">
@@ -208,10 +231,10 @@ style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; f
       <button class="btn btn-secondary btn-sm" onclick="cancelEditTpl()">↩ 返回列表</button>
     </div>
 
-    <input id="tplNameInput" placeholder="輸入範本名稱 (例如: 到貨通知)" style="width:100%; padding:12px; margin-bottom:15px; font-weight:bold;">
+    <input id="tplNameInput" placeholder="範本名稱 (例如: 到貨通知)" style="width:100%; padding:12px; margin-bottom:15px; font-weight:bold; border-radius:8px; border:1px solid #cbd5e0;">
     
-    <textarea id="tplContentInput" rows="10" placeholder="輸入簡訊內容...
-可用參數: {name}, {no}, {store}, {deadline}" style="width:100%; padding:15px; border:1px solid #e2e8f0; border-radius:12px; font-size:14px; line-height:1.6;"></textarea>
+    <textarea id="tplContentInput" rows="12" placeholder="輸入簡訊內容...
+可用參數: {name}, {no}, {store}, {deadline}" style="width:100%; padding:15px; border:1px solid #cbd5e0; border-radius:12px; font-size:14px; line-height:1.6;"></textarea>
 
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn btn-primary" onclick="saveTemplate()">💾 儲存範本</button>
