@@ -194,3 +194,98 @@ input[type="checkbox"]:checked::after {
     .shell-content { padding: 0 10px; }
     .shell-panel { padding: 20px; }
 }
+
+/* --- 📱 RWD 響應式優化 (解決擠壓感) --- */
+
+/* 針對平板與手機 (小於 1024px) */
+@media (max-width: 1024px) {
+    /* 1. 版面改為直式堆疊 */
+    .shell { 
+        display: block; 
+        width: 100%; 
+        padding: 10px; /* 增加外圍呼吸空間 */
+        gap: 20px;
+    }
+
+    /* 2. 選單變為橫向滑動 (像 App 的導航列) */
+    .shell-tabs { 
+        display: flex; 
+        flex-direction: row; 
+        gap: 10px; 
+        overflow-x: auto; /* 允許橫向滑動 */
+        padding: 15px; 
+        position: static; 
+        min-height: auto;
+        margin-bottom: 20px;
+        white-space: nowrap; /* 防止按鈕換行 */
+        /* 隱藏醜醜的滾動條 */
+        scrollbar-width: none; 
+        -ms-overflow-style: none;
+    }
+    .shell-tabs::-webkit-scrollbar { display: none; }
+
+    .shell-tab { 
+        flex: 0 0 auto; 
+        padding: 10px 20px; 
+        font-size: 14px; 
+        border-radius: 50px; /* 變回膠囊狀 */
+        background: rgba(255,255,255,0.5);
+    }
+    .shell-tab.active {
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    /* 3. 內容區塊放鬆 */
+    .shell-content { padding: 0; }
+    .shell-panel { 
+        padding: 20px; /* 內距縮小，讓內容空間變大 */
+        min-height: auto;
+    }
+    
+    /* 4. 頂部標題自動換行 (避免撞在一起) */
+    .shell-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin: -20px -20px 20px -20px !important; /* 修正邊距 */
+        padding: 20px !important;
+        border-radius: 24px 24px 0 0 !important;
+    }
+    .shell-header > div {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* 針對手機直立 (小於 768px) */
+@media (max-width: 768px) {
+    /* 5. 表單強制變單欄 (解決輸入框太窄) */
+    .pay-form-grid {
+        grid-template-columns: 1fr !important; /* 強制 1 欄 */
+        gap: 15px;
+    }
+
+    /* 6. 按鈕群組自動堆疊 */
+    .shell-panel .btn {
+        width: 100%; /* 手機上按鈕滿版比較好按 */
+        margin-bottom: 5px;
+    }
+    
+    /* 工具列自動換行 */
+    .shell-panel > div[style*="flex"] {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    /* 搜尋框和下拉選單滿版 */
+    #quickSearch, .batch-date-box, select {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    
+    .batch-date-box {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
