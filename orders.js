@@ -575,7 +575,6 @@ window.pushToSMS = pushToSMSImpl;
 window.doCalc = doCalcImpl;
 
 window.switchTab = switchTabImpl;
-window.switchSmsSubTab = switchSmsSubTabImpl;
 
 window.safeRender = safeRenderImpl;
 
