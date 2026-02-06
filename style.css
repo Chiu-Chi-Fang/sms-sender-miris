@@ -292,3 +292,21 @@ tbody tr:has(input[type="checkbox"]:checked) {
     cursor: pointer;
     border: none;
 }
+
+/* --- style.css 新增 --- */
+
+.batch-select {
+    border: 1px solid #b2ebf2; /* 跟背景框同色系的邊框 */
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: #00695c;
+    cursor: pointer;
+    outline: none;
+    margin-right: 5px; /* 跟日期欄位保持距離 */
+}
+
+.batch-select:hover {
+    border-color: #00b894;
+}
