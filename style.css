@@ -2,7 +2,7 @@
 
 * { box-sizing: border-box; }
 
-/* --- 1. 全域設定 --- */
+/* --- 1. 全域設定 (強制置中核心) --- */
 body {
   margin: 0;
   font-family: 'Poppins', 'Noto Sans TC', sans-serif;
@@ -11,18 +11,26 @@ body {
   min-height: 100vh;
   padding: 20px;
   color: #2d3436;
+  
+  /* ★★★ 關鍵修改：使用 Flexbox 強制內容水平置中 ★★★ */
+  display: flex;
+  justify-content: center; /* 水平置中 */
+  align-items: flex-start; /* 靠上對齊 (避免垂直置中導致頭被切掉) */
 }
 
 /* --- 2. 版面結構 --- */
 .shell {
-  max-width: 1440px; 
-  width: 95%;
-  margin: 0 auto;
+  /* ★放寬寬度：上限改為 1600px，適應 27 吋大螢幕 */
+  max-width: 1600px; 
+  width: 100%; /* 在 Flexbox 下，設為 100% 會自動被 justify-content 限制 */
+  
+  /* 保險起見，保留 margin auto */
+  margin-inline: auto; 
   
   display: grid;
   grid-template-columns: 220px 1fr; 
   grid-template-rows: auto 1fr;
-  gap: 30px; /* 拉大間距，更寬敞 */
+  gap: 30px; 
   align-items: start;
 }
 
@@ -40,7 +48,7 @@ body {
 .shell-tabs { 
   grid-column: 1 / 2;
   grid-row: 2 / 3;
-  padding: 25px 20px; /* 加大內距 */
+  padding: 25px 20px;
   display: flex;
   flex-direction: column; 
   gap: 12px;
@@ -51,7 +59,7 @@ body {
 
 .shell-tab {
   text-align: left;
-  padding: 14px 18px; /* ★按鈕變大 */
+  padding: 14px 18px;
   border-radius: 12px;
   font-size: 14px;
   color: #64748b;
@@ -80,11 +88,14 @@ body {
 .shell-content { 
   grid-column: 2 / 3;
   grid-row: 2 / 3;
+  /* 確保內容區寬度正確 */
+  width: 100%;
+  min-width: 0; 
 }
 
 .shell-panel { 
   display: none; 
-  padding: 40px; /* ★加大面板內距，讓內容不要貼邊 */
+  padding: 40px; 
   min-height: 85vh;
   animation: fadeIn 0.2s ease-out; 
 }
@@ -110,7 +121,7 @@ table {
 }
 
 th, td { 
-    padding: 16px 24px; /* ★這裡加大了！原本是 12px 18px */
+    padding: 16px 24px; 
     border-bottom: 1px solid rgba(0,0,0,0.05);
     vertical-align: middle; 
     text-align: left; 
@@ -139,13 +150,13 @@ tbody tr:has(.pay-chk:checked) {
     color: #4834d4;
 }
 tbody tr:has(.pay-chk:checked) td:first-child {
-    border-left: 5px solid #6c5ce7; /* 變粗一點點 */
+    border-left: 5px solid #6c5ce7;
 }
 
 /* --- 7. 篩選按鈕組 --- */
 .filter-group {
     display: flex;
-    gap: 8px; /* 按鈕間距加大 */
+    gap: 8px;
     background: #f1f5f9;
     padding: 5px;
     border-radius: 14px;
@@ -153,7 +164,7 @@ tbody tr:has(.pay-chk:checked) td:first-child {
 }
 
 .filter-label {
-    padding: 10px 20px; /* ★按鈕內部變寬 */
+    padding: 10px 20px;
     border-radius: 10px;
     cursor: pointer;
     font-size: 14px;
@@ -189,9 +200,9 @@ tbody tr:has(.pay-chk:checked) td:first-child {
 /* --- 8. 輸入框與按鈕 (加大版) --- */
 input, select, textarea {
   width:100%; 
-  padding: 14px 18px; /* ★這裡加大了！打字更舒服 */
+  padding: 14px 18px; 
   border:1px solid rgba(100, 116, 139, 0.2); 
-  border-radius: 12px; font-size: 15px; /* 字體也微調大一點 */
+  border-radius: 12px; font-size: 15px; 
   background: rgba(255,255,255,0.8); 
   transition: all 0.2s;
 }
@@ -206,7 +217,7 @@ input:focus, select:focus { outline:none; border-color: #6c5ce7; background: #ff
 
 .sms-card {
     background: #fff; border: 1px solid #cbd5e0; border-radius: 14px;
-    padding: 20px; /* ★卡片內部留白加大 */
+    padding: 20px; 
     margin-bottom: 15px;
     position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.02); transition: all 0.2s;
 }
@@ -237,8 +248,9 @@ input[type="checkbox"]:checked::after {
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
 }
 
+/* --- RWD 設定 (修正斷點) --- */
 @media (max-width: 900px) {
-    .shell { display: block; padding: 10px; gap: 15px; }
+    .shell { display: block; padding: 10px; gap: 15px; width: 100%; }
     .shell-tabs { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding: 10px; position: static; margin-bottom: 15px; }
     .shell-tab { flex: 0 0 auto; padding: 10px 18px; background: rgba(255,255,255,0.6); }
     .shell-tab.active { background: #fff; }
