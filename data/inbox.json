@@ -1,1 +1,113 @@
-{"current_page":1,"data":[],"first_page_url":"https:\/\/track.tw\/api\/v1\/package\/all\/inbox?page=1","from":null,"last_page":1,"last_page_url":"https:\/\/track.tw\/api\/v1\/package\/all\/inbox?page=1","links":[{"url":null,"label":"\u4e0a\u4e00\u9801","page":null,"active":false},{"url":"https:\/\/track.tw\/api\/v1\/package\/all\/inbox?page=1","label":"1","page":1,"active":true},{"url":null,"label":"\u4e0b\u4e00\u9801","page":null,"active":false}],"next_page_url":null,"path":"https:\/\/track.tw\/api\/v1\/package\/all\/inbox","per_page":100,"prev_page_url":null,"to":null,"total":0,"counts":{},"sum_amount":0,"arrived_sum_amount":0}
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>服務暫時維護中 - Track.TW</title>
+    <style>
+        :root {
+            --ink-900: #1c1917;
+            --ink-700: #44403c;
+            --ink-500: #78716c;
+            --paper: #faf8f6;
+            --rule: #e7e2dd;
+            --brand-500: #f97316;
+            --brand-600: #ea580c;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--paper);
+            color: var(--ink-900);
+            font-family: 'PingFang TC', 'Noto Sans TC',
+                'Microsoft JhengHei', system-ui,
+                -apple-system, sans-serif;
+            line-height: 1.6;
+        }
+
+        header {
+            border-bottom: 1px solid var(--rule);
+            background: #fff;
+            padding: 14px 16px;
+        }
+
+        header a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--ink-900);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        header span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            background: var(--brand-500);
+        }
+
+        main {
+            max-width: 32rem;
+            margin: 0 auto;
+            padding: 48px 16px;
+        }
+
+        .code {
+            font-family: ui-monospace, 'SFMono-Regular',
+                Menlo, monospace;
+            font-size: 13px;
+            color: var(--ink-500);
+        }
+
+        h1 {
+            margin: 6px 0 0;
+            font-size: 28px;
+            line-height: 1.25;
+        }
+
+        p {
+            margin: 12px 0 0;
+            color: var(--ink-700);
+        }
+
+        .hint {
+            margin-top: 28px;
+            font-size: 13px;
+            color: var(--ink-500);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/">
+            <span aria-hidden="true"></span>
+            Track.TW
+        </a>
+    </header>
+
+    <main>
+        <p class="code">503 Service Unavailable</p>
+
+        <h1>服務暫時維護中</h1>
+
+        <p>
+            由於 PHP 近期揭露重大安全漏洞，目前官方尚未釋出修補程式。
+            為避免潛在的資料外洩風險，我們決定暫時停止 Track.TW 的對外服務。
+        </p>
+
+        <p>
+            待官方發布安全更新並完成修補後，將儘速恢復服務。
+        </p>
+
+        <p class="hint">
+            造成不便，敬請見諒。
+        </p>
+    </main>
+</body>
+</html>
